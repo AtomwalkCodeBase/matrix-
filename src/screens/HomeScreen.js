@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, StatusBar, TouchableOpacity, ScrollView, Dimensions, StyleSheet, SafeAreaView, Platform, RefreshControl, Animated, Alert, FlatList, TextInput, ActivityIndicator, BackHandler } from 'react-native';
+import { View, Text, Image, StatusBar, TouchableOpacity, ScrollView, Dimensions, StyleSheet, Platform, RefreshControl, Animated, Alert, FlatList, TextInput, ActivityIndicator, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppContext } from '../../context/AppContext';
 import { useRouter } from "expo-router";
@@ -16,6 +16,8 @@ import SuccessModal from '../components/SuccessModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import Sidebar from '../components/Sidebar';
 import ErrorModal from '../components/ErrorModal';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../Styles/appStyle';
 
 const { width, height } = Dimensions.get('window');
 
@@ -92,7 +94,7 @@ const HomePage = ({ navigation }) => {
   }, [navigation]);
 
   useEffect(() => {
-    fetchEvents();
+    // fetchEvents();
     setCompany(companyInfo);
   }, [empId, companyInfo]);
 
@@ -115,70 +117,6 @@ const HomePage = ({ navigation }) => {
 );
 
 
-
-  const fetchEvents = async () => {
-    try {
-      setEventLoading(true);
-
-      const paramsAllEvents = {
-        date_range: 'D0',
-        event_type: '',
-      };
-      const resAllEvents = await getEvents(paramsAllEvents);
-
-      const filteredEventTypes = ['C', 'B', 'A', 'M', 'O'];
-      const filteredEvents = resAllEvents.data.filter(event =>
-        filteredEventTypes.includes(event.event_type) &&
-        (event.event_status === 'A' || event.event_status === 'P')
-      );
-
-      let personalEvents = [];
-      if (empId) {
-        const paramsWithEmpId = {
-          date_range: 'D0',
-          event_type: '',
-          emp_id: empId
-        };
-        const resWithEmpId = await getEvents(paramsWithEmpId);
-        personalEvents = resWithEmpId.data.filter(event =>
-          event.event_status === 'A' || event.event_status === 'P'
-        );
-      }
-
-      const combinedEvents = [...filteredEvents, ...personalEvents].reduce((acc, current) => {
-        const x = acc.find(item => item.id === current.id);
-        if (!x) {
-          return acc.concat([current]);
-        } else {
-          return acc;
-        }
-      }, []);
-
-      setEventData(combinedEvents);
-      setFilteredEvents(combinedEvents);
-    } catch (error) {
-      // console.error("Fetch Event Error:", error?.response?.data);
-      try {
-        const paramsCompanyEvents = {
-          date_range: 'D0',
-          event_type: 'C'
-        };
-        const resCompanyEvents = await getEvents(paramsCompanyEvents);
-        const filteredCompanyEvents = resCompanyEvents.data.filter(event =>
-          event.event_status === 'A' || event.event_status === 'P'
-        );
-        setEventData(filteredCompanyEvents);
-        setFilteredEvents(filteredCompanyEvents);
-      } catch (fallbackError) {
-        // console.error("Fallback Fetch Error:", fallbackError);
-        setEventData([]);
-        setFilteredEvents([]);
-      }
-    } finally {
-      setEventLoading(false);
-    }
-  };
-
   useEffect(() => {
     // Initialize profile data and fetch events
     const initializeData = async () => {
@@ -200,7 +138,7 @@ const HomePage = ({ navigation }) => {
       }
 
       // Fetch events
-      await fetchEvents();
+      // await fetchEvents();
     };
 
     initializeData();
@@ -271,86 +209,55 @@ const HomePage = ({ navigation }) => {
     });
   };
 
-  const formatTime = (date) => {
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Determine button states for check-in/out
-  const isCheckInDisabled = !employeeData ||
-    (attendance && attendance.start_time && !attendance.end_time) ||
-    (attendance && attendance.geo_status === 'O') ||
-    previousDayUnchecked ||
-    geoLocationDataMissing;
-
-  const hasCheckedOut = attendance && typeof attendance.end_time === 'string' && attendance.end_time !== '';
-  const isCheckOutDisabled = !employeeData || (!checkedIn && !previousDayUnchecked) || (!previousDayUnchecked && hasCheckedOut) || geoLocationDataMissing;
-
 
   const menuItems = [
-    {
-      id: 1,
-      title: 'Attendance',
-      icon: <FontAwesome5 name="user-clock" size={24} color="#a970ff" />,
-      onPress: () => router.push('attendance')
-    },
+    //  ...(isManager ? [{
+    //   id: 1,
+    //   title: 'Project DashBoard',
+    //   // icon: <FontAwesome5 name="user-clock" size={24} color="#a970ff" />,
+    //   icon: <MaterialCommunityIcons name="view-dashboard-outline" size={24} color={colors.primary} />,
+    //   onPress: () =>  router.push({pathname: 'ManagerTimeSheet'})
+    // }] : []),
     {
       id: 2,
       title: 'Timesheet',
-      icon: <MaterialCommunityIcons name="timetable" size={24} color="#a970ff" />,
+      icon: <MaterialCommunityIcons name="timetable" size={24} color={colors.primary} />,
       onPress: () => router.push('TimeSheet')
     },
     {
       id: 3,
       title: 'Leaves',
-      icon: <FontAwesome5 name="calendar-alt" size={24} color="#a970ff" />,
-      onPress: () => router.push('leave')
+      icon: <FontAwesome5 name="calendar-alt" size={24} color={colors.primary} />,
+      onPress: () => router.push('LeaveScreen')
     },
-    ...(isManager ? [{
-      id: 4,
-      title: 'Approve Leave',
-      icon: <FontAwesome5 name="calendar-check" size={24} color="#a970ff" />,
-      onPress: () => handlePressApproveLeave()
-    }] : []),
-    {
-      id: 5,
-      title: 'Claims',
-      icon: <FontAwesome5 name="rupee-sign" size={24} color="#a970ff" />,
-      onPress: () => router.push('ClaimScreen')
-    },
-    ...(isManager ? [{
-      id: 6,
-      title: 'Approve Claims',
-      icon: <FontAwesome5 name="money-bill-wave-alt" size={24} color="#a970ff" />,
-      onPress: () => router.push('ApproveClaim')
-    }] : []),
+    // {
+    //   id: 5,
+    //   title: 'Claims',
+    //   icon: <FontAwesome5 name="rupee-sign" size={24} color={colors.primary} />,
+    //   onPress: () => router.push('ClaimScreen')
+    // },
+    // ...(isManager ? [{
+    //   id: 6,
+    //   title: 'Approve Claims',
+    //   icon: <FontAwesome5 name="money-bill-wave-alt" size={24} color={colors.primary} />,
+    //   onPress: () => router.push('ApproveClaim')
+    // }] : []),
     {
       id: 7,
       title: 'Holiday',
-      icon: <FontAwesome5 name="umbrella-beach" size={24} color="#a970ff" />,
+      icon: <FontAwesome5 name="umbrella-beach" size={24} color={colors.primary} />,
       onPress: () => router.push('HolidayList')
     },
     {
       id: 8,
-      title: 'More',
-      icon: <Feather name="more-horizontal" size={24} color="#a970ff" />,
-      onPress: () => router.push('MoreScreen')
-    }
+      title: 'Travel Request',
+      icon: <MaterialCommunityIcons name="airplane" size={24} color={colors.primary} />,
+      onPress: () => router.push({ pathname: 'TravelScreen', params: { empId },})
+    },
   ];
 
-  const getEventIcon = (eventType) => {
-    switch (eventType) {
-      case 'B': return 'cake';
-      case 'A': return 'work';
-      case 'C': return 'business';
-      case 'M': return 'favorite';
-      case 'P': return 'trending-up';
-      case 'O': return 'event';
-      default: return 'event';
-    }
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.safeArea} edges={["left", "right",]}>
       {(isLoading) && (
         <View style={styles.loaderContainer}>
           <Loader visible={true} />
@@ -360,16 +267,11 @@ const HomePage = ({ navigation }) => {
       {/* Curved Header */}
       <View style={styles.headerContainer}>
         <LinearGradient
-          colors={['#a970ff', '#a970ff']}
+          colors={[colors.primary, colors.primary]}
           start={[0, 0]}
           end={[1, 1]}
           style={styles.headerGradient}
         >
-          <View style={styles.menuIconWrapper}>
-            <TouchableOpacity onPress={() => setIsSidebarOpen(true)} style={styles.menuIconButton}>
-              <Feather name="menu" size={28} color="#fff" />
-            </TouchableOpacity>
-          </View>
           <View style={styles.headerTop}>
             <View style={styles.headerTopContent}>
               <View style={styles.companySection}>
@@ -398,96 +300,6 @@ const HomePage = ({ navigation }) => {
             </Text>
           </View>
         </LinearGradient>
-
-        {/* Time Card */}
-        <View style={styles.timeCardContainer}>
-          <LinearGradient
-            colors={['#ffffff', '#f8f5ff']}
-            style={styles.timeCard}
-          >
-            <View style={styles.timeCardContent}>
-              <View style={styles.timeSection}>
-                <Text style={styles.dateText}>
-                  {currentTime.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric'
-                  })}
-                </Text>
-                <Text style={styles.timeText}>
-                  {formatTime(currentTime)}
-                </Text>
-              </View>
-              <View style={styles.attendanceButtonsContainer}>
-                <View style={styles.attendanceButtons}>
-                  <TouchableOpacity
-                    style={[
-                      styles.attendanceButton,
-                      styles.checkInButton,
-                      isCheckInDisabled && styles.disabledButton,
-                      checkedIn && styles.checkedInButton
-                    ]}
-                    onPress={() => handleCheck('ADD', setLocalSuccessModalVisible, setLocalAttendanceErrorMessage)}
-                    disabled={isCheckInDisabled}
-                  >
-                    <MaterialCommunityIcons
-                      name="login"
-                      size={20}
-                      color={isCheckInDisabled ? "#888" : "#fff"}
-                    />
-                    <Text
-                      style={[
-                        styles.attendanceButtonText,
-                        isCheckInDisabled && styles.disabledButtonText
-                      ]}
-                      numberOfLines={1}
-                      ellipsizeMode="tail"
-                    >
-                      {checkedIn
-                        ? `Checked In`
-                        : 'Check In'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.attendanceButton,
-                      styles.checkOutButton,
-                      isCheckOutDisabled && styles.disabledButton,
-                      previousDayUnchecked && styles.yesterdayButton
-                    ]}
-                    onPress={() => {
-                      if (previousDayUnchecked) {
-                        setLocalConfirmModalVisible(true);
-                      } else {
-                        // setIsYesterdayCheckout(false);
-                        handleCheckOutAttempt(setLocalRemarkModalVisible, setLocalAttendanceErrorMessage, setShowEffortConfirmModal);
-                      }
-                    }}
-                    disabled={isCheckOutDisabled}
-                  >
-                    <MaterialCommunityIcons
-                      name="logout"
-                      size={20}
-                      color={isCheckOutDisabled ? "#888" : "#fff"}
-                    />
-                    <Text
-                      style={[
-                        styles.attendanceButtonText,
-                        isCheckOutDisabled && styles.disabledButtonText
-                      ]}
-                      numberOfLines={1}
-                      ellipsizeMode="middle"
-                    >
-                      {previousDayUnchecked ? 'Check-Out Yesterday' : 'Check Out'}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </LinearGradient>
-        </View>
       </View>
 
       {/* Main Content */}
@@ -496,92 +308,9 @@ const HomePage = ({ navigation }) => {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#a970ff"]} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
       >
-        {/* Birthday and Events Cards Slider */}
-        {(isBirthday || filteredEvents.length > 0) && (
-          <View style={styles.eventsContainer}>
-            <Text style={styles.sectionTitle}>Today's Events</Text>
-            {eventLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color="#a970ff" />
-              </View>
-            ) : (
-              <FlatList
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                data={[
-                  ...(isBirthday ? [{ id: 'birthday', type: 'birthday' }] : []),
-                  ...filteredEvents.map(event => ({
-                    ...event,
-                    type: 'event',
-                    title: event.event_name,
-                    description: event.event_description,
-                    time: `${event.event_start_time}${event.event_end_time ? ` - ${event.event_end_time}` : ''}`,
-                    icon: getEventIcon(event.event_type)
-                  }))
-                ]}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) =>
-                  item.type === 'birthday' ? (
-                    <Animated.View style={[styles.birthdayCard, { opacity: fadeAnim }]}>
-                      <LinearGradient
-                        colors={['#a970ff', '#8a5bda']}
-                        start={[0, 0]}
-                        end={[1, 1]}
-                        style={{
-                          flex: 1,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          padding: 16
-                        }}
-                      >
-                        <View style={styles.birthdayIconContainer}>
-                          <MaterialCommunityIcons name="cake-variant" size={28} color="#fff" />
-                        </View>
-                        <View style={styles.birthdayTextContainer}>
-                          <Text style={styles.birthdayText}>Happy Birthday!</Text>
-                          <Text style={styles.birthdaySubtext}>
-                            Wishing you a fantastic day filled with joy and celebration.
-                          </Text>
-                        </View>
-                      </LinearGradient>
-                    </Animated.View>
-                  ) : (
-                    <TouchableOpacity onPress={() => handleEventPress(item)}>
-                      <View style={styles.eventCard}>
-                        <LinearGradient
-                          colors={['#a970ff', '#8a5bda']}
-                          start={[0, 0]}
-                          end={[1, 1]}
-                          style={{
-                            flex: 1,
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            padding: 16
-                          }}
-                        >
-                          <View style={styles.eventIconContainer}>
-                            <MaterialIcons name={item.icon} size={28} color="#fff" />
-                          </View>
-                          <View style={styles.eventTextContainer}>
-                            <Text style={styles.eventTitle}>{item.event_text}</Text>
-                            <Text style={styles.eventDescription} numberOfLines={2}>
-                              {item.event_type_display}
-                            </Text>
-                            <Text style={styles.eventTime}>{item.emp_name}</Text>
-                          </View>
-                        </LinearGradient>
-                      </View>
-                    </TouchableOpacity>
-                  )
-                }
-                contentContainerStyle={styles.cardsSlider}
-              />
-            )}
-          </View>
-        )}
 
         {/* Quick Actions Section */}
         <View style={styles.sectionContainer}>
@@ -604,58 +333,6 @@ const HomePage = ({ navigation }) => {
         </View>
       </ScrollView>
 
-      {/* Remark Modal for checkout */}
-      <Modal transparent visible={localRemarkModalVisible} animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {isYesterdayCheckout ? 'Yesterday\'s Check Out Remarks' : 'Check Out Remarks'}
-              </Text>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => {setLocalRemarkModalVisible(false); setRemark("")}}
-              >
-                <Feather name="x" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <RemarksInput
-              remark={remark}
-              label={false}
-              setRemark={setRemark}
-              error={errors.remarks}
-              placeholder="Please enter your check out remark"
-            />
-
-            <TouchableOpacity
-              style={styles.modalSubmitButton}
-              onPress={() => handleRemarkSubmit(setLocalRemarkModalVisible, setLocalAttendanceErrorMessage, setLocalSuccessModalVisible)}
-            >
-              <Text style={styles.modalSubmitText}>Submit Check Out</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <SuccessModal
-        visible={localSuccessModalVisible}
-        onClose={() => setLocalSuccessModalVisible(false)}
-        message="Attendance recorded successfully"
-      />
-
-      <ConfirmationModal
-        visible={localConfirmModalVisible}
-        message="You have an unfinished checkout from yesterday. Do you want to complete it"
-        onConfirm={() => {
-          setLocalConfirmModalVisible(false);
-          handleYesterdayCheckout(setLocalRemarkModalVisible);
-        }}
-        onCancel={() => setLocalConfirmModalVisible(false)}
-        confirmText="Check Out"
-        cancelText="Cancel"
-      />
-
       <ConfirmationModal
         visible={showExitModal}
         message="Are you sure you want to exit the app?"
@@ -676,23 +353,6 @@ const HomePage = ({ navigation }) => {
         onClose={() => setLocalAttendanceErrorMessage({ message: "", visible: false })}
       />
 
-      <ConfirmationModal
-        visible={showEffortConfirmModal}
-        headerTitle="Warning"
-        messageColor="#EF6C00"
-        message="Your timesheet hours seem unusual. Do you still want to check out ?"
-        onConfirm={() => {
-          setShowEffortConfirmModal(false);
-          setTimesheetCheckedToday(true);
-          setLocalRemarkModalVisible(true);
-        }}
-        onCancel={() => setShowEffortConfirmModal(false)}
-        confirmText="Yes"
-        cancelText="No"
-      />
-
-      {/* Sidebar overlay (should be last to overlay everything) */}
-      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} style={styles.sidebarOverlay} />
     </SafeAreaView>
   );
 };
@@ -700,7 +360,7 @@ const HomePage = ({ navigation }) => {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f8f5ff',
+    backgroundColor: '#e6e6f1ff',
   },
   headerContainer: {
     overflow: 'visible',
@@ -721,7 +381,7 @@ const styles = StyleSheet.create({
   headerGradient: {
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 10,
     paddingHorizontal: 20,
-    paddingBottom: 40, // Extra padding for the curved effect
+    paddingBottom: 10, // Extra padding for the curved effect
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
   },
@@ -857,7 +517,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkInButton: {
-    backgroundColor: '#a970ff',
+    backgroundColor: '#e8eef6',
   },
   checkOutButton: {
     backgroundColor: '#a970ff',
@@ -1026,7 +686,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     marginBottom: 15,
     elevation: 3,
-    shadowColor: '#a970ff',
+    shadowColor: '#b9cce5',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -1036,7 +696,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: 'rgba(169, 112, 255, 0.1)',
+    backgroundColor: "#e8eef6",
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,

@@ -7,6 +7,7 @@ import {
   Platform 
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { colors } from '../Styles/appStyle';
 
 const { width } = Dimensions.get('window');
 
@@ -44,7 +45,7 @@ const ApplyButton = ({ onPress, buttonText, icon, tabBarHeight }) => {
 
 const styles = StyleSheet.create({
   buttonContainer: {
-    backgroundColor: '#a970ff',
+    backgroundColor: colors.primary,
     borderRadius: 25,
     alignSelf: 'center',
     flexDirection: 'row',

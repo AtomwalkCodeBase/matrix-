@@ -15,6 +15,7 @@ import Loader from '../../src/components/old_components/Loader';
 import { forgetUserPinView } from '../../src/services/productServices';
 import SuccessModal from '../../src/components/SuccessModal';
 import { AppContext } from '../../context/AppContext';
+import { colors } from '../../src/Styles/appStyle';
 
 const { width, height } = Dimensions.get('window');
 
@@ -147,7 +148,7 @@ const {completLogout} = useContext(AppContext);
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <Header>
             <LinearGradient 
-              colors={['#a970ff', '#8a5bda']} 
+              colors={[colors.primary, colors.primary]} 
               style={styles.headerGradient}
             >
               <View style={styles.logoContainer}>
@@ -385,7 +386,7 @@ const Input = styled.TextInput`
 `;
 
 const SubmitButton = styled.TouchableOpacity`
-  background-color: ${props => props.disabled ? '#adb5bd' : '#a970ff'};
+  background-color: ${props => props.disabled ? '#adb5bd' : `${colors.primary}`};
   padding: ${scaleHeight(16)}px;
   border-radius: ${scaleWidth(10)}px;
   align-items: center;

@@ -303,7 +303,7 @@ const AddClaim = (props) => {
               borderRadius: 8,
               marginBottom: 15,
               borderLeftWidth: 4,
-              borderLeftColor: '#a970ff'
+              borderLeftColor: colors.primary
             }}>
               <Text style={{
                 fontWeight: 'bold',

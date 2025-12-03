@@ -16,12 +16,12 @@ const Label = styled.Text`
   margin-bottom: 5px;
 `;
 
-const AmountInput = ({ error, label, claimAmount, setClaimAmount }) => {
+const AmountInput = ({ error, label,placeholder ,claimAmount, setClaimAmount }) => {
   return (
     <>
       <Label>{label}</Label>
       <Input
-        placeholder="Claim Amount"
+        placeholder={placeholder || "Claim Amount"}
         keyboardType="numeric"
         value={claimAmount}
         onChangeText={setClaimAmount}

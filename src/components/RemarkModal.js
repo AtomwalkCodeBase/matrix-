@@ -2,6 +2,7 @@ import React from "react";
 import { Modal, TouchableOpacity, View, Text, TextInput, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Loader from "./old_components/Loader";
+import { colors } from "../Styles/appStyle";
 
 const RemarkModal = ({
   visible,
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   addButton: {
-    backgroundColor: "#a970ff",
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 15,
     alignItems: "center",

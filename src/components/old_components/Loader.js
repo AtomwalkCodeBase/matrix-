@@ -74,7 +74,7 @@ const Loader = ({ visible = false, onTimeout }) => {
     <View style={[styles.container, { height, width }]}>
       <Animated.View style={[styles.loader, { transform: [{ scale: pulseAnim }] }]}>
         <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
-          <FontAwesome5 name="atom" size={40} color="#a970ff" />
+          <FontAwesome5 name="atom" size={40} color={colors.primary} />
         </Animated.View>
         <Text style={styles.loadingText}>Loading...</Text>
       </Animated.View>
@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     marginTop: 15,
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#a970ff',
+    color: colors.primary,
   },
 });
 

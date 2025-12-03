@@ -1,6 +1,7 @@
 import React from 'react';
 import {  Text, Dimensions, Platform, StatusBar, StyleSheet, View, TouchableOpacity, SafeAreaView} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../Styles/appStyle';
 
 const HeaderComponent = ({ headerTitle,  onBackPress, icon1Name, icon1OnPress, icon2Name, icon2OnPress, filterCount }) => {
   return (
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   safeArea: {
-    backgroundColor: '#a970ff',
+    backgroundColor: colors.primary,
   },
   headerContainer: {
     flexDirection: 'row',
@@ -73,7 +74,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#A6A7A6',
-    backgroundColor: '#a970ff',
+    backgroundColor: colors.primary,
   },
   backButton: {
     padding: 8,

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { TouchableOpacity, Text, Image, ActivityIndicator, Modal, View, StyleSheet, Animated } from "react-native";
+import { TouchableOpacity, Text, Image, ActivityIndicator, Modal, View, StyleSheet, Animated, Alert } from "react-native";
 import styled from "styled-components/native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -41,6 +41,79 @@ const Icon = styled.Image`
   flex-shrink: 0;
 `;
 
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+const ALLOWED_MIME_TYPES = [
+  "image/*",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "text/csv",
+  "application/json",
+  "application/zip",
+  "*/*"
+];
+
+const filenameFromUri = (uri = "") =>
+  uri.split("/").pop()?.split("?")[0] || "file";
+
+const inferMime = (filename = "") => {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  const map = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    bmp: "image/bmp",
+    webp: "image/webp",
+    heic: "image/heic",
+
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    csv: "text/csv",
+    txt: "text/plain",
+    zip: "application/zip",
+    json: "application/json"
+  };
+
+  return map[ext] || "application/octet-stream";
+};
+
+const getFileSize = async (uri) => {
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    return info.size || 0;
+  } catch {
+    return 0;
+  }
+};
+
+const getMimeFromFilename = (filename = "") => {
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  switch (ext) {
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "png":
+      return "image/png";
+    case "gif":
+      return "image/gif";
+    case "pdf":
+      return "application/pdf";
+    case "heic":
+      return "image/heic";
+    default:
+      return "application/octet-stream";
+  }
+};
+
+
 const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFileMimeType, error, existingImgUri= null}) => {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -71,98 +144,135 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
     openModal();
   };
 
-  const handleCameraCapture = async () => {
+ const handleCameraCapture = async () => {
     closeModal();
-    setLoading(true)
-    try {
-      const cameraPermission = await ImagePicker.requestCameraPermissionsAsync();
-      if (cameraPermission.granted) {
-        let result = await ImagePicker.launchCameraAsync({
-          mediaTypes: ImagePicker.MediaType.IMAGE,
-          allowsEditing: true,
-          quality: 1,
-        });
+    setLoading(true);
 
-        if (!result.canceled) {
-          const compressedImage = await compressImage(result.assets[0].uri);
-          setFileName(result.assets[0].fileName || "captured_image.jpg");
-          setFileUri(compressedImage.uri);
-          setFileMimeType(result.assets[0].mimeType || "image/jpeg");
-        }
-      } else {
-         Alert.alert(
-                  "Permission Required",
-                  "Camera permission is required to capture photos"
-                );
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (permission.status !== "granted") {
+        Alert.alert("Permission Required", "Camera permission is required to take photos.");
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error("Camera error:", error);
-    }
-    setLoading(false);
-  };
 
-  const handleFileSelect = async () => {
-    closeModal();
-    setLoading(true)
-    try {
-      let result = await DocumentPicker.getDocumentAsync({
-        type: ["image/*", "application/pdf"],
-        copyToCacheDirectory: true,
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        quality: 1,
       });
 
-      if (result.type !== "cancel") {
-        const fileUri = result.assets[0].uri;
-        const fileName = result.assets[0].name;
-        const mimeType = result.assets[0].mimeType || result.type;
-
-        let compressedImageUri = fileUri;
-        if (
-          result.assets[0].mimeType &&
-          result.assets[0].mimeType.startsWith("image/")
-        ) {
-          const compressedImage = await compressImage(fileUri);
-          compressedImageUri = compressedImage.uri || compressedImage;
-        }
-
-        setFileName(fileName);
-        setFileUri(compressedImageUri);
-        setFileMimeType(mimeType);
+      const cancelled = result?.canceled ?? result?.cancelled ?? false;
+      if (cancelled) {
+        setLoading(false);
+        return;
       }
+
+      const uri = result.uri ?? result.assets?.[0]?.uri;
+      if (!uri) {
+        Alert.alert("Error", "Could not read captured image.");
+        setLoading(false);
+        return;
+      }
+
+      // size limit
+      const fileSize = await getFileSize(uri);
+      if (fileSize > MAX_FILE_SIZE) {
+        Alert.alert("File Too Large", "Maximum allowed size is 5 MB.");
+        setLoading(false);
+        return;
+      }
+
+      const compressed = await ImageManipulator.manipulateAsync(uri, [], {
+        compress: 0.9,
+        format: ImageManipulator.SaveFormat.JPEG
+      });
+
+      const filename = filenameFromUri(uri);
+      const mime = inferMime(filename);
+
+      setFileName(filename);
+      setFileUri(compressed.uri);
+      setFileMimeType(mime);
     } catch (error) {
-      console.error("Error while picking file or compressing:", error);
+      console.error("Camera error:", error);
+      Alert.alert("Error", "Unable to capture image.");
     }
+
     setLoading(false);
   };
+
+
+ const handleFileSelect = async () => {
+    closeModal();
+    setLoading(true);
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ALLOWED_MIME_TYPES,
+        copyToCacheDirectory: true
+      });
+
+      if (result.type === "cancel") {
+        setLoading(false);
+        return;
+      }
+
+      const uri = result.uri ?? result.assets?.[0]?.uri;
+      const filename = result.name ?? filenameFromUri(uri);
+      const mime = result.mimeType ?? inferMime(filename);
+
+      if (!uri) {
+        Alert.alert("Error", "Unable to read selected file.");
+        setLoading(false);
+        return;
+      }
+
+      // ❌ Reject videos
+      if (mime.startsWith("video/")) {
+        Alert.alert("Invalid File", "Videos are not allowed.");
+        setLoading(false);
+        return;
+      }
+
+      // size validation
+      const fileSize = await getFileSize(uri);
+      if (fileSize > MAX_FILE_SIZE) {
+        Alert.alert("File Too Large", "Maximum allowed size is 5 MB.");
+        setLoading(false);
+        return;
+      }
+
+      let finalUri = uri;
+
+      // compress images only
+      if (mime.startsWith("image/")) {
+        try {
+          const compressed = await ImageManipulator.manipulateAsync(uri, [], {
+            compress: 0.9,
+            format: ImageManipulator.SaveFormat.JPEG
+          });
+          finalUri = compressed.uri;
+        } catch {
+          console.warn("Compression failed.");
+        }
+      }
+
+      setFileName(filename);
+      setFileUri(finalUri);
+      setFileMimeType(mime);
+    } catch (error) {
+      console.error("File Picker Error:", error);
+      Alert.alert("Error", "Unable to pick file.");
+    }
+
+    setLoading(false);
+  };
+
 
   const clearData = () => {
     setFileName("");
     setFileUri("");
     setFileMimeType("");
-  };
-
-  const compressImage = async (uri) => {
-    let compressQuality = 1;
-    const targetSize = 200 * 1024; // 200 KB
-
-    let compressedImage = await ImageManipulator.manipulateAsync(uri, [], {
-      compress: compressQuality,
-      format: ImageManipulator.SaveFormat.JPEG,
-    });
-
-    let imageInfo = await FileSystem.getInfoAsync(compressedImage.uri);
-
-    while (imageInfo.size > targetSize && compressQuality > 0.1) {
-      compressQuality -= 0.1;
-
-      compressedImage = await ImageManipulator.manipulateAsync(uri, [], {
-        compress: compressQuality,
-        format: ImageManipulator.SaveFormat.JPEG,
-      });
-
-      imageInfo = await FileSystem.getInfoAsync(compressedImage.uri);
-    }
-
-    return compressedImage;
   };
 
   return (
@@ -206,20 +316,33 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
         </Text>
       )}
 
-      {(fileUri || existingImgUri) && ( /\.(jpg|jpeg|png|gif|bmp|webp)$/i.test(fileName)) && (
-        <Image
-          source={{ uri: fileUri ? fileUri : existingImgUri }}
-          style={{
-            width: 250,
-            height: 140,
-            borderRadius: 12,
-            resizeMode: "cover",
-            objectFit: "contain",
-            marginTop: 10,
-            alignSelf: "center"
-          }}
-        />
+     {fileUri && (
+        inferMime(fileName).startsWith("image/") ? (
+          <Image
+            source={{ uri: fileUri }}
+            style={{
+              width: 250,
+              height: 140,
+              borderRadius: 12,
+              resizeMode: "contain",
+              marginTop: 10,
+              alignSelf: "center"
+            }}
+          />
+        ) : (
+          <Text
+            style={{
+              textAlign: "center",
+              marginTop: 10,
+              fontSize: 15,
+              color: "#333"
+            }}
+          >
+            📄 {fileName}
+          </Text>
+        )
       )}
+      
       <Modal visible={showModal} transparent animationType="none">
         <View style={styles.modalOverlay}>
           <TouchableOpacity 
@@ -248,7 +371,7 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
                 onPress={handleCameraCapture}
               >
                 <View style={styles.optionIconContainer}>
-                  <MaterialIcons name="camera-alt" size={24} color="#a970ff" />
+                  <MaterialIcons name="camera-alt" size={24} color={colors.primary} />
                 </View>
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionTitle}>Capture Photo</Text>
@@ -262,7 +385,7 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
                 onPress={handleFileSelect}
               >
                 <View style={styles.optionIconContainer}>
-                  <MaterialIcons name="folder" size={24} color="#a970ff" />
+                  <MaterialIcons name="folder" size={24} color={colors.primary} />
                 </View>
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionTitle}>Choose File</Text>
@@ -298,7 +421,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f0ebff",
   },
   clearText: {
-    color: "#a970ff",
+    color: colors.primary,
     fontSize: 14,
     fontWeight: "600",
   },
@@ -317,7 +440,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     resizeMode: "cover",
     borderWidth: 2,
-    borderColor: "#a970ff",
+    borderColor: colors.primary,
   },
   modalOverlay: {
     flex: 1,

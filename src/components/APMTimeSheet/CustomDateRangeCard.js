@@ -43,7 +43,7 @@ const CustomDateRangeCard = ({
             label="Start Date"
             cDate={startObj}
             setCDate={setStartObj}
-            maximumDate={endObj}
+            // maximumDate={endObj}
           />
           <View style={{ height: 10 }} />
           <DatePicker
@@ -52,6 +52,13 @@ const CustomDateRangeCard = ({
             setCDate={setEndObj}
             minimumDate={startObj}
           />
+          <TouchableOpacity style={styles.applyBtn} onPress={() => onApply()}>
+            <Text style={styles.applyButtonText}>
+
+            Filter
+            </Text>
+          </TouchableOpacity>
+           
         </>
       )}
 
@@ -107,14 +114,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   applyBtn: {
+    marginTop: 10,
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 8,
-    marginLeft: 10,
+
   },
   apply: {
     color: "#fff",
     fontWeight: "600",
   },
+    //   button: {
+    //     flex: 1,
+    //     paddingVertical: 14,
+    //     borderRadius: 10,
+    //     alignItems: "center",
+    //     marginHorizontal: 5
+    // },
+  applyButton: {
+        flex: 1,
+        backgroundColor: colors.primary,
+        borderRadius: 8,
+        paddingVertical: 12,
+        alignItems: "center",
+      },
+      applyButtonText: {
+        color: "white",
+        fontSize: 16,
+        fontWeight: "bold",
+            textAlign: "center"
+      },
 });

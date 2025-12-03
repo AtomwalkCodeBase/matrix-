@@ -18,6 +18,7 @@ import FilterModal from '../components/FilterModal';
 import SuccessModal from '../components/SuccessModal';
 import ErrorModal from '../components/ErrorModal';
 import ClaimModalComponent from '../components/ClaimModalComponent';
+import { colors } from '../Styles/appStyle';
 
 const { width } = Dimensions.get('window');
 
@@ -39,13 +40,13 @@ const TabButton = styled.TouchableOpacity`
   padding: 12px;
   align-items: center;
   border-bottom-width: 2px;
-  border-bottom-color: ${props => props.active ? '#a970ff' : 'transparent'};
+  border-bottom-color: ${props => props.active ? `${colors.primary}` : 'transparent'};
 `;
 
 const TabText = styled.Text`
   font-size: 14px;
   font-weight: ${props => props.active ? 'bold' : 'normal'};
-  color: ${props => props.active ? '#a970ff' : '#666'};
+  color: ${props => props.active ? `${colors.primary}` : '#666'};
 `;
 
 const GroupHeader = styled.TouchableOpacity`

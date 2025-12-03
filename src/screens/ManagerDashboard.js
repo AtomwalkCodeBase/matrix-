@@ -563,5 +563,6 @@ statTextContainer: {
   contentContainer: {
     marginTop: 16,
     paddingBottom: 20,
+    marginHorizontal: 14
   },
 });

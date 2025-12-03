@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// const getDbName = async (path) => {
+//   let dbData = await AsyncStorage.getItem('dbName');
+//   return dbData
+// };
+const getDbName = async () => {
 
-
-const getDbName = async (path) => {
-  let dbData = await AsyncStorage.getItem('dbName');
-  return dbData
+  return "APM_002"
 };
 
 

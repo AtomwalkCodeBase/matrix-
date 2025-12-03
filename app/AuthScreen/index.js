@@ -15,6 +15,7 @@ import { AppContext } from '../../context/AppContext';
 import Loader from '../../src/components/old_components/Loader';
 import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../../src/Styles/appStyle';
 
 
 
@@ -39,7 +40,7 @@ const LoginScreen = () => {
   const [keyboardStatus, setKeyboardStatus] = useState(false);
   const [dbList, setDbList] = useState([]);
   const isLoginDisabled = !mobileNumberOrEmpId || !pin;
-  const [selectedCompany, setSelectedCompany] = useState(null);
+const [selectedCompany, setSelectedCompany] = useState({ label: "Demo Waste Management", value: "APM_002" });
   const [bioStatus, setBioStatus] = useState(false);
 
   const appVersion = Constants.expoConfig?.version || '0.0.1';
@@ -143,13 +144,8 @@ const LoginScreen = () => {
 
   const handleCompanyChange = async (item) => {
     if (!item) return;
-
-    setSelectedCompany(item);
-
-
-
-
-    setCompanyError('');
+setSelectedCompany({ label: "Demo Waste Management", value: "APM_002" });
+  setCompanyError('');
   };
 
 
@@ -215,14 +211,15 @@ const LoginScreen = () => {
 
     try {
       // Get the dbname from the selected company
-      const selected = dbList.find(c => c.ref_cust_name === selectedCompany.value);
-      if (!selected) {
-        setErrorMessage('Invalid company selection');
-        setLoading(false);
-        return;
-      }
+      // const selected = dbList.find(c => c.ref_cust_name === selectedCompany.value);
+      // if (!selected) {
+      //   setErrorMessage('Invalid company selection');
+      //   setLoading(false);
+      //   return;
+      // }
 
-      const dbName = selected.name.replace(/^SD_/, '');
+      // const dbName = selected.name.replace(/^SD_/, '');
+      const dbName = "APM_002";
 
       // Call the login function with just the dbName
       await login(mobileNumberOrEmpId, pin, dbName);
@@ -239,7 +236,7 @@ const LoginScreen = () => {
       <Container>
         <Header style={styles.headerContainer}>
           <LinearGradient
-            colors={["#a970ff", "#a970ff"]}
+            colors={[colors.primary, colors.primary]}
             start={[0, 0]}
             end={[1, 1]}
             style={styles.headerGradient}
@@ -282,18 +279,17 @@ const LoginScreen = () => {
                 <Title>Login</Title>
 
                 <InputContainer>
-                  {dbList.length > 0 && (
+                  {/* {dbList.length > 0 && ( */}
                     <CompanyDropdown
                       label="Company"
-                      data={dbList.map((company) => ({
-                        label: company.ref_cust_name,
-                        value: company.ref_cust_name,
-                      }))}
+                      data={[{label: "Demo Waste Management", value: "APM_002"}]}
                       value={selectedCompany}
                       setValue={handleCompanyChange}
                       error={companyError}
+                      disabled={true}
                     />
-                  )}
+                  {/* )} */}
+
 
                   <InputLabel>Enter your Mobile number or Emp ID</InputLabel>
                   <InputWrapper>
@@ -344,7 +340,7 @@ const LoginScreen = () => {
                     onPress={handlePress}
                     disabled={isLoginDisabled}
                     style={{
-                      backgroundColor: isLoginDisabled ? "#fff" : "#a970ff",
+                      backgroundColor: isLoginDisabled ? "#fff" : colors.primary,
                     }}
                   >
                     <LoginButtonText
@@ -489,7 +485,7 @@ const styles = StyleSheet.create({
 
 const SafeAreaContainer = styled(SafeAreaView)`
   flex: 1;
-  background-color: #a970ff;
+  background-color: ${colors.primary};
 `;
 
 const Container = styled.View`
@@ -577,8 +573,8 @@ const ErrorText = styled.Text`
 `;
 
 const LoginButton = styled.TouchableOpacity`
-  background-color: ${props => props.disabled ? '#fff' : '#a970ff'};
-  border: 1px solid #a970ff;
+  background-color: ${props => props.disabled ? '#fff' : `${colors.primary}`};
+  border: 1px solid ${colors.primary};
   padding: ${scaleHeight(15)}px;
   border-radius: ${scaleWidth(5)}px;
   align-items: center;
@@ -618,7 +614,7 @@ const AlternativeLogin = styled.TouchableOpacity`
 `;
 
 const FingerprintIcon = styled.View`
-  background-color: #a970ff;
+  background-color: ${colors.primary};
   width: ${scaleWidth(40)}px;
   height: ${scaleWidth(40)}px;
   border-radius: ${scaleWidth(20)}px;
@@ -628,7 +624,7 @@ const FingerprintIcon = styled.View`
 `;
 
 const AlternativeLoginText = styled.Text`
-  color: #a970ff;
+  color: ${colors.primary};
   font-size: ${scaleWidth(16)}px;
   font-weight: 500;
 `;
@@ -647,7 +643,7 @@ const Footer = styled.View`
 `;
 
 const FooterText = styled.Text`
-  color: #a970ff;
+  color: ${colors.primary};
   font-size: ${scaleWidth(14)}px;
   font-weight: 500;
 `;

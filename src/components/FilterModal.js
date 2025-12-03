@@ -3,6 +3,7 @@ import { Modal, TouchableOpacity, View, Text, ScrollView, StyleSheet } from "rea
 import { Ionicons } from "@expo/vector-icons";
 import DropdownPicker from "./DropdownPicker";
 import TabNavigation from "./TabNavigation";
+import { colors } from "../Styles/appStyle";
 
 const FilterModal = ({
   visible,
@@ -142,19 +143,19 @@ const styles = StyleSheet.create({
   clearButton: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#a970ff",
+    borderColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: "center",
   },
   clearButtonText: {
-    color: "#a970ff",
+    color: colors.primary,
     fontSize: 16,
     fontWeight: "600",
   },
   applyButton: {
     flex: 1,
-    backgroundColor: "#a970ff",
+    backgroundColor: colors.primary,
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: "center",

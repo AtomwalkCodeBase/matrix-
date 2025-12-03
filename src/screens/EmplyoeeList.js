@@ -17,6 +17,7 @@ import { useNavigation, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import FilterModal from '../components/FilterModal';
+import { colors } from '../Styles/appStyle';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -125,7 +126,7 @@ const filterConfigs = useMemo(() => [
               <Image source={{ uri: employee.image }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-				<AntDesign name="user" size={20} color="#a970ff" />
+				<AntDesign name="user" size={20} color={colors.primary} />
               </View>
             )}
             {employee.is_manager && (

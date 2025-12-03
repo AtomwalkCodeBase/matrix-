@@ -8,26 +8,24 @@ import { FontAwesome5 } from '@expo/vector-icons';
 
 const _layout = () => {
   return (
-    <Tabs screenOptions={{ tabBarActiveTintColor: "blue" }}>
+    <Tabs screenOptions={{ tabBarActiveTintColor: "#e12b2e" }}>
       <Tabs.Screen name='home'
         options={{
           title: 'Home',
           headerShown: false,
-          tabBarIcon: ({ color }) => <FontAwesome name="home" size={24} color={color} />
+          tabBarIcon: ({ color }) => <FontAwesome name="home" size={24} color={color} 
+          
+          />
         }} />
 
-      <Tabs.Screen name='leave'
+      <Tabs.Screen name='timesheet'
         options={{
-          title: 'Leaves',
+          title: 'Timesheet',
           headerShown: false,
-          tabBarIcon: ({ color }) => <FontAwesome5 name="calendar-alt" size={20} color={color} />
+          tabBarIcon: ({ color }) => <FontAwesome5 name="calendar-alt" size={20} color={color} 
+          />
         }}></Tabs.Screen>
-      <Tabs.Screen name='attendance'
-        options={{
-          title: 'Attendance',
-          headerShown: false,
-          tabBarIcon: ({ color }) => <FontAwesome5 name="user-clock" size={22} color={color} />
-        }}></Tabs.Screen>
+
       <Tabs.Screen name='profile' options={{
         title: 'Profile',
         headerShown: false,

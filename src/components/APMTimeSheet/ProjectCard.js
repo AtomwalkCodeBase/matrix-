@@ -75,36 +75,40 @@ const formatTime = (timeString) => {
 
 const ProjectCard = ({
   project = {},
-  onStartProject = () => { },
-  onViewDetails = () => { },
+  onStartProject = () => {},
+  onViewDetails = () => {},
   fadeAnim = new Animated.Value(1),
-  onCheckIn = () => { },
-  onCheckOut = () => { }
+  onCheckIn = () => {},
+  onCheckOut = () => {},
+  isDetailsOpen = false,
 }) => {
   // Planned and actual days arrays (Date objects)
   const plannedDays = useMemo(() => {
     return getDatesBetween(project.planned_start_date, project.planned_end_date);
   }, [project.planned_start_date, project.planned_end_date]);
 
-  const completedDays = useMemo(() => {
-    return getDatesBetween(project.actual_start_date, project.actual_end_date);
-  }, [project.actual_start_date, project.actual_end_date]);
+  const loggedDays = useMemo(() => {
+    if (!project?.original_A?.ts_data_list?.length) return [];
+
+    const uniqueDates = [
+      ...new Set(project.original_A.ts_data_list.map((d) => d.a_date)),
+    ];
+
+    return uniqueDates
+      .map((d) => parseCustomDate(d))
+      .filter((d) => d instanceof Date && !isNaN(d));
+  }, [project?.original_A?.ts_data_list]);
 
   const progress =
-    plannedDays.length > 0 ? (completedDays.length / plannedDays.length) * 100 : 0;
+    plannedDays.length > 0 ? (loggedDays.length / plannedDays.length) * 100 : 0;
 
   // Project is active
-const isActive =
-  project.status === "active" &&
-  (project.status_display === "IN PROGRESS" || project.status_display === "NOT SUBMITTED");
+  const isActive =
+    project.status === "active" &&
+    (project.status_display === "IN PROGRESS" || project.status_display === "NOT SUBMITTED");
 
-// --- FINAL CORRECT LOGIC ---
-// Allow Check-In only if no pending check-out exists
-const canCheckIn = isActive && !(project.hasCheckIn && !project.hasCheckOut);
-
-// Allow Check-Out only if last check-in is not checked out
-const canCheckOut = isActive && project.hasCheckIn && !project.hasCheckOut;
-
+  const today = new Date();
+  const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   // Utility to compare date equality (midnight-normalized)
   const sameDay = (d1, d2) => {
@@ -116,10 +120,23 @@ const canCheckOut = isActive && project.hasCheckIn && !project.hasCheckOut;
     );
   };
 
-  const today = new Date();
-  const normalizedToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayLogs =
+    project?.original_A?.ts_data_list?.filter((log) => {
+      const d = parseCustomDate(log.a_date);
+      return sameDay(d, normalizedToday);
+    }) || [];
 
-  console.log("Card Data--",project)
+  // If today's date exists in logs and contains an 'I|' it means already checked-in
+  const todayHasCheckIn = todayLogs.some((l) => l.geo_data?.includes("I|"));
+
+  // If today's date exists in logs and contains an 'O|' it means already checked-out
+  const todayHasCheckOut = todayLogs.some((l) => l.geo_data?.includes("O|"));
+
+  const hasOpenSession = project.hasCheckIn && !project.hasCheckOut;
+  const canCheckIn = isActive && !hasOpenSession;
+  const canCheckOut = isActive && hasOpenSession && todayHasCheckIn && !todayHasCheckOut;
+
+  console.log("Card Data--",JSON.stringify(project))
 
   return (
     <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
@@ -236,31 +253,32 @@ const canCheckOut = isActive && project.hasCheckIn && !project.hasCheckOut;
         </View>
 
         {/* Actual Dates */}
-        <View style={styles.timelineRow}>
+        {/* <View style={styles.timelineRow}>
           <View style={styles.timelineLabel}>
             <Ionicons name="checkmark-circle-outline" size={14} color="#64748b" />
             <Text style={styles.timelineLabelText}>Actual</Text>
           </View>
           <Text style={styles.timelineDate}>
-            {completedDays.length > 0
+            {loggedDays.length > 0
               ? `${format(project.actual_start_date)} - ${format(project.actual_end_date)}`
               : "Not started"}
           </Text>
-        </View>
+        </View> */}
 
         {/* DAILY PROGRESS BAR */}
         <View style={styles.progressSection}>
           <View style={styles.progressHeader}>
             <Text style={styles.progressTitle}>Daily Progress</Text>
             <Text style={styles.progressSubtitle}>
-              {completedDays.length} of {plannedDays.length} days
+              {loggedDays.length} {loggedDays.length === 1 ? "day" : "days"} logged
+              {plannedDays.length > 0 ? ` of ${plannedDays.length} planned` : ""}
             </Text>
           </View>
 
           <View style={styles.dateProgressContainer}>
             {/* Date Row */}
             <View style={styles.dateRow}>
-              {plannedDays.map((day, index) => {
+              {loggedDays.map((day, index) => {
                 const dateNumber = day.getDate();
                 const monthName = day.toLocaleDateString("en-IN", { month: "short" });
                 const isFirstOfMonth = dateNumber === 1;
@@ -275,8 +293,7 @@ const canCheckOut = isActive && project.hasCheckIn && !project.hasCheckOut;
 
             {/* Progress Bar Row */}
             <View style={styles.progressBarRow}>
-              {plannedDays.map((day, index) => {
-                const isCompleted = completedDays.some((d) => sameDay(d, day));
+              {loggedDays.map((day, index) => {
                 const isToday = sameDay(normalizedToday, day);
                 // priority: Today (blue ring), Completed (green), Pending (grey)
                 return (
@@ -284,9 +301,8 @@ const canCheckOut = isActive && project.hasCheckIn && !project.hasCheckOut;
                     key={`progress-${index}`}
                     style={[
                       styles.progressSegment,
-                      isCompleted && styles.segmentCompleted,
+                      styles.segmentCompleted,
                       isToday && styles.segmentToday,
-                      !isCompleted && !isToday && styles.segmentPending,
                     ]}
                   />
                 );
@@ -295,7 +311,7 @@ const canCheckOut = isActive && project.hasCheckIn && !project.hasCheckOut;
 
             {/* Day Labels Row */}
             <View style={styles.dayLabelRow}>
-              {plannedDays.map((day, index) => {
+              {loggedDays.map((day, index) => {
                 const dayName = day.toLocaleDateString("en-IN", { weekday: "narrow" });
                 return (
                   <Text key={`day-${index}`} style={styles.dayLabel}>
@@ -315,14 +331,6 @@ const canCheckOut = isActive && project.hasCheckIn && !project.hasCheckOut;
             <View style={styles.legendItem}>
               <View style={[styles.legendColor, styles.legendToday]} />
               <Text style={styles.legendText}>Today</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, styles.legendFuture]} />
-              <Text style={styles.legendText}>Upcoming</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendColor, styles.legendMissed]} />
-              <Text style={styles.legendText}>Pending</Text>
             </View>
           </View>
         </View>
@@ -372,11 +380,25 @@ const canCheckOut = isActive && project.hasCheckIn && !project.hasCheckOut;
 
             {/* DETAILS BUTTON — ALWAYS SHOWN */}
             <TouchableOpacity
-              style={[styles.btn, styles.secondaryBtn]}
-              onPress={() => onViewDetails(project)}
+              style={[
+                styles.btn,
+                isDetailsOpen ? styles.checkOutBtn : styles.secondaryBtn,
+              ]}
+              onPress={() => onViewDetails(project, isDetailsOpen)}
             >
-              <Ionicons name="document-text-outline" size={18} color={colors.primary} />
-              <Text style={[styles.btnText, styles.secondaryBtnText]}>Details</Text>
+              <Ionicons
+                name={isDetailsOpen ? "close-circle-outline" : "document-text-outline"}
+                size={18}
+                color={isDetailsOpen ? "#fff" : colors.primary}
+              />
+              <Text
+                style={[
+                  styles.btnText,
+                  !isDetailsOpen && styles.secondaryBtnText,
+                ]}
+              >
+                {isDetailsOpen ? "Close" : "Details"}
+              </Text>
             </TouchableOpacity>
           </>
         )}
@@ -673,12 +695,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#3b82f6",
     borderWidth: 1,
     borderColor: "#1d4ed8",
-  },
-  legendFuture: {
-    backgroundColor: "#e2e8f0",
-  },
-  legendMissed: {
-    backgroundColor: "#94a3b8",
   },
   legendText: {
     fontSize: 10,

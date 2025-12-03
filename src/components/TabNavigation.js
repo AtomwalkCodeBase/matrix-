@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { colors } from '../Styles/appStyle';
 
 const TabNavigation = ({ tabs, activeTab, setActiveTab, style, tabButtonStyle, tabTextStyle, activeTabStyle, activeTabTextStyle }) => (
   <View style={[styles.tabContainer, style]}>
@@ -40,7 +41,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'transparent',
   },
   activeTab: {
-    borderBottomColor: '#a970ff',
+    borderBottomColor: colors.primary,
   },
   tabText: {
     fontSize: 16,
@@ -48,7 +49,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   activeTabText: {
-    color: '#a970ff',
+    color: colors.primary,
   },
 });
 

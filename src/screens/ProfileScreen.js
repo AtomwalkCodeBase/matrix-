@@ -11,6 +11,7 @@ import moment from 'moment';
 import ConfirmationModal from '../components/ConfirmationModal';
 import Constants from 'expo-constants';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../Styles/appStyle';
 
 const { width } = Dimensions.get('window');
 
@@ -118,7 +119,7 @@ const ProfileScreen = () => {
                 style={[styles.actionButtonSmall, styles.qrButton]}
                 onPress={() => router.push('IdCard')}>
                 {/* < size={24} color="#a970ff" /> */}
-                <MaterialIcons name="contact-page" size={20} color="#a970ff" />
+                <MaterialIcons name="contact-page" size={20} color={colors.primary} />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -195,7 +196,7 @@ const ProfileScreen = () => {
                 <Switch
                   value={useFingerprint}
                   onValueChange={handleSwitchToggle}
-                  trackColor={{ false: "#dcdcdc", true: "#a970ff" }}
+                  trackColor={{ false: "#dcdcdc", true: `${colors.primary}` }}
                   thumbColor={useFingerprint ? "#fff" : "#f4f3f4"}
                 />
 
@@ -348,7 +349,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   qrButton: {
-    backgroundColor: '#F5EEFF',
+    backgroundColor: '#e8eef6',
   },
   editButton: {
     backgroundColor: '#E8F5FD',

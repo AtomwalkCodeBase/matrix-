@@ -15,7 +15,7 @@ export const colors1 = {
 
 // Colors
 export const colors = {
-  primary: "#a970ff",
+  primary: "#1456a7",
   secondary: "#ffa500",
   tertiary: "#E6E6E6",
   alternative: "#999999",
@@ -37,6 +37,7 @@ export const colors = {
   darkgrey: '#4c4c4c',
   warning: '#FFA726',  // Orange warning color (Material Design)
   textSecondary: '#757575',  // Dark gray for secondary text (Material Design)
+  primaryLight: '#b9cce5'
 };
 
 const statusBarHeight = Constants.statusBarHeight;

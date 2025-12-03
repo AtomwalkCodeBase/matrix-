@@ -15,7 +15,7 @@ import { colors } from '../Styles/appStyle';
 import NewLeaveCardComponent from '../components/NewLeaveCardComponent';
 import { AppContext } from '../../context/AppContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+// import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
 const screenHeight = Dimensions.get('window').height;
 const responsiveMarginBottom = screenHeight * 0.125;
@@ -105,7 +105,7 @@ const LeaveScreen = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false); // Loader state
   const [totalLeaveSum, setTotalLeaveSum] = useState(0);
-  const tabBarHeight = useBottomTabBarHeight();
+  // const tabBarHeight = useBottomTabBarHeight();
 
   useFocusEffect(
     useCallback(() => {
@@ -234,13 +234,13 @@ const LeaveScreen = () => {
       <HeaderComponent headerTitle="My Leaves" onBackPress={handleBackPress} />
       <Container>
       <CardRow>
-        <LeaveCard bgColor="#a970ff" borderColor="#a970ff">
+        <LeaveCard bgColor={colors.primary} borderColor={colors.primary}>
           <LeaveNumber color="#fff">
             {selectedTab === 'My WFH' ? 'Total WFH' : 'Total Leave Days'}: {selectedTab === 'My Cancel Leave' ? totalLeaveSum : leaveSum}
           </LeaveNumber>
         </LeaveCard>
         
-          <LeaveCard bgColor="#a970ff" borderColor="#a970ff">
+          <LeaveCard bgColor={colors.primary} borderColor={colors.primary}>
           <LeaveNumber color="#fff">Max Leave for Year: {max_leave}</LeaveNumber>
         </LeaveCard>
       </CardRow>
@@ -283,13 +283,13 @@ const LeaveScreen = () => {
             renderItem={renderLeaveItem}
             keyExtractor={(item) => item.id.toString()}
             ListEmptyComponent={<EmptyMessage data={`leave`} />}
-            contentContainerStyle={{ paddingBottom: tabBarHeight + 80 }}
+            // contentContainerStyle={{ paddingBottom: tabBarHeight + 80 }}
             showsVerticalScrollIndicator={false}
             showsHorizontalScrollIndicator={false}
           />
         )}
-        <ApplyButton onPress={() => handlePress(leaveData && leaveData[0]?.emp_data)} buttonText="Apply Leave" 
-          icon='send'  tabBarHeight={tabBarHeight} />
+        {/* <ApplyButton onPress={() => handlePress(leaveData && leaveData[0]?.emp_data)} buttonText="Apply Leave" 
+          icon='send'  tabBarHeight={tabBarHeight} /> */}
 
         {selectedLeave && (
           <ModalComponent

@@ -24,6 +24,7 @@ import ConfirmationModal from '../../src/components/ConfirmationModal';
 import Constants from 'expo-constants';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '../../src/Styles/appStyle';
 
 const { width, height } = Dimensions.get('window');
 
@@ -180,7 +181,7 @@ const AuthScreen = () => {
 
             {/* Bank Logo Area */}
             <LinearGradient
-                colors={['#a970ff', '#8a5bda']}
+                colors={[`${colors.primary}`, '#8a5bda']}
                 style={styles.header}
             >
                 <View style={styles.logoContainer}>
@@ -192,7 +193,7 @@ const AuthScreen = () => {
                         </View>
                     )}
                 </View>
-                <Text style={styles.welcomeText}>Welcome to ATOMWALK HRM</Text>
+                <Text style={styles.welcomeText}>Welcome to ATOMWALK PROJECT TIMESHEET</Text>
                 {userName && (
                     <View style={styles.userInfoContainer}>
                         <Ionicons name="person-circle-outline" size={24} color="#fff" />
@@ -212,7 +213,7 @@ const AuthScreen = () => {
                             onPress={() => setShowPinInput(true)}
                         >
                             <View style={styles.authButtonIconContainer}>
-                                <Ionicons name="lock-closed-outline" size={22} color="#7722F9" />
+                                <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
                             </View>
                             <Text style={styles.authButtonText}>Login with PIN</Text>
                             <Ionicons name="chevron-forward-outline" size={20} color="#777" style={styles.authButtonArrow} />
@@ -227,7 +228,7 @@ const AuthScreen = () => {
                                 }}
                             >
                                 <View style={styles.authButtonIconContainer}>
-                                    <Ionicons name="finger-print-outline" size={22} color="#7722F9" />
+                                    <Ionicons name="finger-print-outline" size={22} color={colors.primary} />
                                 </View>
                                 <Text style={styles.authButtonText}>Login with Fingerprint</Text>
                                 <Ionicons name="chevron-forward-outline" size={20} color="#777" style={styles.authButtonArrow} />
@@ -237,7 +238,7 @@ const AuthScreen = () => {
                             onPress={() => setIsLogoutModalVisible(true)}
                             style={styles.forgotContainer}
                         >
-                            <Ionicons name="log-out-outline" size={16} color="#9C5EF9" />
+                            <Ionicons name="log-out-outline" size={16} color={colors.primary} />
                             <Text style={styles.forgotText}>Change Active User</Text>
                         </TouchableOpacity>
                     </View>
@@ -316,7 +317,7 @@ const AuthScreen = () => {
                                     setAttemptsRemaining(maxAttempts);
                                 }}
                             >
-                                <Ionicons name="arrow-back-outline" size={16} color="#9C5EF9" style={styles.backIcon} />
+                                <Ionicons name="arrow-back-outline" size={16} color={colors.primary} style={styles.backIcon} />
                                 <Text style={styles.backButtonText}>Back to Login Options</Text>
                             </TouchableOpacity>
                         )}
@@ -345,7 +346,7 @@ const AuthScreen = () => {
                                 checkNetworkAndAuthenticate();
                             }}
                         >
-                            <Ionicons name="finger-print" size={80} color="#9C5EF9" />
+                            <Ionicons name="finger-print" size={80} color={colors.primary} />
                         </TouchableOpacity>
 
                         <Text style={styles.fingerprintHint}>
@@ -362,7 +363,7 @@ const AuthScreen = () => {
                                 setAttemptsRemaining(maxAttempts);
                             }}
                         >
-                            <Ionicons name="arrow-back-outline" size={16} color="#9C5EF9" style={styles.backIcon} />
+                            <Ionicons name="arrow-back-outline" size={16} color={colors.primary} style={styles.backIcon} />
                             <Text style={styles.backButtonText}>Back to Login Options</Text>
                         </TouchableOpacity>
                     </View>
@@ -509,7 +510,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 20,
-        backgroundColor: '#F6F0FF',
+        backgroundColor: "#e8eef6",
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
@@ -563,7 +564,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     submitButton: {
-        backgroundColor: '#a970ff',
+        backgroundColor: colors.primary,
         paddingVertical: 15,
         paddingHorizontal: 50,
         borderRadius: 8,
@@ -588,14 +589,14 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     forgotText: {
-        color: '#9C5EF9',
+        color: colors.primary,
         marginLeft: 5,
         fontWeight: '500',
     },
     fingerprintIconContainer: {
         marginVertical: 30,
         padding: 20,
-        backgroundColor: '#F6F0FF',
+        backgroundColor: '#e8eef6',
         borderRadius: 60,
     },
     fingerprintHint: {
@@ -614,7 +615,7 @@ const styles = StyleSheet.create({
         marginRight: 5,
     },
     backButtonText: {
-        color: '#9C5EF9',
+        color: colors.primary,
         fontSize: 14,
         fontWeight: '500',
     },
