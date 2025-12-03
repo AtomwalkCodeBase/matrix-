@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Atomwalk HRM Lite",
-    "slug": "atomwalkhrmslite",
-    "version": "1.0.6",
+    "name": "Atomwalk Project Timesheet",
+    "slug": "atomwalk-project-timesheet",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
     "scheme": "myapp",
@@ -16,7 +16,7 @@
       "supportsTablet": true
     },
     "android": {
-      "versionCode": 10,
+      "versionCode": 1,
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
@@ -25,7 +25,7 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.atomwalk.atomwalkhrmslite"
+      "package": "com.atomwalk.atomwalkprojecttimesheet"
     },
     "web": {
       "bundler": "metro",
@@ -41,10 +41,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "51fe7bfa-9380-4bc2-9337-87001bb0e07b"
+        "projectId": "eccd6bf1-6c58-4a93-9ecf-f5868cf0daf1"
       }
     },
     "owner": "atomwalk"
   }
 }
-
