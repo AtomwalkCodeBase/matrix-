@@ -7,8 +7,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../../Styles/appStyle';
 
-const PRIMARY_COLOR = '#1456a7';
+const PRIMARY_COLOR = colors.primary;
 
 // === Utility Functions ===
 const parseAPIDate = (dateStr) => {
@@ -150,7 +151,7 @@ const DailyLogEntry = ({ entry }) => (
 
     <View style={styles.logTimes}>
       <View style={styles.logTimeItem}>
-        <Ionicons name="log-in" size={12} color="#10b981" />
+        <Ionicons name="log-in" size={14} color="#10b981" />
         <View style={styles.logTimeContent}>
           <Text style={styles.logTimeLabel}>Check In</Text>
           <Text style={styles.logTimeText}>
@@ -162,7 +163,7 @@ const DailyLogEntry = ({ entry }) => (
       </View>
       <View style={styles.timeDivider} />
       <View style={styles.logTimeItem}>
-        <Ionicons name="log-out" size={12} color="#ef4444" />
+        <Ionicons name="log-out" size={14} color="#ef4444" />
         <View style={styles.logTimeContent}>
           <Text style={styles.logTimeLabel}>Check Out</Text>
           {entry.check_out ? (
@@ -221,7 +222,7 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
   const handleToggleDetails = () => {
     const newState = !isDetailsOpen;
     setIsDetailsOpen(newState);
-    onViewDetails?.(project, newState);
+    // onViewDetails?.(project, newState);
   };
 
   const renderPrimaryButton = () => {
@@ -314,8 +315,13 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
         <Text style={styles.sectionTitle}>Project Timeline</Text>
         <TimelineRow
           icon="calendar-outline"
-          label="Planned"
+          label="Planned Date"
           value={`${formatDate(project?.planned_start_date)} to ${formatDate(project?.planned_end_date)}`}
+        />
+        <TimelineRow
+          icon="calendar-outline"
+          label="Actual Date"
+          value={`${formatDate(project?.actual_start_date)} to ${formatDate(project?.actual_end_date)}`}
         />
       </View>
 
@@ -403,7 +409,7 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
             color={isDetailsOpen ? '#fff' : PRIMARY_COLOR}
           />
           <Text style={[styles.btnText, !isDetailsOpen && styles.secondaryBtnText]}>
-            {isDetailsOpen ? 'Close' : 'Details'}
+            {isDetailsOpen ? 'Minimize Details' : 'Details'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -513,6 +519,7 @@ const styles = StyleSheet.create({
   timelineRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginTop: 5
   },
   timelineLabel: {
     fontSize: 14,
@@ -621,13 +628,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logTimeLabel: {
-    fontSize: 9,
+    fontSize: 11,
     color: '#64748b',
     fontWeight: '500',
     marginBottom: 2,
   },
   logTimeText: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#1e293b',
     fontWeight: '600',
   },

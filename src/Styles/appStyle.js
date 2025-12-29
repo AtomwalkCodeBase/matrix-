@@ -37,7 +37,9 @@ export const colors = {
   darkgrey: '#4c4c4c',
   warning: '#FFA726',  // Orange warning color (Material Design)
   textSecondary: '#757575',  // Dark gray for secondary text (Material Design)
-  primaryLight: '#b9cce5'
+  primaryLight: '#b9cce5',
+  cardBg: '#f8f9fa',
+  overlayBg: 'rgba(0, 0, 0, 0.6)',
 };
 
 const statusBarHeight = Constants.statusBarHeight;

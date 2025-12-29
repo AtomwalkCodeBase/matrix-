@@ -28,7 +28,7 @@ const UniversalProjectList = ({
   projects = [],
   CardComponent, // 🔥 this is the injected card UI
   onStartProject = null,
-  onViewDetails = null,
+  onViewDetails,
   onLoadMore = null,
   canLoadMore = false,
   loadingMore = false,
@@ -40,6 +40,8 @@ const UniversalProjectList = ({
         <Text style={styles.emptyText}>No Projects Found</Text>
       </View>
     );
+
+    // console.log(projects)
 
   return (
     <View>

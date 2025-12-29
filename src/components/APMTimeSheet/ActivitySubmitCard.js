@@ -8,7 +8,7 @@ import TimePicker from '../TimePicker';
 import FilePicker from '../FilePicker';
 import RemarksInput from '../RemarkInput';
 import { colors } from '../../Styles/appStyle';
-import { formatAMPMTime, formatAPITime, getCurrentDateTimeDefaults } from './utils';
+import { formatAMPMTime, formatAPITime, getCurrentDateTimeDefaults, parseApiDate } from './utils';
 
 const ActivitySubmitCard = ({
     visible,
@@ -30,6 +30,8 @@ const ActivitySubmitCard = ({
         const now = new Date();
         return now.toTimeString().slice(0, 5);
     };
+
+    // console.log("editingTask", getYesterday())
 
   const parseTimeToDate = (timeStr) => {
     if (!timeStr || typeof timeStr !== 'string') return null;
@@ -71,9 +73,18 @@ const ActivitySubmitCard = ({
 
     useEffect(() => {
         if (visible) {
+             let dateToUse;
+
+    if (isPendingCheckout && editingTask?.pendingCheckoutDate) {
+      // pendingCheckoutDate = "01-Dec-2025"
+      dateToUse = parseApiDate(editingTask.pendingCheckoutDate);
+    } else {
+      dateToUse = new Date(); // today's date
+    }
+
             setFormData(prev => ({
                 ...prev,
-                date: isPendingCheckout ? getYesterday() : getToday(),
+                date: dateToUse,
                 endTime:isPendingCheckout ? getCurrentTime() : parseTimeToDate(getCurrentTime()),
             }));
             setFileUri(null);
@@ -164,7 +175,7 @@ const ActivitySubmitCard = ({
                             <Text style={styles.warningText}>⚠️ Your yesterday checkout is still pending!</Text>
                         )}
 
-                        {/* <Text style={{backgroundColor: colors.primary, borderRadius: 10, color: "white", textAlign: "center", padding: 3, fontWeight: 500}}>NO of Items Assigned you to Audit: {editingTask.original_P.no_of_items}</Text> */}
+                        <Text style={{backgroundColor: colors.primary, borderRadius: 10, color: "white", textAlign: "center", padding: 3, fontWeight: 500}}>NO of Items Assigned you to Audit: {editingTask?.original_P?.no_of_items}</Text>
 
                         <View style={styles.formGroup}>
                             <DatePicker
@@ -255,12 +266,13 @@ const ActivitySubmitCard = ({
       style={[
         styles.button,
         styles.applyButton,
-        !isValid && styles.disabledButton
+        !isValid && styles.disabledButton,
+        {paddingHorizontal: 10},
       ]}
       disabled={!isValid}
       onPress={handleSubmit}
     >
-      <Text style={styles.applyButtonText}>Checkout For Yesterday</Text>
+      <Text style={[styles.applyButtonText,{textAlign: "center"}]}>Checkout For Yesterday</Text>
     </TouchableOpacity>
      <TouchableOpacity
         style={[
@@ -271,7 +283,7 @@ const ActivitySubmitCard = ({
         disabled={!isValid}
         onPress={handleMarkComplete}
       >
-        <Text style={styles.applyButtonText}>Completed</Text>
+        <Text style={[styles.applyButtonText, {textAlign: "center"}]}>Completed</Text>
       </TouchableOpacity>
       </>
 
@@ -313,18 +325,18 @@ const ActivitySubmitCard = ({
       <TouchableOpacity
         style={[
           styles.button,
-          styles.applyButton,
+          styles.clearButton,
           !isValid && styles.disabledButton
         ]}
         disabled={!isValid}
         onPress={handleMarkComplete}
       >
-        <Text style={styles.applyButtonText}>Completed</Text>
+        <Text style={styles.clearButtonText}>Completed</Text>
       </TouchableOpacity>
       <TouchableOpacity
         style={[
           styles.button,
-          styles.clearButton,
+          styles.applyButton,
           !isValid && styles.disabledButton
         ]}
         disabled={!isValid}
@@ -338,7 +350,7 @@ const ActivitySubmitCard = ({
 }}
 
       >
-        <Text style={styles.clearButtonText}>Continue Tomorrow</Text>
+        <Text style={styles.applyButtonText}>Continue Tomorrow</Text>
       </TouchableOpacity>
     </>
   )}
@@ -366,8 +378,9 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         paddingHorizontal: 20,
+        paddingBottom: 10,
         paddingTop: 20,
-        maxHeight: "85%",
+        maxHeight: "90%",
     },
     modalHeader: {
         flexDirection: "row",

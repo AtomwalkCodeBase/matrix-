@@ -1,4 +1,5 @@
 import moment from "moment";
+import { colors } from "../../Styles/appStyle";
 
 const MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -7,7 +8,7 @@ const MONTH_MAP = MONTH_SHORT_NAMES.reduce((acc, m, i) => {
     return acc;
 }, {});
 
-const parseApiDate = (apiDateStr) => {
+export const parseApiDate = (apiDateStr) => {
     if (!apiDateStr || typeof apiDateStr !== "string") return null;
     const parts = apiDateStr.split("-");
     if (parts.length !== 3) return null;
@@ -142,27 +143,152 @@ const buildDayLogsFromAEntries = (aEntries = []) => {
 
             // Determine effort/no_of_items for this date:
             // Use this A entry's effort/no_of_items ONLY if this a_date is inside this A's date range (inclusive).
-            const belongsToThisA =
-                isDateInRange(date, aEntry.start_date, aEntry.end_date);
+            const belongsToThisA = isDateInRange(date, aEntry.start_date, aEntry.end_date);
 
-            // Build log (overwrite only if not created, or this A is later)
-            const existing = dayLogs[date] || {};
+            if (!dayLogs[date]) {
+        dayLogs[date] = {
+          date,
+          checkIns: [],
+          checkOuts: [],
+          remarksList: [],
+          effort: 0,
+          no_of_items: 0,
+        };
+      }
+      const current = dayLogs[date];
 
-            dayLogs[date] = {
-                date,
-                check_in,
-                check_out,
-                remarks: ts?.remarks || aRemarks || "",
+       // Store multiple check-in/out values
+      if (check_in) current.checkIns.push(check_in);
+      if (check_out) current.checkOuts.push(check_out);
 
-                // ↓↓↓ Correct per-day values from the A-entry covering that date ↓↓↓
-                effort: belongsToThisA ? aEntry.effort : existing.effort || 0,
-                no_of_items: belongsToThisA ? aEntry.no_of_items : existing.no_of_items || 0
-            };
-        });
+      // Store remarks
+      if (ts?.remarks) current.remarksList.push(ts.remarks);
+      else if (aRemarks) current.remarksList.push(aRemarks);
+
+      // preserve original effort logic
+      if (belongsToThisA) current.effort = aEffortForEntry;
+
+      // preserve original no_of_items logic
+      if (belongsToThisA) current.no_of_items = aNoOfItems;
     });
+  });
 
-    return dayLogs;
+      Object.keys(dayLogs).forEach(date => {
+    const log = dayLogs[date];
+
+    const hasCheckout = log.checkOuts.length > 0;
+
+    dayLogs[date] = {
+      date,
+      check_in: log.checkIns[0] || "",             // First check-in
+      check_out: hasCheckout 
+        ? log.checkOuts[log.checkOuts.length - 1]  // Last checkout if exists
+        : "",
+
+      remarks: log.remarksList.join(", ") || "",
+
+      effort: log.effort,
+      no_of_items: log.no_of_items,
+
+      // 🚀 THIS FIXES YOUR PENDING CHECKOUT ISSUE
+    //   isPendingCheckout: !hasCheckout,
+    };
+  });
+
+  return dayLogs;
 };
+
+// const buildDayLogsFromAEntries = (aEntries = []) => {
+//     const dayLogs = {};
+
+//     if (!Array.isArray(aEntries) || aEntries.length === 0) return dayLogs;
+
+//     // Ensure we process in ascending id so later/higher id overwrites earlier
+//     const sortedA = [...aEntries].sort((x, y) => (x.id || 0) - (y.id || 0));
+
+//     sortedA.forEach(aEntry => {
+//         const tsList = Array.isArray(aEntry.ts_data_list) ? aEntry.ts_data_list : [];
+//         const aEffortForEntry = typeof aEntry.effort === "number" ? aEntry.effort : 0;
+//         const aNoOfItems = typeof aEntry.no_of_items === "number" ? aEntry.no_of_items : (aEntry.no_of_items ? Number(aEntry.no_of_items) : 0);
+//         const aRemarks = typeof aEntry.remarks === "string" ? aEntry.remarks : "";
+
+//         tsList.forEach(ts => {
+//             const date = ts?.a_date;
+//             if (!date) return;
+
+//             // Parse geo data (choose last O| part as checkout)
+//             const { check_in, check_out } = parseGeoData(ts.geo_data || "");
+
+//             // Determine effort/no_of_items for this date:
+//             // Use this A entry's effort/no_of_items ONLY if this a_date is inside this A's date range (inclusive).
+//             const belongsToThisA =
+//                 isDateInRange(date, aEntry.start_date, aEntry.end_date);
+
+//             // Build log (overwrite only if not created, or this A is later)
+//             // const existing = dayLogs[date] || {};
+
+//             // dayLogs[date] = {
+//             //     date,
+//             //     check_in,
+//             //     check_out,
+//             //     remarks: ts?.remarks || aRemarks || "",
+
+//             //     // ↓↓↓ Correct per-day values from the A-entry covering that date ↓↓↓
+//             //     effort: belongsToThisA ? aEntry.effort : existing.effort || 0,
+//             //     no_of_items: belongsToThisA ? aEntry.no_of_items : existing.no_of_items || 0
+//             // };
+//              if (!dayLogs[date]) {
+//         dayLogs[date] = {
+//           date,
+//           checkIns: [],
+//           checkOuts: [],
+//           remarksList: [],
+//           effort: 0,
+//           no_of_items: 0,
+//         };
+//       }
+//       const current = dayLogs[date];
+
+//        // Store multiple check-in/out values
+//       if (check_in) current.checkIns.push(check_in);
+//       if (check_out) current.checkOuts.push(check_out);
+
+//       // Store remarks
+//       if (ts?.remarks) current.remarksList.push(ts.remarks);
+//       else if (aRemarks) current.remarksList.push(aRemarks);
+
+//       // preserve original effort logic
+//       if (belongsToThisA) current.effort = aEffortForEntry;
+
+//       // preserve original no_of_items logic
+//       if (belongsToThisA) current.no_of_items = aNoOfItems;
+//         });
+//     });
+    
+//       Object.keys(dayLogs).forEach(date => {
+//     const log = dayLogs[date];
+
+//     const hasCheckout = log.checkOuts.length > 0;
+
+//     dayLogs[date] = {
+//       date,
+//       check_in: log.checkIns[0] || "",             // First check-in
+//       check_out: hasCheckout 
+//         ? log.checkOuts[log.checkOuts.length - 1]  // Last checkout if exists
+//         : "",
+
+//       remarks: log.remarksList.join(", ") || "",
+
+//       effort: log.effort,
+//       no_of_items: log.no_of_items,
+
+//       // 🚀 THIS FIXES YOUR PENDING CHECKOUT ISSUE
+//     //   isPendingCheckout: !hasCheckout,
+//     };
+//       });
+
+//     return dayLogs;
+// };
 
 export const buildActivityGroupMap = (apiData = []) => {
     if (!Array.isArray(apiData) || apiData.length === 0) return [];
@@ -433,6 +559,209 @@ const pendingCheckoutDate = hasPendingCheckout
     return final;
 };
 
+export const mapAllocationData = (apiData = []) => {
+
+    if (!Array.isArray(apiData) || apiData.length === 0) {
+        return {
+            projectsData: [],
+            employeeData: []
+        };
+    }
+
+    const projectMap = {}
+    const employeeMap = {}
+
+    /*
+      Step 1: Group by
+      activity_id + order_item_key + emp_id
+      Prefer A over P
+    */
+    const grouped = {}
+
+    apiData.forEach(item => {
+        const key = `${item.activity_id}_${item.order_item_key}_${item.emp_id}`
+
+        if (!grouped[key]) {
+            grouped[key] = { P: null, A: null }
+        }
+
+        if (item.activity_type === "P") {
+            grouped[key].P = item
+        }
+
+        if (item.activity_type === "A") {
+            if (!grouped[key].A) {
+                grouped[key].A = item
+            } else {
+                grouped[key].A.ts_data_list = [
+                    ...(grouped[key].A.ts_data_list || []),
+                    ...(item.ts_data_list || [])
+                ]
+            }
+        }
+    })
+
+    /*
+      Step 2: Build projectMap + employeeMap
+    */
+    Object.values(grouped).forEach(group => {
+
+        const data = group.A || group.P
+        if (!data) return
+
+        const activity_id = data.activity_id
+        const order_item_key = data.order_item_key
+        const project_name = data.project_name
+        const customer_name = data.customer_name
+        const audit_type = data.product_name
+
+        const emp_id = data.emp_id
+        const employee_name = data.employee_name
+
+        const isWorking = !!group.A  // A = Working | P = Only Assigned
+
+        const planned_start_date = group.P?.start_date || null
+        const planned_end_date = group.P?.end_date || null
+
+        const actual_start_date = group.A?.start_date || null
+        const actual_end_date = group.A?.end_date || null
+
+        const effort = group.A?.effort || 0
+        const effort_unit = group.A?.effort_unit || null
+
+        const complete = !!(group.A && group.A.status === "S");
+
+        const day_logs = buildDayLogsFromAEntries(
+            group.A ? [group.A] : [],
+            //   group.A?.remarks || group.P?.remarks || ""
+        )
+
+        const projectKey = `${activity_id}_${order_item_key}`
+
+        /* =================== EMPLOYEE MAP =================== */
+        if (!employeeMap[emp_id]) {
+            employeeMap[emp_id] = {
+                emp_id,
+                employee_name,
+                // color: getRandomColor(),   // ✅ Unique color per employee
+                projects: []
+            }
+        }
+
+        // const employeeColor = employeeMap[emp_id].color
+
+
+        /* =================== PROJECT DATA =================== */
+        if (!projectMap[projectKey]) {
+            projectMap[projectKey] = {
+                activity_id,
+                order_item_key,
+                project_name,
+                audit_type,
+                customer_name,
+
+                planned_start_date,
+                planned_end_date,
+
+                total_assigned_employees: 0,
+                total_working_employees: 0,
+
+                project_status: "planned",
+                project_period_status: "Planned",
+
+                teamMembers: [],
+                totalHours: 0
+            }
+        }
+
+        // ✅ Count assigned & working
+        projectMap[projectKey].total_assigned_employees += 1
+        if (isWorking) {
+            projectMap[projectKey].total_working_employees += 1
+        }
+
+        // ✅ Update project status if ANY employee is working
+        if (isWorking) {
+            projectMap[projectKey].project_status = "active"
+            projectMap[projectKey].project_period_status = "IN Progress"
+        }
+
+        projectMap[projectKey].teamMembers.push({
+            emp_id,
+            employee_name,
+            // color: employeeColor,      // ✅ same color everywhere
+
+            type: isWorking ? "A" : "P",
+
+            activity_status: complete,
+
+            activity_id,
+            order_item_key,
+            project_name,
+
+            planned_start_date,
+            planned_end_date,
+
+            actual_start_date,
+            actual_end_date,
+
+            effort,
+            effort_unit,
+
+            day_logs
+        })
+
+        projectMap[projectKey].totalHours =
+            projectMap[projectKey].teamMembers.reduce(
+                (sum, m) => sum + (Number(m.effort) || 0),
+                0
+            );
+
+
+
+        /* =================== EMPLOYEE PROJECTS =================== */
+        const alreadyAdded = employeeMap[emp_id].projects.some(
+            p => p.activity_id === activity_id && p.order_item_key === order_item_key
+        )
+
+        if (!alreadyAdded) {
+            employeeMap[emp_id].projects.push({
+                activity_id,
+                order_item_key,
+                project_name,
+                customer_name,
+                audit_type,
+
+                planned_start_date,
+                planned_end_date,
+
+                actual_start_date,
+                actual_end_date,
+
+                effort,
+                effort_unit,
+
+                project_status: isWorking ? "active" : "planned",
+                project_period_status: isWorking ? "IN Progress" : "Planned",
+
+                day_logs
+            })
+             employeeMap[emp_id].projects.totalHoursPerProject =
+                 employeeMap[emp_id].projects.reduce(
+                    (sum, m) => sum + (Number(m.effort) || 0),
+                    0
+            );
+        }
+
+    })
+
+
+    return {
+        projectsData: Object.values(projectMap),
+        employeeData: Object.values(employeeMap)
+    }
+}
+
 export const getCurrentDateTimeDefaults = () => {
   const now = new Date()
   const pad = (n) => String(n).padStart(2, "0")
@@ -481,6 +810,11 @@ export const getDateRangeFromPeriod = (period) => {
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       return { startDate: format(firstDay), endDate: format(lastDay) };
     }
+     case "yesterday": {
+            const y = new Date(today);
+            y.setDate(y.getDate() - 1);
+            return { startDate: format(y), endDate: format(y) };
+          }
 
     case 'today':
     default: {
@@ -546,4 +880,37 @@ export const parseDateString = (str) => {
     const yyyy = d.getFullYear();
 
     return `${dd}-${mm}-${yyyy}`;
+};
+
+export const getStatusStyles = (status_display) => {
+    const key = status_display.toUpperCase().replace(/\s+/g, "_");
+
+    switch (key) {
+      case 'IN_PROGRESS':
+        return { bgColor: colors.warning, color: colors.black, borderColor: colors.warning, icon: 'access-time' };
+      case 'REJECTED':
+        return { bgColor: colors.red, color: colors.white, borderColor: colors.red, icon: 'cancel' };
+      case 'CANCELLED':
+        return { bgColor: colors.red, color: colors.white, borderColor: colors.red, icon: 'cancel' };
+      case 'COMPLETED':
+        return { bgColor: colors.green, color: colors.white, borderColor: colors.green, icon: 'check-circle' };
+      case 'PLANNED':
+        return { bgColor: colors.textSecondary, color: colors.white, borderColor: colors.grey, icon: 'pause' };
+      default:
+        return { bgColor: colors.textSecondary, color: colors.white, borderColor: colors.grey, icon: 'question-mark' };
+    }
+  };
+
+export const searchByKeys = (data = [], query = "", keys = []) => {
+  if (!query.trim()) return data;
+
+  const q = query.toLowerCase();
+
+  return data.filter(item =>
+    keys.some(key =>
+      String(item?.[key] ?? "")
+        .toLowerCase()
+        .includes(q)
+    )
+  );
 };

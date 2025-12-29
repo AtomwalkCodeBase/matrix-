@@ -198,6 +198,7 @@ const APMTimeSheet = () => {
       });
 
       setAllProjects(sorted);
+      console.log("Fetch projects from API NOV",JSON.stringify(sorted))
     } catch (err) {
       console.error(err);
       setAllProjects([]);
@@ -370,11 +371,11 @@ const APMTimeSheet = () => {
           }
         });
 
-        // console.log("==== FORM DATA BEFORE API ====");
-        // for (let [key, value] of formData.entries()) {
-        //   console.log(key, value);
-        // }
-        // console.log("================================");
+        console.log("==== FORM DATA BEFORE API ====");
+        for (let [key, value] of formData.entries()) {
+          console.log(key, value);
+        }
+        console.log("================================");
 
         const res = await postAllocationData(formData);
 
@@ -395,7 +396,7 @@ const APMTimeSheet = () => {
         setErrorMessage(
           isAddMode
             ? "An error occurred while starting the activity."
-            : "An error occurred while updating the activity."
+            : "An error occurred while updarrrting the activity."
         );
         setShowErrorModal(true);
         return false;
@@ -407,7 +408,7 @@ const APMTimeSheet = () => {
   // Action handlers
   const handleActivityAction = ({ type, project }) => {
     if (type === "start") {
-      const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active");
+      const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
       if (hasOpenSession) {
         setErrorMessage("Complete pending activity first.");
         setShowErrorModal(true);
@@ -428,6 +429,12 @@ const APMTimeSheet = () => {
     }
 
     if (type === "resume") {
+      const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
+      if (hasOpenSession) {
+        setErrorMessage("Complete pending activity first.");
+        setShowErrorModal(true);
+        return;
+      }
       setConfirmPopup({
         isOpen: true,
         title: "Resume Activity",
@@ -592,7 +599,8 @@ const APMTimeSheet = () => {
                     key={project.id}
                     project={project}
                     onAction={handleActivityAction}
-                    onViewDetails={() => console.log("project", project)}
+                    // onViewDetails={() => console.log("project", JSON.stringify(project))}
+                    // onViewDetails={}
                   />
                 ))
               )}

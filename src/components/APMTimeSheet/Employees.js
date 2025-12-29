@@ -1,9 +1,11 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../Styles/appStyle";
 
-const Employees = ({ activities, employees }) => {
+const Employees = ({ activities, employees, onViewDetails }) => {
+
+  // console.log("activities", activities)
   if (!activities.length)
     return (
       <View style={styles.empty}>
@@ -32,28 +34,28 @@ const Employees = ({ activities, employees }) => {
 
   return (
     <>
-      {list.map((emp) => (
-        <View key={emp.empId} style={styles.card}>
+      {activities.map((emp) => (
+        <TouchableOpacity key={emp.emp_id} style={styles.card} onPress={() => onViewDetails(null, emp)}>
           <View style={styles.header}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>
-                {emp.name.split(" ").map((n) => n[0]).join("")}
+                {emp.employee_name.split(" ").map((n) => n[0]).join("")}
               </Text>
             </View>
 
             <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{emp.name}</Text>
-              <Text style={styles.small}>{emp.logs.length} activities</Text>
+              <Text style={styles.name}>{emp.employee_name}</Text>
+              <Text style={styles.small}>{emp.projects.length} activities</Text>
             </View>
 
             <View style={{ alignItems: "flex-end" }}>
-              <Text style={styles.hours}>{emp.totalHours}h</Text>
+              <Text style={styles.hours}>{emp.projects.totalHoursPerProject}h</Text>
               <Text style={styles.small}>Total Hours</Text>
             </View>
           </View>
 
           <Text style={styles.section}>Recent Logs</Text>
-          {emp.logs.slice(0, 3).map((log, i) => (
+          {emp.projects.slice(0, 3).map((log, i) => (
             <View key={i} style={styles.log}>
               <Text style={styles.logProject}>
                 {log.project_name || log.activity_name}
@@ -61,7 +63,7 @@ const Employees = ({ activities, employees }) => {
               <Text style={styles.logHours}>{log.effort}h</Text>
             </View>
           ))}
-        </View>
+        </TouchableOpacity>
       ))}
     </>
   );

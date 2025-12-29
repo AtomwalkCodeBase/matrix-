@@ -1,25 +1,20 @@
-// screens/ManagerDashboard.js
-
 import React, { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   RefreshControl,
-  TouchableOpacity,
   Alert,
   Dimensions,
   Animated,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import HeaderComponent from "../components/HeaderComponent";
 import Loader from "../components/old_components/Loader";
 import { colors } from "../Styles/appStyle";
-
 import { getAllocationList, getEmplyoeeList } from "../services/productServices";
-
 import PeriodDisplay from "../components/APMTimeSheet/PeriodDisplay";
 import CustomDateRangeCard from "../components/APMTimeSheet/CustomDateRangeCard";
 import UniversalProjectList from "../components/APMTimeSheet/ProjectList";
@@ -27,6 +22,10 @@ import Employees from "../components/APMTimeSheet/Employees";
 import FilterModal from "../components/FilterModal";
 import ProjectCardManager from "../components/APMTimeSheet/ProjectCardManager";
 import { useNavigation } from "expo-router";
+import { formatDate, getDateRangeFromPeriod, mapAllocationData, parseDateString, searchByKeys } from "../components/APMTimeSheet/utils";
+import ProjectDetailModal from "../components/APMTimeSheet/ProjectDetailModal";
+import TabNavigation from "../components/TabNavigation";
+import EmployeeProjectModal from "../components/APMTimeSheet/EmployeeProjectModal";
 
 const { width } = Dimensions.get('window');
 
@@ -39,18 +38,28 @@ const ManagerDashboard = () => {
   const [allActivities, setAllActivities] = useState([]);
   const [projects, setProjects] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+
+  const [projectsData, setProjectsData] = useState([]);
+  const [employeeData, setEmployeeData] = useState([]);
 
   // UI STATES
   const [activeTab, setActiveTab] = useState("projects");
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showEmployeeDetailsModal, setShowEmployeeDetailsModal] = useState(false)
   const [activeFilters, setActiveFilters] = useState({
-    period: "today",
+    period: "this_month",
     employees: [],
   });
+
   const [pendingFilters, setPendingFilters] = useState({
-    period: "today",
+    period: "this_month",
     employees: [],
   });
+
+  const [searchQuery, setSearchQuery] = useState('');
 
   // DATE RANGE
   const [dateRange, setDateRange] = useState({ startDate: "", endDate: "" });
@@ -61,53 +70,6 @@ const ManagerDashboard = () => {
   // ANIMATIONS
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
-
-  // ---------------------
-  // FORMAT HELPERS
-  // ---------------------
-  const formatDate = (date) => {
-    const d = String(date.getDate()).padStart(2, "0");
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const y = date.getFullYear();
-    return `${d}-${m}-${y}`;
-  };
-
-  const parseDate = (str) => {
-    if (!str) return null;
-    const [dd, mm, yyyy] = str.split("-").map(Number);
-    return new Date(yyyy, mm - 1, dd);
-  };
-
-  // ---------------------
-  // PERIOD → DATE RANGE
-  // ---------------------
-  const getDateRangeFromPeriod = (period) => {
-    const today = new Date();
-
-    switch (period) {
-      case "today":
-        return { startDate: formatDate(today), endDate: formatDate(today) };
-      case "yesterday": {
-        const y = new Date(today);
-        y.setDate(y.getDate() - 1);
-        return { startDate: formatDate(y), endDate: formatDate(y) };
-      }
-      case "this_week": {
-        const s = new Date(today);
-        s.setDate(s.getDate() - s.getDay());
-        const e = new Date(s);
-        e.setDate(s.getDate() + 6);
-        return { startDate: formatDate(s), endDate: formatDate(e) };
-      }
-      case "this_month": {
-        const s = new Date(today.getFullYear(), today.getMonth(), 1);
-        const e = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        return { startDate: formatDate(s), endDate: formatDate(e) };
-      }
-      default:
-        return dateRange;
-    }
-  };
 
   // ---------------------
   // DATA FETCHING
@@ -123,55 +85,37 @@ const ManagerDashboard = () => {
 
   const fetchActivities = async () => {
     try {
+      setLoading(true);
+
       const res = await getAllocationList(
         null,
         dateRange.startDate,
         dateRange.endDate
       );
-      setAllActivities(res.data || []);
-      groupProjects(res.data || []);
-    } catch (err) {
+
+      const allocationData = Array.isArray(res?.data) ? res.data : [];
+      // console.log(allocationData)
+      setAllActivities(allocationData);
+
+      if (allocationData.length > 0) {
+        const { projectsData, employeeData } = mapAllocationData(allocationData);
+
+        setProjectsData(projectsData);
+        setEmployeeData(employeeData);
+        // console.log(" Projects Data:", projectsData);
+        // console.log(" Employee Data:", employeeData);
+      } else {
+        setProjectsData([]);
+        setEmployeeData([]);
+      }
+    } catch (error) {
+      console.error("Error fetching allocation data:", error);
       Alert.alert("Error", "Failed to load activities");
+      setProjectsData([]);
+      setEmployeeData([]);
     } finally {
       setLoading(false);
     }
-  };
-
-  // ---------------------
-  // PROJECT GROUPING
-  // ---------------------
-  const groupProjects = (activities) => {
-    const grouped = {};
-
-    activities.forEach((act) => {
-      const projKey = act.project_name || act.order_item_key || "UNKNOWN";
-
-      if (!grouped[projKey]) {
-        grouped[projKey] = {
-          projectCode: act.order_item_key,
-          projectName: act.project_name,
-          activities: [],
-          employees: new Set(),
-          plannedHours: 0,
-          actualHours: 0,
-        };
-      }
-
-      grouped[projKey].activities.push(act);
-      grouped[projKey].employees.add(act.emp_id);
-      grouped[projKey].plannedHours += Number(act.effort || 0);
-      grouped[projKey].actualHours += Number(act.actual_effort || act.effort || 0);
-    });
-
-    const final = Object.values(grouped).map((p) => ({
-      ...p,
-      totalEmployees: p.employees.size,
-      utilization: p.plannedHours
-        ? Math.round((p.actualHours / p.plannedHours) * 100)
-        : 0,
-    }));
-
-    setProjects(final);
   };
 
   // ---------------------
@@ -224,8 +168,8 @@ const ManagerDashboard = () => {
     if (pendingFilters.period !== "custom") {
       const dr = getDateRangeFromPeriod(pendingFilters.period);
       setDateRange(dr);
-      setStartDateObj(parseDate(dr.startDate));
-      setEndDateObj(parseDate(dr.endDate));
+      setStartDateObj(parseDateString(dr.startDate));
+      setEndDateObj(parseDateString(dr.endDate));
       setIsCustomExpanded(false);
     }
     setShowFilterModal(false);
@@ -238,8 +182,8 @@ const ManagerDashboard = () => {
 
     const dr = getDateRangeFromPeriod("today");
     setDateRange(dr);
-    setStartDateObj(parseDate(dr.startDate));
-    setEndDateObj(parseDate(dr.endDate));
+    setStartDateObj(parseDateString(dr.startDate));
+    setEndDateObj(parseDateString(dr.endDate));
     setIsCustomExpanded(false);
     setShowFilterModal(false);
   };
@@ -255,13 +199,13 @@ const ManagerDashboard = () => {
   // ---------------------
   useEffect(() => {
     const init = async () => {
-      const dr = getDateRangeFromPeriod("today");
+      const dr = getDateRangeFromPeriod("this_month"); // ✅ CURRENT MONTH
       setDateRange(dr);
-      setStartDateObj(parseDate(dr.startDate));
-      setEndDateObj(parseDate(dr.endDate));
+      setStartDateObj(parseDateString(dr.startDate));
+      setEndDateObj(parseDateString(dr.endDate));
+
       await fetchEmployeeList();
 
-      // Animate content in
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -294,61 +238,76 @@ const ManagerDashboard = () => {
   }, [startDateObj, endDateObj]);
 
 
-  const handleViewDetails = (project) => {
-      Alert.alert(
-        "Project Details",
-        `Project: ${project.title}\nActivity: ${project.activity_name}\nCode: ${project.project_code}\nStatus: ${project.status_display || project.status}\nStart Date: ${project.planned_start_date || 'Not set'}\nEnd Date: ${project.due_date || 'Not set'}\nEffort: ${project.effort || 0} ${project.effort_unit || ''}\nItems: ${project.no_of_items || 0}`,
-        [{ text: "Close", style: "cancel" }]
+  const handleViewDetails = (project, employee) => {
+    console.log("project ksksdbksdbs", project)
+    console.log("emp[plyoee sjdchhsdj", employee)
+    if(project){
+    setSelectedProject(project);
+    setShowProjectModal(true);
+    }
+     if(employee){
+      setSelectedEmployee(employee);
+      setShowEmployeeDetailsModal(true)
+    }
+  };
+
+  const SEARCH_CONFIG = {
+    projects: ["project_name", "order_item_key"],
+    employees: ["employee_name", "emp_id", "project_name"],
+  };
+
+  const searchedData = useMemo(() => {
+    if (activeTab === "projects") {
+      return searchByKeys(
+        projectsData,
+        searchQuery,
+        SEARCH_CONFIG.projects
       );
-    };
+    }
 
-  // ---------------------
-  // UI COMPONENTS
-  // ---------------------
- const DashboardStats = () => {
-  const stats = [
-    {
-      label: "Total Projects",
-      value: projects.length,
-      icon: "business-outline",
-      color: "#4f46e5",
-    },
-    {
-      label: "Total Employees",
-      value: employees.length,
-      icon: "people-outline",
-      color: "#059669",
-    },
-  ];
+    if (activeTab === "employees") {
+      return searchByKeys(
+        employeeData,
+        searchQuery,
+        SEARCH_CONFIG.employees
+      );
+    }
 
-   return (
-    <View style={styles.statsGrid}>
-      {stats.map((stat) => (
-        <View key={stat.label} style={styles.statCard}>
-          <View style={[styles.statIconContainer, { backgroundColor: `${stat.color}15` }]}>
-            <Ionicons name={stat.icon} size={24} color={stat.color} />
+    return [];
+  }, [activeTab, searchQuery, projectsData, employeeData]);
+
+  const DashboardStats = () => {
+    const stats = [
+      {
+        label: "Total Projects",
+        value: projectsData.length,
+        icon: "business-outline",
+        color: "#4f46e5",
+      },
+      {
+        label: "Total Employees",
+        value: employeeData.length,
+        icon: "people-outline",
+        color: "#059669",
+      },
+    ];
+
+    return (
+      <View style={styles.statsGrid}>
+        {stats.map((stat) => (
+          <View key={stat.label} style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: `${stat.color}15` }]}>
+              <Ionicons name={stat.icon} size={24} color={stat.color} />
+            </View>
+            <View style={styles.statTextContainer}>
+              <Text style={styles.statValue}>{stat.value}</Text>
+              <Text style={styles.statLabel}>{stat.label}</Text>
+            </View>
           </View>
-          <View style={styles.statTextContainer}>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  );
-};
-
-  const TabButton = ({ title, isActive, onPress }) => (
-    <TouchableOpacity
-      style={[styles.tabButton, isActive && styles.tabButtonActive]}
-      onPress={onPress}
-    >
-      <Text style={[styles.tabButtonText, isActive && styles.tabButtonTextActive]}>
-        {title}
-      </Text>
-      {isActive && <View style={styles.tabIndicator} />}
-    </TouchableOpacity>
-  );
+        ))}
+      </View>
+    );
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -359,7 +318,7 @@ const ManagerDashboard = () => {
   if (loading) return <Loader visible={true} />;
 
   return (
-    <SafeAreaView edges={['left','right','bottom']} style={styles.safeArea}>
+    <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
       <HeaderComponent
         headerTitle="Manager Dashboard"
         onBackPress={() => navigate.goBack()}
@@ -419,25 +378,31 @@ const ManagerDashboard = () => {
           />
         )}
 
-        {/* TABS */}
-        <View style={styles.tabsContainer}>
-          <TabButton
-            title="Projects"
-            isActive={activeTab === "projects"}
-            onPress={() => setActiveTab("projects")}
-          />
-          <TabButton
-            title="Employees"
-            isActive={activeTab === "employees"}
-            onPress={() => setActiveTab("employees")}
-          />
+        {/* TABS and search bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBar}>
+            <Feather name="search" size={20} color="#666" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={
+                activeTab === "projects"
+                  ? "Search by Project Name or Order Key..."
+                  : "Search by Name, ID or Project..."
+              }
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#999"
+            />
+          </View>
         </View>
+
+        <TabNavigation tabs={[{ label: 'Projects', value: 'projects' }, { label: 'Employees', value: 'employees' }]} activeTab={activeTab} setActiveTab={setActiveTab} />
 
         {/* CONTENT */}
         <View style={styles.contentContainer}>
           {activeTab === "projects" ? (
             <UniversalProjectList
-              projects={projects}
+              projects={searchedData}
               CardComponent={ProjectCardManager}
               onViewDetails={handleViewDetails}
               showUtilization={true}
@@ -445,7 +410,7 @@ const ManagerDashboard = () => {
               showEmployeesPreview={true}
             />
           ) : (
-            <Employees activities={allActivities} employees={employees} />
+            <Employees activities={searchedData} employees={employees} onViewDetails={handleViewDetails} />
           )}
         </View>
       </Animated.ScrollView>
@@ -461,6 +426,21 @@ const ManagerDashboard = () => {
         applyButtonText="Apply Filters"
         clearButtonText="Clear Filters"
       />
+
+      {showProjectModal && selectedProject && (
+        <ProjectDetailModal
+          showProjectModal={showProjectModal}
+          project={selectedProject}
+          onClose={() => setShowProjectModal(false)}
+        />
+      )}
+
+      {showEmployeeDetailsModal && selectedEmployee && 
+      <EmployeeProjectModal
+        visible={showEmployeeDetailsModal}
+        onClose={() => setShowEmployeeDetailsModal(false)}
+        employeeData={selectedEmployee}
+      />}
     </SafeAreaView>
   );
 };
@@ -473,36 +453,36 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8fafc",
   },
   statsGrid: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  marginHorizontal: 16,
-  marginTop: 12,
-  gap: 12,
-},
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginHorizontal: 16,
+    marginTop: 12,
+    gap: 12,
+  },
 
-statCard: {
-  flex: 1,
-  backgroundColor: "#fff",
-  borderRadius: 16,
-  padding: 16,
-  flexDirection: 'row',
-  alignItems: 'center',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.1,
-  shadowRadius: 3.84,
-  elevation: 5,
-},
+  statCard: {
+    flex: 1,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
 
-statIconContainer: {
-  padding: 8,
-  borderRadius: 12,
-  marginRight: 12,
-},
+  statIconContainer: {
+    padding: 8,
+    borderRadius: 12,
+    marginRight: 12,
+  },
 
-statTextContainer: {
-  flex: 1,
-},
+  statTextContainer: {
+    flex: 1,
+  },
 
   statValue: {
     fontSize: 20,
@@ -564,5 +544,28 @@ statTextContainer: {
     marginTop: 16,
     paddingBottom: 20,
     marginHorizontal: 14
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 6,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    gap: 12,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
   },
 });

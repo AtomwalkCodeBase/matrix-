@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, StatusBar, TouchableOpacity, ScrollView, Dimensions, StyleSheet, Platform, RefreshControl, Animated, Alert, FlatList, TextInput, ActivityIndicator, BackHandler } from 'react-native';
+import { View, Text, Image, StatusBar, TouchableOpacity, ScrollView, Dimensions, StyleSheet, Platform, RefreshControl, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppContext } from '../../context/AppContext';
 import { useRouter } from "expo-router";
@@ -9,12 +9,7 @@ import moment from 'moment';
 import { useLayoutEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, FontAwesome5, Feather, MaterialCommunityIcons, } from '@expo/vector-icons';
-import { getEvents } from '../services/productServices';
-import Modal from 'react-native-modal';
-import RemarksInput from '../components/RemarkInput';
-import SuccessModal from '../components/SuccessModal';
 import ConfirmationModal from '../components/ConfirmationModal';
-import Sidebar from '../components/Sidebar';
 import ErrorModal from '../components/ErrorModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../Styles/appStyle';
@@ -32,30 +27,16 @@ const HomePage = ({ navigation }) => {
     setEmployeeData,
     setCurrentDate,
     setCurrentTimeStr,
-    checkedIn,
-    attendance,
     refreshKey,
     setRefreshKey,
-    remark,
-    setRemark,
-    errors,
-    previousDayUnchecked,
-    isYesterdayCheckout,
     // Geolocation states from context
-    geoLocationDataMissing,
-    showEffortConfirmModal,
-    setShowEffortConfirmModal,
-    setTimesheetCheckedToday,
+
     // Attendance functions from context
     setdatatime,
-    handleCheck,
-    handleRemarkSubmit,
-    handleYesterdayCheckout,
-    handleCheckOutAttempt,
+
     initializeGeoLocationConfig,
     refreshData
   } = useContext(AppContext);
-  const [loading, setIsLoading] = useState(false);
   // const [profile, setProfile] = useState({});
   const [company, setCompany] = useState({});
   const [empId, setEmpId] = useState('');
@@ -68,21 +49,12 @@ const HomePage = ({ navigation }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
 
   // Local modal states
-  const [localRemarkModalVisible, setLocalRemarkModalVisible] = useState(false);
-  const [localSuccessModalVisible, setLocalSuccessModalVisible] = useState(false);
-  const [localConfirmModalVisible, setLocalConfirmModalVisible] = useState(false);
   const [localAttendanceErrorMessage, setLocalAttendanceErrorMessage] = useState({
     message: "",
     visible: false
   });
 
   // Active events
-  const [eventData, setEventData] = useState([]);
-  const [filteredEvents, setFilteredEvents] = useState([]);
-  const [eventLoading, setEventLoading] = useState(true);
-
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
 
   useLayoutEffect(() => {
@@ -164,7 +136,7 @@ const HomePage = ({ navigation }) => {
     const netInfoUnsubscribe = NetInfo.addEventListener(state => {
       if (!isConnected && state.isConnected) {
         // Refresh events when network is restored
-        fetchEvents();
+        // fetchEvents();
       }
       setIsConnected(state.isConnected);
     });
@@ -211,13 +183,13 @@ const HomePage = ({ navigation }) => {
 
 
   const menuItems = [
-    //  ...(isManager ? [{
-    //   id: 1,
-    //   title: 'Project DashBoard',
-    //   // icon: <FontAwesome5 name="user-clock" size={24} color="#a970ff" />,
-    //   icon: <MaterialCommunityIcons name="view-dashboard-outline" size={24} color={colors.primary} />,
-    //   onPress: () =>  router.push({pathname: 'ManagerTimeSheet'})
-    // }] : []),
+     ...(isManager ? [{
+      id: 1,
+      title: 'Project DashBoard',
+      // icon: <FontAwesome5 name="user-clock" size={24} color="#a970ff" />,
+      icon: <MaterialCommunityIcons name="view-dashboard-outline" size={24} color={colors.primary} />,
+      onPress: () =>  router.push({pathname: 'ManagerTimeSheet'})
+    }] : []),
     {
       id: 2,
       title: 'Timesheet',

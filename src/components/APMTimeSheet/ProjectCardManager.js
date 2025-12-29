@@ -7,53 +7,64 @@ const ProjectCardManager = ({ project, onViewDetails }) => {
   const employees = project.employees || new Set();
   const utilization = project.utilization || 0;
   const activities = project.activities || [];
+
+  // console.log("project", project)
   
   // Get status information from activities
-  const getStatusInfo = () => {
-    if (activities.length === 0) return { status: "No Activities", color: "#999" };
+  // const getStatusInfo = () => {
+  //   if (activities.length === 0) return { status: "No Activities", color: "#999" };
     
-    const submittedCount = activities.filter(act => act.status === "S").length;
-    const totalCount = activities.length;
+  //   const submittedCount = activities.filter(act => act.project_status === "S").length;
+  //   const totalCount = activities.length;
     
-    if (submittedCount === totalCount) {
-      return { status: "All Submitted", color: "#4CAF50" };
-    } else if (submittedCount > 0) {
-      return { status: "Partially Submitted", color: "#FF9800" };
-    } else {
-      return { status: "Pending", color: "#F44336" };
-    }
-  };
+  //   if (submittedCount === totalCount) {
+  //     return { status: "All Submitted", color: "#4CAF50" };
+  //   } else if (submittedCount > 0) {
+  //     return { status: "Partially Submitted", color: "#FF9800" };
+  //   } else {
+  //     return { status: "Pending", color: "#F44336" };
+  //   }
+  // };
 
-  const statusInfo = getStatusInfo();
+  const getStatusColor = (status) => {
+  const s = (status || '').toLowerCase();
+  return s === 'completed'
+    ? '#10b981'
+    : s === 'in progress'
+    ? '#f59e0b'
+    : '#64748b';
+};
+
 
   return (
-    <TouchableOpacity style={styles.card} onPress={() => onViewDetails(project)}>
+    <TouchableOpacity style={styles.card} onPress={() => onViewDetails(project, null)}>
       {/* Header with status badge */}
       <View style={styles.header}>
         <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={1}>{project.projectName}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusInfo.color }]}>
-            <Text style={styles.statusText}>{statusInfo.status}</Text>
+          <Text style={styles.title} numberOfLines={1}>{project.customer_name}</Text>
+          <View style={[styles.statusBadge, { backgroundColor:  getStatusColor(project?.project_period_status) }]}>
+            <Text style={styles.statusText}>{project.project_period_status}</Text>
           </View>
         </View>
-        <Text style={styles.code}>{project.projectCode}</Text>
+        <Text style={styles.code}>{project.order_item_key}</Text>
+        <Text style={styles.code}>Audit Type: {project.audit_type}</Text>
       </View>
 
       {/* Stats Row */}
       <View style={styles.stats}>
         <View style={styles.stat}>
           <Ionicons name="people-outline" size={18} color="#666" />
-          <Text style={styles.statValue}>{project.totalEmployees || employees.size}</Text>
+          <Text style={styles.statValue}>{project.total_assigned_employees || employees.size}</Text>
           <Text style={styles.statLabel}>Employees</Text>
         </View>
 
         <View style={styles.stat}>
           <Ionicons name="time-outline" size={18} color="#666" />
-          <Text style={styles.statValue}>{project.actualHours || 0}</Text>
+          <Text style={styles.statValue}>{project.totalHours || 0}</Text>
           <Text style={styles.statLabel}>Hours</Text>
         </View>
 
-        <View style={styles.stat}>
+        {/* <View style={styles.stat}>
           <Ionicons 
             name="trending-up-outline" 
             size={18} 
@@ -63,13 +74,13 @@ const ProjectCardManager = ({ project, onViewDetails }) => {
             {utilization}%
           </Text>
           <Text style={styles.statLabel}>Utilization</Text>
-        </View>
+        </View> */}
 
-        <View style={styles.stat}>
+        {/* <View style={styles.stat}>
           <Ionicons name="list-outline" size={18} color="#666" />
           <Text style={styles.statValue}>{activities.length}</Text>
           <Text style={styles.statLabel}>Activities</Text>
-        </View>
+        </View> */}
       </View>
 
       {/* Activities Preview */}
