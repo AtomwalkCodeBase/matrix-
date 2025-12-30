@@ -398,7 +398,8 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
 
       {/* Action Buttons */}
       <View style={styles.actions}>
-        {(periodStatus === 'In Progress' || periodStatus === 'Planned') && renderPrimaryButton()}
+        {/* {(periodStatus === 'In Progress' || periodStatus === 'Planned') && renderPrimaryButton()} */}
+        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === "Pending") && renderPrimaryButton()}
         <TouchableOpacity
           style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
           onPress={handleToggleDetails}
