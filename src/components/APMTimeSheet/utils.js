@@ -138,64 +138,80 @@ const buildDayLogsFromAEntries = (aEntries = []) => {
             const date = ts?.a_date;
             if (!date) return;
 
-            // Parse geo data (choose last O| part as checkout)
+            // Parse geo data
             const { check_in, check_out } = parseGeoData(ts.geo_data || "");
 
-            // Determine effort/no_of_items for this date:
-            // Use this A entry's effort/no_of_items ONLY if this a_date is inside this A's date range (inclusive).
+            // Determine effort/no_of_items for this date
             const belongsToThisA = isDateInRange(date, aEntry.start_date, aEntry.end_date);
 
             if (!dayLogs[date]) {
-        dayLogs[date] = {
-          date,
-          checkIns: [],
-          checkOuts: [],
-          remarksList: [],
-          effort: 0,
-          no_of_items: 0,
-        };
-      }
-      const current = dayLogs[date];
+                dayLogs[date] = {
+                    date,
+                    sessions: [], // Changed from checkIns/checkOuts to sessions array
+                    remarksList: [],
+                    effort: 0,
+                    no_of_items: 0,
+                };
+            }
+            const current = dayLogs[date];
 
-       // Store multiple check-in/out values
-      if (check_in) current.checkIns.push(check_in);
-      if (check_out) current.checkOuts.push(check_out);
+            // Store as session object instead of separate arrays
+            if (check_in || check_out) {
+                current.sessions.push({
+                    check_in: check_in || null,
+                    check_out: check_out || null,
+                    no_of_items: ts.no_of_items || 0,
+                    geo_data: ts.geo_data || ""
+                });
+            }
 
-      // Store remarks
-      if (ts?.remarks) current.remarksList.push(ts.remarks);
-      else if (aRemarks) current.remarksList.push(aRemarks);
+            // Store remarks
+            if (ts?.remarks) current.remarksList.push(ts.remarks);
+            else if (aRemarks) current.remarksList.push(aRemarks);
 
-      // preserve original effort logic
-      if (belongsToThisA) current.effort = aEffortForEntry;
+            // preserve original effort logic
+            if (belongsToThisA) current.effort = aEffortForEntry;
 
-      // preserve original no_of_items logic
-      if (belongsToThisA) current.no_of_items = aNoOfItems;
+            // preserve original no_of_items logic (sum all items for the date)
+            if (belongsToThisA) {
+                // Sum no_of_items from all sessions for this date
+                const totalItemsForDate = current.sessions.reduce((sum, session) => {
+                    return sum + (Number(session.no_of_items) || 0);
+                }, 0);
+                current.no_of_items = totalItemsForDate;
+            }
+        });
     });
-  });
 
-      Object.keys(dayLogs).forEach(date => {
-    const log = dayLogs[date];
+    // Process each date to create the final structure
+    Object.keys(dayLogs).forEach(date => {
+        const log = dayLogs[date];
 
-    const hasCheckout = log.checkOuts.length > 0;
+        // Get first check-in and last check-out if available
+        const firstSession = log.sessions[0];
+        const lastSession = log.sessions[log.sessions.length - 1];
+        
+        const firstCheckIn = firstSession?.check_in;
+        const lastCheckOut = lastSession?.check_out;
+        
+        // Check if any session is incomplete (has check-in but no check-out)
+        const hasIncompleteSession = log.sessions.some(session => 
+            session.check_in && !session.check_out
+        );
 
-    dayLogs[date] = {
-      date,
-      check_in: log.checkIns[0] || "",             // First check-in
-      check_out: hasCheckout 
-        ? log.checkOuts[log.checkOuts.length - 1]  // Last checkout if exists
-        : "",
+        dayLogs[date] = {
+            date,
+            sessions: log.sessions, // Keep all sessions
+            first_check_in: firstCheckIn || "", // First check-in of the day
+            last_check_out: lastCheckOut || "", // Last check-out of the day
+            is_incomplete: hasIncompleteSession, // Flag for incomplete sessions
+            remarks: log.remarksList.join(", ") || "",
+            effort: log.effort,
+            no_of_items: log.no_of_items,
+        };
+    });
 
-      remarks: log.remarksList.join(", ") || "",
-
-      effort: log.effort,
-      no_of_items: log.no_of_items,
-
-      // 🚀 THIS FIXES YOUR PENDING CHECKOUT ISSUE
-    //   isPendingCheckout: !hasCheckout,
-    };
-  });
-
-  return dayLogs;
+    return dayLogs;
 };
 
 // const buildDayLogsFromAEntries = (aEntries = []) => {
@@ -291,272 +307,281 @@ const buildDayLogsFromAEntries = (aEntries = []) => {
 // };
 
 export const buildActivityGroupMap = (apiData = []) => {
-    if (!Array.isArray(apiData) || apiData.length === 0) return [];
+  console.log("buildActivityGroupMap called with data length:", apiData.length);
+  
+  if (!Array.isArray(apiData) || apiData.length === 0) return [];
 
-    const groups = {}; // key -> { original_P, allAEntries }
+  // Separate P and A items
+  const pItems = apiData.filter(item => item.activity_type === "P");
+  const aItems = apiData.filter(item => item.activity_type === "A");
+  
+  console.log(`P items: ${pItems.length}, A items: ${aItems.length}`);
 
-    apiData.forEach(item => {
-        const key = `${item.activity_id}_${item.order_item_key}`;
-
-        if (!groups[key]) {
-            groups[key] = {
-                key,
-                original_P: null,
-                allAEntries: []
-            };
-        }
-
-        if (item.activity_type === "P") {
-            // store planned (if multiple P exist, last one will overwrite; spec expects single P)
-            groups[key].original_P = item;
-        } else if (item.activity_type === "A") {
-            // collect all A entries
-            groups[key].allAEntries.push(item);
-        }
+  const groups = {};
+  
+  // 1. First handle P items (create groups for all P items)
+  pItems.forEach(pItem => {
+    // Create a unique key using P's id and order_item_id
+    const key = `${pItem.id}_${pItem.order_item_id}`;
+    
+    if (!groups[key]) {
+      groups[key] = {
+        key,
+        original_P: pItem,
+        allAEntries: [],
+        order_item_id: pItem.order_item_id,
+        order_item_key: pItem.order_item_key // Keep for reference
+      };
+      console.log(`Created group for P id ${pItem.id}, order_item_id: ${pItem.order_item_id}, order_item_key: ${pItem.order_item_key}`);
+    }
+  });
+  
+  // 2. Now assign A items to groups
+  aItems.forEach(aItem => {
+    // Try to find matching P item by comparing A's free_code with P's id
+    const matchingKey = Object.keys(groups).find(key => {
+      const group = groups[key];
+      // Check if A's free_code matches P's id AND order_item_id matches
+      return group.original_P && 
+             String(group.original_P.id) === String(aItem.free_code) && 
+             group.order_item_id === aItem.order_item_id;
     });
-
-    // Derive original_A (highest id) and compute some aggregated values per group
-    const result = Object.values(groups).map(group => {
-        const allA = group.allAEntries || [];
-        // pick highest id A as original_A (per CRITICAL RULES)
-        const original_A = allA.length === 0 ? null : allA.reduce((prev, curr) => {
-            const prevId = Number(prev?.id || 0);
-            const currId = Number(curr?.id || 0);
-            return currId >= prevId ? curr : prev;
-        });
-
-        return {
-            key: group.key,
-            original_P: group.original_P || null,
-            original_A: original_A || null,
-            allAEntries: allA
+    
+    if (matchingKey) {
+      // Add A item to existing group
+      groups[matchingKey].allAEntries.push(aItem);
+      console.log(`Assigned A id ${aItem.id} (free_code: ${aItem.free_code}) to group ${matchingKey}`);
+    } else {
+      // No matching P found - check if there's an orphan group for this A
+      const orphanKey = `orphan_${aItem.id}_${aItem.order_item_id}`;
+      if (!groups[orphanKey]) {
+        groups[orphanKey] = {
+          key: orphanKey,
+          original_P: null,
+          allAEntries: [aItem],
+          order_item_id: aItem.order_item_id,
+          order_item_key: aItem.order_item_key // Keep for reference
         };
-    });
+        console.log(`Created orphan group for A id ${aItem.id}, order_item_id: ${aItem.order_item_id}`);
+      } else {
+        groups[orphanKey].allAEntries.push(aItem);
+      }
+    }
+  });
+  
+  // 3. Convert to array and derive original_A
+  const result = Object.values(groups).map(group => {
+    const allA = group.allAEntries || [];
+    
+    // Sort A entries by id ascending and pick the highest id as original_A
+    const sortedA = [...allA].sort((a, b) => (a.id || 0) - (b.id || 0));
+    const original_A = sortedA.length > 0 ? sortedA[sortedA.length - 1] : null;
+    
+    return {
+      key: group.key,
+      original_P: group.original_P || null,
+      original_A: original_A || null,
+      allAEntries: allA,
+      order_item_id: group.order_item_id,
+      order_item_key: group.order_item_key
+    };
+  });
 
-    return result;
+  console.log(`Total groups created: ${result.length}`);
+  
+  // Debug: Show each group
+  result.forEach((group, index) => {
+    console.log(`Group ${index + 1}:`);
+    console.log(`  Key: ${group.key}`);
+    console.log(`  Has P: ${group.original_P ? `Yes (id: ${group.original_P.id})` : 'No'}`);
+    console.log(`  Has A: ${group.original_A ? `Yes (id: ${group.original_A.id}, free_code: ${group.original_A.free_code})` : 'No'}`);
+    console.log(`  order_item_id: ${group.order_item_id}`);
+    console.log(`  order_item_key: ${group.order_item_key}`);
+    console.log(`  Total A entries: ${group.allAEntries.length}`);
+  });
+  
+  return result;
 };
 
 export const normalizeProjects = (apiData = []) => {
-    const groups = buildActivityGroupMap(apiData);
-    const todayApiStr = getTodayApiDateStr(); // e.g., "29-Nov-2025"
+  console.log("normalizeProjects called with data length:", apiData.length);
+  
+  const groups = buildActivityGroupMap(apiData);
+  console.log("Groups created:", groups.length);
+  
+  const todayApiStr = getTodayApiDateStr();
+  console.log("Today's API date string:", todayApiStr);
+  
+  // For each grouped item, build the final object
+  const final = groups.map(group => {
+    const P = group.original_P;
+    const A = group.original_A;
+    const allA = Array.isArray(group.allAEntries) ? group.allAEntries : [];
+    
+    // Generate a unique ID for the project card
+    const projectId = P ? `P_${P.id}` : (A ? `A_${A.id}` : `group_${group.key}`);
 
-    // For each grouped item, build the final object following the specification exactly.
-    const final = groups.map(group => {
-        const P = group.original_P;
-        const A = group.original_A;
-        const allA = Array.isArray(group.allAEntries) ? group.allAEntries : [];
+    // planned dates only from P
+    const planned_start_date = P?.start_date || null;
+    const planned_end_date = P?.end_date || null;
 
-        // planned dates only from P
-        const planned_start_date = P?.start_date || null;
-        const planned_end_date = P?.end_date || null;
+    // identity fields
+    const customer_name = (P?.customer_name) || (A?.customer_name) || null;
+    const audit_type = (P?.product_name) || (A?.product_name) || null;
+    const activity_id = (P?.activity_id) || (A?.activity_id) || null;
+    const order_item_key = (P?.order_item_key) || (A?.order_item_key) || null;
+    const order_item_id = (P?.order_item_id) || (A?.order_item_id) || null; // Add this
+    const project_name = (P?.project_name) || (A?.project_name) || null;
+    const activity_name = (P?.activity_name) || (A?.activity_name) || null;
 
-        // identity fields
-        const customer_name = (P?.customer_name) || (A?.customer_name) || null;
-        const audit_type = (P?.product_name) || (A?.product_name) || null;
-        const activity_id = (P?.activity_id) || (A?.activity_id) || null;
-        const order_item_key = (P?.order_item_key) || (A?.order_item_key) || null;
-        const project_name = (P?.project_name) || (A?.project_name) || null;
-        const activity_name = (P?.activity_name) || (A?.activity_name) || null;
+    // Build combined day_logs from ALL A entries (merging by date, latest geo wins)
+    const day_logs = buildDayLogsFromAEntries(allA);
 
-        // Build combined day_logs from ALL A entries (merging by date, latest geo wins)
-        const day_logs = buildDayLogsFromAEntries(allA);
+    const allDates = Object.keys(day_logs).map(d => parseApiDate(d)).filter(Boolean).sort((a, b) => a - b);
 
-        const allDates = Object.keys(day_logs).map(d => parseApiDate(d)).filter(Boolean).sort((a, b) => a - b);
+    // actual date from the day_logs
+    const actual_start_date = allDates.length ? formatToApiDate(allDates[0]) : null;
+    const actual_end_date = allDates.length ? formatToApiDate(allDates[allDates.length - 1]) : null;
 
-        //actual date from the day_logs
-        const actual_start_date = allDates.length ? formatToApiDate(allDates[0]) : null;
-        const actual_end_date = allDates.length ? formatToApiDate(allDates[allDates.length - 1]) : null;
+    const total_no_of_items = Object.values(day_logs).reduce(
+        (sum, d) => sum + (Number(d.no_of_items) || 0),
+        0
+    );
 
-        const total_no_of_items = Object.values(day_logs).reduce(
-            (sum, d) => sum + (Number(d.no_of_items) || 0),
-            0
-        );
+    // Total effort = sum of effort from ALL A entries (rule 5)
+    const totalEffort = allA.reduce((sum, e) => {
+        const v = typeof e.effort === "number" ? e.effort : 0;
+        return sum + v;
+    }, 0);
 
-        // Total effort = sum of effort from ALL A entries (rule 5)
-        const totalEffort = allA.reduce((sum, e) => {
-            const v = typeof e.effort === "number" ? e.effort : 0;
-            return sum + v;
-        }, 0);
+    // effort_unit: prefer any non-null effort_unit from original_A, else from first A, else null
+    const effort_unit = (A && A.effort_unit) ? A.effort_unit :
+        (allA.length > 0 && allA.find(a => a.effort_unit)?.effort_unit) || null;
 
-        // effort_unit: prefer any non-null effort_unit from original_A, else from first A, else null
-        const effort_unit = (A && A.effort_unit) ? A.effort_unit :
-            (allA.length > 0 && allA.find(a => a.effort_unit)?.effort_unit) || null;
+    // Determine 'complete' as per rule: true only if original_A (highest id) has status === "S"
+    const complete = !!(A && A.status === "S");
 
-        // Determine 'complete' as per rule: true only if original_A (highest id) has status === "S"
-        const complete = !!(A && A.status === "S");
-
-        // Determine project_period_status as per RULE 6
-        // - "Completed" → if complete === true OR any A has status === "C" or status_display === "COMPLETED"
-        // - "In Progress" → has at least one A, not completed
-        // - "Pending" → only P exists AND planned_end_date < today
-        // - "Planned" → only P exists AND within/future dates
-        let project_period_status = "Planned";
-        const anyAHasCompleted = allA.some(x => x && (x.status === "S" || (x.status_display && x.status_display.toUpperCase() === "SUBMITTED")));
-        if (complete || anyAHasCompleted) {
-            project_period_status = "Completed";
-        } else if (allA && allA.length > 0) {
-            project_period_status = "In Progress";
-        } else if (P) {
-            if (planned_end_date) {
-                const end = parseApiDate(planned_end_date);
-                const today = parseApiDate(todayApiStr);
-                if (end && today && end.getTime() < today.getTime()) {
-                    project_period_status = "Pending";
-                } else {
-                    project_period_status = "Planned";
-                }
+    // Determine project_period_status as per RULE 6
+    let project_period_status = "Planned";
+    const anyAHasCompleted = allA.some(x => x && (x.status === "S" || (x.status_display && x.status_display.toUpperCase() === "SUBMITTED")));
+    if (complete || anyAHasCompleted) {
+        project_period_status = "Completed";
+    } else if (allA && allA.length > 0) {
+        project_period_status = "In Progress";
+    } else if (P) {
+        if (planned_end_date) {
+            const end = parseApiDate(planned_end_date);
+            const today = parseApiDate(todayApiStr);
+            if (end && today && end.getTime() < today.getTime()) {
+                project_period_status = "Pending";
             } else {
                 project_period_status = "Planned";
             }
         } else {
-            // If neither P nor A exist (shouldn't happen), mark Pending by default
-            project_period_status = "Pending";
+            project_period_status = "Planned";
         }
+    } else {
+        project_period_status = "Pending";
+    }
 
-        // Today's status (for todayApiStr) as per RULE 6 (todaysStatus)
-        // - "Complete" → has check-in + check-out today
-        // - "Active" → has check-in today but no check-out
-        // - "Planned" → no activity today
-        const todayLog = day_logs[todayApiStr] || null;
-        let todaysStatus = "Planned";
-        if (todayLog && todayLog.check_in && todayLog.check_out) {
-            todaysStatus = "Complete";
-        } else if (todayLog && todayLog.check_in && !todayLog.check_out) {
-            todaysStatus = "Active";
-        } else {
-            todaysStatus = "Planned";
-        }
+    // Today's status (for todayApiStr) as per RULE 6 (todaysStatus)
+    const todayLog = day_logs[todayApiStr] || null;
+    let todaysStatus = "Planned";
+    if (todayLog && todayLog.check_in && todayLog.check_out) {
+        todaysStatus = "Complete";
+    } else if (todayLog && todayLog.check_in && !todayLog.check_out) {
+        todaysStatus = "Active";
+    } else {
+        todaysStatus = "Planned";
+    }
 
-        // Pending checkout detection: any date with check_in but no check_out
-        // const pendingDates = Object.keys(day_logs)
-        //     .filter(d => {
-        //         const l = day_logs[d];
-        //         return !!(l && l.check_in && !l.check_out);
-        //     })
-        //     // sort dates ascending (by parsed date)
-        //     .sort((a, b) => {
-        //         const pa = parseApiDate(a);
-        //         const pb = parseApiDate(b);
-        //         if (!pa || !pb) return 0;
-        //         return pa.getTime() - pb.getTime();
-        //     });
-
-        // const hasPendingCheckout = pendingDates.length > 0;
-        // // pendingCheckoutDate: choose the earliest pending date (makes sense for UX). If none -> null
-        // const pendingCheckoutDate = hasPendingCheckout ? pendingDates[0] : null;
-
-        // Buttons logic as per RULE 7:
-        // - If any date has check_in but no check_out -> hasPendingCheckout = true, show_end_button = true
-        // - Else if today has no check_in -> show_start_button = true
-        // - Else if today has check_in but no check_out -> show_end_button = true
-
-        // ---- CORRECT PENDING CHECKOUT LOGIC ----
-
-// Convert today's API date to real Date object
-const todayObj = parseApiDate(todayApiStr);
-
-// Find ANY previous date with check-in but NO check-out
-const hasPreviousDatePendingCheckout = Object.keys(day_logs).some(dateStr => {
-    const log = day_logs[dateStr];
-    const d = parseApiDate(dateStr);
-
-    if (!log || !d) return false;
-
-    // Strictly BEFORE today
-    const isPreviousDate = d.getTime() < todayObj.getTime();
-
-    return isPreviousDate && log.check_in && !log.check_out;
-});
-
-// This is your final expected value
-const hasPendingCheckout = hasPreviousDatePendingCheckout;
-
-// Earliest previous pending date (optional)
-const pendingCheckoutDate = hasPendingCheckout
-    ? Object.keys(day_logs)
-        .filter(dateStr => {
-            const log = day_logs[dateStr];
-            const d = parseApiDate(dateStr);
-
-            if (!log || !d) return false;
-
-            return d.getTime() < todayObj.getTime() && log.check_in && !log.check_out;
-        })
-        .sort((a, b) => parseApiDate(a) - parseApiDate(b))[0]
-    : null;
-
-        
-        let show_start_button = false;
-        let show_end_button = false;
-        const hasTodayCheckIn = !!(todayLog && todayLog.check_in);
-        const hasTodayCheckOut = !!(todayLog && todayLog.check_out);
-
-        if (hasPendingCheckout && pendingCheckoutDate !== todayApiStr) {
-            // end button should be shown to allow completing pending checkout (per spec)
-            show_start_button = false;
-            show_end_button = true;
-        } else if (!hasTodayCheckIn && !hasPendingCheckout) {
-            // no one checked in today and no pending elsewhere -> show start
-            show_start_button = true;
-            show_end_button = false;
-        } else if (hasTodayCheckIn && !hasTodayCheckOut) {
-            // checked in today but not out -> show end
-            show_start_button = false;
-            show_end_button = true;
-        }else if (hasTodayCheckIn && hasTodayCheckOut) {
-            show_start_button = false;
-            show_end_button = false;
-        }
-
-        // id should be latest A.id or P.id
-        const id = (A && A.id) ? A.id : (P && P.id) ? P.id : null;
-
-        // original_P: full original P object or null
-        // original_A: full original A object (the highest id) or null
-        const original_P = P || null;
-        const original_A = A || null;
-
-        return {
-            id: id,
-            title: project_name,
-            customer_name,
-            audit_type,
-            project_name,
-            activity_name,
-            activity_id,
-            project_code: order_item_key,
-
-            planned_start_date: planned_start_date || null,
-            planned_end_date: planned_end_date || null,
-
-            actual_start_date: actual_start_date || null,
-            actual_end_date: actual_end_date || null,
-
-            complete: Boolean(complete),
-
-            // todaysStatus must be one of "Active" | "Complete" | "Planned" | "Pending"
-            // We already set "Complete", "Active", "Planned". Map "Pending" only if project_period_status === "Pending" AND no activity today
-            todaysStatus: (todaysStatus === "Planned" && project_period_status === "Pending") ? "Planned" : todaysStatus,
-            project_period_status,
-
-            show_start_button,
-            show_end_button,
-            hasPendingCheckout,
-            pendingCheckoutDate: pendingCheckoutDate || null,
-
-            effort: totalEffort,
-            effort_unit: effort_unit || null,
-
-            total_no_of_items,
-
-            day_logs: day_logs,
-
-            original_P,
-            original_A
-        };
+    // Pending checkout detection
+    const todayObj = parseApiDate(todayApiStr);
+    const hasPreviousDatePendingCheckout = Object.keys(day_logs).some(dateStr => {
+        const log = day_logs[dateStr];
+        const d = parseApiDate(dateStr);
+        if (!log || !d) return false;
+        const isPreviousDate = d.getTime() < todayObj.getTime();
+        return isPreviousDate && log.check_in && !log.check_out;
     });
 
-    return final;
+    const hasPendingCheckout = hasPreviousDatePendingCheckout;
+    const pendingCheckoutDate = hasPendingCheckout
+        ? Object.keys(day_logs)
+            .filter(dateStr => {
+                const log = day_logs[dateStr];
+                const d = parseApiDate(dateStr);
+                if (!log || !d) return false;
+                return d.getTime() < todayObj.getTime() && log.check_in && !log.check_out;
+            })
+            .sort((a, b) => parseApiDate(a) - parseApiDate(b))[0]
+        : null;
+
+    let show_start_button = false;
+    let show_end_button = false;
+    const hasTodayCheckIn = !!(todayLog && todayLog.check_in);
+    const hasTodayCheckOut = !!(todayLog && todayLog.check_out);
+
+    if (hasPendingCheckout && pendingCheckoutDate !== todayApiStr) {
+        show_start_button = false;
+        show_end_button = true;
+    } else if (!hasTodayCheckIn && !hasPendingCheckout) {
+        show_start_button = true;
+        show_end_button = false;
+    } else if (hasTodayCheckIn && !hasTodayCheckOut) {
+        show_start_button = false;
+        show_end_button = true;
+    } else if (hasTodayCheckIn && hasTodayCheckOut) {
+        show_start_button = false;
+        show_end_button = false;
+    }
+
+    // original_P: full original P object or null
+    // original_A: full original A object (the highest id) or null
+    const original_P = P || null;
+    const original_A = A || null;
+
+    return {
+        id: projectId,
+        title: project_name,
+        customer_name,
+        audit_type,
+        project_name,
+        activity_name,
+        activity_id,
+        project_code: order_item_key,
+        order_item_id: order_item_id, // Add this field
+
+        planned_start_date: planned_start_date || null,
+        planned_end_date: planned_end_date || null,
+
+        actual_start_date: actual_start_date || null,
+        actual_end_date: actual_end_date || null,
+
+        complete: Boolean(complete),
+
+        todaysStatus: (todaysStatus === "Planned" && project_period_status === "Pending") ? "Planned" : todaysStatus,
+        project_period_status,
+
+        show_start_button,
+        show_end_button,
+        hasPendingCheckout,
+        pendingCheckoutDate: pendingCheckoutDate || null,
+
+        effort: totalEffort,
+        effort_unit: effort_unit || null,
+
+        total_no_of_items,
+
+        day_logs: day_logs,
+
+        original_P,
+        original_A
+    };
+  });
+
+  console.log(`Normalized ${final.length} projects`);
+  return final;
 };
 
 export const mapAllocationData = (apiData = []) => {
