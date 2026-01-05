@@ -32,6 +32,9 @@ import {
   parseDateString,
   getDateRangeFromPeriod,
   DateForApiFormate,
+  getTodayApiDateStr,
+  parseApiDate,
+
 } from "../components/APMTimeSheet/utils";
 
 import { getAllocationList, postAllocationData } from "../services/productServices";
@@ -42,7 +45,7 @@ const PROJECTS_PER_PAGE = 10;
 
 const DEFAULT_FILTERS = {
   status: null,
-  period: "this_month",
+  period: "today", // Change from "this_month" to "today"
 };
 
 const APMTimeSheet = () => {
@@ -82,8 +85,9 @@ const APMTimeSheet = () => {
   // Memoized options
   const periodOptions = useMemo(
     () => [
-      { label: "This Month", value: "this_month" },
+      { label: "Today", value: "today" },
       { label: "This Week", value: "this_week" },
+      { label: "This Month", value: "this_month" },
       { label: "Custom Date", value: "custom" },
     ],
     []
@@ -118,6 +122,8 @@ const APMTimeSheet = () => {
   );
 
   // Initialize dates & load employee
+  // Initialize dates & load employee
+  // Initialize dates & load employee
   useEffect(() => {
     const init = async () => {
       try {
@@ -129,10 +135,23 @@ const APMTimeSheet = () => {
         }
         setEmpId(storedEmpId);
 
-        // Default: This Month
-        const defaultRange = getDateRangeFromPeriod("this_month");
-        updateDateRangeAndFetch(storedEmpId, defaultRange);
+        // Set default filters
+        setActiveFilters({ ...DEFAULT_FILTERS });
+        setPendingFilters({ ...DEFAULT_FILTERS });
+
+        // Default: Today (for display) but fetch this month's data
+        const todayRange = getDateRangeFromPeriod("today");
+        const monthRange = getDateRangeFromPeriod("this_month"); // Get month range for API call
+
+        // Set display range to today
+        setDateRange(todayRange);
+        setStartDateObj(parseDateString(todayRange.startDate) || new Date());
+        setEndDateObj(parseDateString(todayRange.endDate) || new Date());
+
+        // Fetch with month range to get all data
+        await fetchProjects(storedEmpId, monthRange.startDate, monthRange.endDate);
       } catch (err) {
+        console.error("Initialization error:", err);
         setErrorMessage("Failed to initialize app.");
         setShowErrorModal(true);
       } finally {
@@ -156,6 +175,20 @@ const APMTimeSheet = () => {
     applyFiltersAndPagination(allProjects, activeFilters);
   }, [allProjects, activeFilters]);
 
+  // Debug: Log when activeFilters change
+  useEffect(() => {
+    console.log("Active filters changed:", activeFilters);
+    console.log("All projects count:", allProjects.length);
+  }, [activeFilters]);
+
+  // Debug: Log when allProjects change
+  useEffect(() => {
+    console.log("All projects updated, count:", allProjects.length);
+    if (allProjects.length > 0) {
+      console.log("First project:", JSON.stringify(allProjects[0]));
+    }
+  }, [allProjects]);
+
   // Sync custom date pickers → dateRange
   useEffect(() => {
     if (activeFilters.period !== "custom") return;
@@ -174,13 +207,9 @@ const APMTimeSheet = () => {
   }, [startDateObj, endDateObj, activeFilters.period]);
 
   // Helper: update date range + refetch
-  const updateDateRangeAndFetch = async (id, range) => {
-    setDateRange(range);
-    setStartDateObj(parseDateString(range.startDate) || new Date());
-    setEndDateObj(parseDateString(range.endDate) || new Date());
-    await fetchProjects(id, range.startDate, range.endDate);
-  };
 
+  // Fetch projects from API
+  // Fetch projects from API
   // Fetch projects from API
   const fetchProjects = async (employeeId, start, end) => {
     setIsLoading(true);
@@ -189,16 +218,13 @@ const APMTimeSheet = () => {
       const raw = Array.isArray(res?.data) ? res.data : [];
       const normalized = normalizeProjects(raw);
 
-      // Sort: Today's completed → bottom
-      const todayStr = formatToDDMMYYYY(new Date());
-      const sorted = [...normalized].sort((a, b) => {
-        const aIsTodayComplete = a.todaysStatus === "complete" && a.activityDate === todayStr;
-        const bIsTodayComplete = b.todaysStatus === "complete" && b.activityDate === todayStr;
-        return aIsTodayComplete ? 1 : bIsTodayComplete ? -1 : 0;
-      });
+      console.log("Raw API response:", JSON.stringify(raw));
+      console.log("Normalized projects:", JSON.stringify(normalized));
 
-      setAllProjects(sorted);
-      console.log("Fetch projects from API NOV",JSON.stringify(sorted))
+      // Store ALL projects without filtering
+      setAllProjects(normalized);
+      console.log("All projects stored:", normalized.length);
+
     } catch (err) {
       console.error(err);
       setAllProjects([]);
@@ -210,16 +236,161 @@ const APMTimeSheet = () => {
   };
 
   // Apply filters + pagination
+  // Apply filters + pagination
+  // Apply filters + pagination
   const applyFiltersAndPagination = useCallback((list, filters, page = 1) => {
     let filtered = [...list];
 
+    console.log("Applying filters:", filters);
+    console.log("Total projects before filtering:", filtered.length);
+
+    // Apply status filter
     if (filters.status && filters.status !== "All") {
-      filtered = filtered.filter((p) => p.status === filters.status);
+      filtered = filtered.filter((p) => {
+        const statusMatch = p.project_period_status === filters.status ||
+          p.status === filters.status;
+        return statusMatch;
+      });
+      console.log("After status filter:", filtered.length);
     }
 
-    const startIdx = (page - 1) * PROJECTS_PER_PAGE;
-    const paginated = filtered.slice(0, startIdx + PROJECTS_PER_PAGE);
+    // Apply period filter
+    if (filters.period) {
+      switch (filters.period) {
+        case "today":
+          const todayStr = formatToDDMMYYYY(new Date());
+          const todayApiStr = getTodayApiDateStr();
 
+          console.log("Filtering for today:", {
+            dd_mm_yyyy: todayStr,
+            api_format: todayApiStr
+          });
+
+          filtered = filtered.filter(project => {
+            const hasActivityToday = project.day_logs && project.day_logs[todayApiStr];
+            const isPlannedForToday = project.planned_start_date === todayApiStr ||
+              project.planned_end_date === todayApiStr;
+
+            return hasActivityToday || project.hasPendingCheckout || isPlannedForToday;
+          });
+          console.log("After today filter:", filtered.length);
+          break;
+
+        case "this_week":
+          const weekRange = getDateRangeFromPeriod("this_week");
+          console.log("Week range:", weekRange);
+
+          // Parse week dates (dd-mm-yyyy format)
+          const weekStart = parseDateString(weekRange.startDate);
+          const weekEnd = parseDateString(weekRange.endDate);
+
+          console.log("Parsed week dates:", {
+            weekStart: weekStart?.toString(),
+            weekEnd: weekEnd?.toString()
+          });
+
+          filtered = filtered.filter(project => {
+            // 1. Check if project has any activity within this week
+            const hasActivityInWeek = Object.keys(project.day_logs || {}).some(dateStr => {
+              const activityDate = parseApiDate(dateStr); // Use parseApiDate for API dates
+              if (!activityDate || !weekStart || !weekEnd) return false;
+
+              // Reset times to compare only dates
+              const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+              const weekStartOnly = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
+              const weekEndOnly = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
+
+              return activityDateOnly >= weekStartOnly && activityDateOnly <= weekEndOnly;
+            });
+
+            // 2. Check if project is PLANNED for this week
+            const plannedStart = parseApiDate(project.planned_start_date); // Use parseApiDate
+            const plannedEnd = parseApiDate(project.planned_end_date); // Use parseApiDate
+
+            console.log(`Project ${project.id} dates:`, {
+              planned_start: project.planned_start_date,
+              planned_end: project.planned_end_date,
+              plannedStart: plannedStart?.toString(),
+              plannedEnd: plannedEnd?.toString(),
+              hasActivityInWeek
+            });
+
+            const isPlannedForWeek = (plannedStart && weekStart && weekEnd &&
+              plannedStart >= weekStart && plannedStart <= weekEnd) ||
+              (plannedEnd && weekStart && weekEnd &&
+                plannedEnd >= weekStart && plannedEnd <= weekEnd);
+
+            return hasActivityInWeek || isPlannedForWeek || project.hasPendingCheckout;
+          });
+          console.log("After week filter:", filtered.length);
+          break;
+
+        case "this_month":
+          const monthRange = getDateRangeFromPeriod("this_month");
+          console.log("Month range:", monthRange);
+
+          // Parse month dates (dd-mm-yyyy format)
+          const monthStart = parseDateString(monthRange.startDate);
+          const monthEnd = parseDateString(monthRange.endDate);
+
+          console.log("Parsed month dates:", {
+            monthStart: monthStart?.toString(),
+            monthEnd: monthEnd?.toString()
+          });
+
+          filtered = filtered.filter(project => {
+            // 1. Check if project has any activity within this month
+            const hasActivityInMonth = Object.keys(project.day_logs || {}).some(dateStr => {
+              const activityDate = parseApiDate(dateStr); // Use parseApiDate for API dates
+              if (!activityDate || !monthStart || !monthEnd) return false;
+
+              // Reset times to compare only dates
+              const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+              const monthStartOnly = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate());
+              const monthEndOnly = new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate());
+
+              return activityDateOnly >= monthStartOnly && activityDateOnly <= monthEndOnly;
+            });
+
+            // 2. Check if project is PLANNED for this month
+            const plannedStart = parseApiDate(project.planned_start_date); // Use parseApiDate
+            const plannedEnd = parseApiDate(project.planned_end_date); // Use parseApiDate
+
+            console.log(`Project ${project.id} dates:`, {
+              planned_start: project.planned_start_date,
+              planned_end: project.planned_end_date,
+              plannedStart: plannedStart?.toString(),
+              plannedEnd: plannedEnd?.toString(),
+              hasActivityInMonth
+            });
+
+            const isPlannedForMonth = (plannedStart && monthStart && monthEnd &&
+              plannedStart >= monthStart && plannedStart <= monthEnd) ||
+              (plannedEnd && monthStart && monthEnd &&
+                plannedEnd >= monthStart && plannedEnd <= monthEnd);
+
+            return hasActivityInMonth || isPlannedForMonth || project.hasPendingCheckout;
+          });
+          console.log("After month filter:", filtered.length);
+          break;
+
+        default:
+          break;
+      }
+    }
+
+    // Sort: Today's completed → bottom
+    const todayStr = formatToDDMMYYYY(new Date());
+    const sorted = [...filtered].sort((a, b) => {
+      const aIsTodayComplete = a.todaysStatus === "complete" && a.activityDate === todayStr;
+      const bIsTodayComplete = b.todaysStatus === "complete" && b.activityDate === todayStr;
+      return aIsTodayComplete ? 1 : bIsTodayComplete ? -1 : 0;
+    });
+
+    const startIdx = (page - 1) * PROJECTS_PER_PAGE;
+    const paginated = sorted.slice(0, startIdx + PROJECTS_PER_PAGE);
+
+    console.log("Final filtered projects:", paginated.length);
     setProjects(paginated);
   }, []);
 
@@ -267,150 +438,150 @@ const APMTimeSheet = () => {
   };
 
   // Submit activity (Start / Resume / Complete)
-    const handleActivitySubmit = async ({ project, mode, data = {}, extraFields = {} }) => {
-      if (!project) return false;
+  const handleActivitySubmit = async ({ project, mode, data = {}, extraFields = {} }) => {
+    if (!project) return false;
 
-      const isAddMode = mode === "ADD";
-      setIsLoading(true);
-      try {
+    const isAddMode = mode === "ADD";
+    setIsLoading(true);
+    try {
 
-         const loc = await getCurrentLocation();
-    if (!loc) {
-      setIsLoading(false);
-      return false; // stop the flow if location failed
-    }
-        const { apiDate: defaultApiDate, currentTime } = getCurrentDateTimeDefaults();
-        const formData = new FormData();
-
-        let activityDate = data.activityDate;
-
-        // If a Date object was passed from the modal, convert to dd-mm-yyyy
-        if (activityDate instanceof Date) {
-          activityDate = DateForApiFormate(activityDate);
-        }
-
-        // For "checkout_yesterday", force activity_date to the pending checkout date
-        if (!activityDate && project?.modalContext?.type === "checkout_yesterday") {
-          activityDate = project?.pendingCheckoutDate || defaultApiDate;
-        }
-
-        if (!activityDate) {
-          activityDate = defaultApiDate;
-        }
-
-        let startTime = null;
-        if (isAddMode) {
-          startTime = data.startTime || currentTime;
-        } else if (data.startTime) {
-          startTime = data.startTime;
-        }
-
-        const resolvedEmpId =
-          empId ||
-          project?.original_P?.emp_id ||
-          project?.original_A?.emp_id ||
-          "";
-
-        formData.append("emp_id", resolvedEmpId);
-        formData.append("activity_date", DateForApiFormate(activityDate));
-        formData.append(
-          "remarks",
-          data.remarks ?? (isAddMode ? "Project Started from mobile" : "")
-        );
-        formData.append("latitude_id", String(loc.latitude));
-        formData.append("longitude_id", String(loc.longitude));
-
-        if (data.file) {
-          formData.append("submitted_file", data.file);
-        }
-
-        if (isAddMode) {
-          // START / ADD mode
-          if (!project.original_P?.id) {
-            console.warn("Missing original_P.id for ADD mode", project);
-            return false;
-          }
-          formData.append("call_mode", "ADD");
-          formData.append("p_id", String(project.original_P.id));
-          formData.append("start_time", formatAMPMTime(startTime));
-          formData.append("geo_type", "I");
-          // As per spec: initial no_of_items is 0 on Start
-          formData.append("no_of_items", "0");
-        } else {
-          // UPDATE mode: Resume / Continue / Complete
-          if (!project.original_A?.id) {
-            console.warn("Missing original_A.id for UPDATE mode", project);
-            return false;
-          }
-
-          formData.append(
-            "no_of_items",
-            String(Number(data.noOfItems || 0))
-          );
-          formData.append("call_mode", "UPDATE");
-          formData.append("a_id", String(project.original_A.id));
-
-          if (data.endTime) {
-            formData.append("end_time", formatAMPMTime(data.endTime));
-          }
-
-          if (startTime) {
-            // Resume path – treat as new check-in
-            formData.append("start_time", formatAMPMTime(startTime));
-            formData.append("remarks", "Project resume from Mobile");
-            formData.append("geo_type", "I");
-          } else {
-            // Pure checkout: only end_time, no start_time
-            formData.append("geo_type", "O");
-          }
-        }
-
-        Object.entries(extraFields).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            formData.append(key, value);
-          }
-        });
-
-        console.log("==== FORM DATA BEFORE API ====");
-        for (let [key, value] of formData.entries()) {
-          console.log(key, value);
-        }
-        console.log("================================");
-
-        const res = await postAllocationData(formData);
-
-        if (res?.status === 200) {
-          return true;
-        }
-
-        const apiMsg =
-          res?.data?.message ||
-          (isAddMode
-            ? "Failed to start activity. Please try again."
-            : "Failed to update activity. Please try again.");
-        setErrorMessage(apiMsg);
-        setShowErrorModal(true);
-        return false;
-      } catch (error) {
-        console.error("Error in handleActivitySubmit", error);
-        setErrorMessage(
-          isAddMode
-            ? "An error occurred while starting the activity."
-            : "An error occurred while updarrrting the activity."
-        );
-        setShowErrorModal(true);
-        return false;
-      } finally {
+      const loc = await getCurrentLocation();
+      if (!loc) {
         setIsLoading(false);
+        return false; // stop the flow if location failed
       }
-    };
+      const { apiDate: defaultApiDate, currentTime } = getCurrentDateTimeDefaults();
+      const formData = new FormData();
+
+      let activityDate = data.activityDate;
+
+      // If a Date object was passed from the modal, convert to dd-mm-yyyy
+      if (activityDate instanceof Date) {
+        activityDate = DateForApiFormate(activityDate);
+      }
+
+      // For "checkout_yesterday", force activity_date to the pending checkout date
+      if (!activityDate && project?.modalContext?.type === "checkout_yesterday") {
+        activityDate = project?.pendingCheckoutDate || defaultApiDate;
+      }
+
+      if (!activityDate) {
+        activityDate = defaultApiDate;
+      }
+
+      let startTime = null;
+      if (isAddMode) {
+        startTime = data.startTime || currentTime;
+      } else if (data.startTime) {
+        startTime = data.startTime;
+      }
+
+      const resolvedEmpId =
+        empId ||
+        project?.original_P?.emp_id ||
+        project?.original_A?.emp_id ||
+        "";
+
+      formData.append("emp_id", resolvedEmpId);
+      formData.append("activity_date", DateForApiFormate(activityDate));
+      formData.append(
+        "remarks",
+        data.remarks ?? (isAddMode ? "Project Started from mobile" : "")
+      );
+      formData.append("latitude_id", String(loc.latitude));
+      formData.append("longitude_id", String(loc.longitude));
+
+      if (data.file) {
+        formData.append("submitted_file", data.file);
+      }
+
+      if (isAddMode) {
+        // START / ADD mode
+        if (!project.original_P?.id) {
+          console.warn("Missing original_P.id for ADD mode", project);
+          return false;
+        }
+        formData.append("call_mode", "ADD");
+        formData.append("p_id", String(project.original_P.id));
+        formData.append("start_time", formatAMPMTime(startTime));
+        formData.append("geo_type", "I");
+        // As per spec: initial no_of_items is 0 on Start
+        formData.append("no_of_items", "0");
+      } else {
+        // UPDATE mode: Resume / Continue / Complete
+        if (!project.original_A?.id) {
+          console.warn("Missing original_A.id for UPDATE mode", project);
+          return false;
+        }
+
+        formData.append(
+          "no_of_items",
+          String(Number(data.noOfItems || 0))
+        );
+        formData.append("call_mode", "UPDATE");
+        formData.append("a_id", String(project.original_A.id));
+
+        if (data.endTime) {
+          formData.append("end_time", formatAMPMTime(data.endTime));
+        }
+
+        if (startTime) {
+          // Resume path – treat as new check-in
+          formData.append("start_time", formatAMPMTime(startTime));
+          formData.append("remarks", "Project resume from Mobile");
+          formData.append("geo_type", "I");
+        } else {
+          // Pure checkout: only end_time, no start_time
+          formData.append("geo_type", "O");
+        }
+      }
+
+      Object.entries(extraFields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value);
+        }
+      });
+
+      console.log("==== FORM DATA BEFORE API ====");
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
+      console.log("================================");
+
+      const res = await postAllocationData(formData);
+
+      if (res?.status === 200) {
+        return true;
+      }
+
+      const apiMsg =
+        res?.data?.message ||
+        (isAddMode
+          ? "Failed to start activity. Please try again."
+          : "Failed to update activity. Please try again.");
+      setErrorMessage(apiMsg);
+      setShowErrorModal(true);
+      return false;
+    } catch (error) {
+      console.error("Error in handleActivitySubmit", error);
+      setErrorMessage(
+        isAddMode
+          ? "An error occurred while starting the activity."
+          : "An error occurred while updarrrting the activity."
+      );
+      setShowErrorModal(true);
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Action handlers
   const handleActivityAction = ({ type, project }) => {
     if (type === "start") {
       const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
       if (hasOpenSession) {
-        setErrorMessage("Complete pending activity first.");
+        setErrorMessage("Finish Pending");
         setShowErrorModal(true);
         return;
       }
@@ -431,7 +602,7 @@ const APMTimeSheet = () => {
     if (type === "resume") {
       const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
       if (hasOpenSession) {
-        setErrorMessage("Complete pending activity first.");
+        setErrorMessage("Finish Pending");
         setShowErrorModal(true);
         return;
       }
@@ -465,20 +636,21 @@ const APMTimeSheet = () => {
       mode: "UPDATE",
       data: formData,
     }).then(async () => {
-    await onRefresh();      // ✅ refresh after submit
-    setIsFormModalOpen(false);
-  });
+      await onRefresh();      // ✅ refresh after submit
+      setIsFormModalOpen(false);
+    });
+    
 
   const handleMarkCompleteFromModal = (formData) =>
     handleActivitySubmit({
       project: selectedProject,
       mode: "UPDATE",
       data: formData,
-      extraFields: { is_complete: 1 },
+      extraFields: { is_completed: 1 },
     }).then(async () => {
-    await onRefresh();       // ✅ refresh after complete
-    setIsFormModalOpen(false);
-  });
+      await onRefresh();       // ✅ refresh after complete
+      setIsFormModalOpen(false);
+    });
   // Filter controls
   const openFilterModal = () => {
     setPendingFilters({ ...activeFilters });
@@ -490,7 +662,11 @@ const APMTimeSheet = () => {
 
     if (pendingFilters.period !== "custom") {
       const range = getDateRangeFromPeriod(pendingFilters.period);
-      updateDateRangeAndFetch(empId, range);
+
+      // Always fetch month data for complete dataset
+      const monthRange = getDateRangeFromPeriod("this_month");
+      setDateRange(range); // Set display range
+      fetchProjects(empId, monthRange.startDate, monthRange.endDate);
     }
     // for custom → dateRange already updated via picker
     setShowFilterModal(false);
@@ -500,11 +676,68 @@ const APMTimeSheet = () => {
     setPendingFilters({ ...DEFAULT_FILTERS });
     setActiveFilters({ ...DEFAULT_FILTERS });
 
-    const todayRange = getDateRangeFromPeriod("this_month"); // or "today" if you prefer
-    await updateDateRangeAndFetch(empId, todayRange);
+    const todayRange = getDateRangeFromPeriod("today");
+    const monthRange = getDateRangeFromPeriod("this_month");
+
+    setDateRange(todayRange); // Display today
+    await fetchProjects(empId, monthRange.startDate, monthRange.endDate); // Fetch month data
     setShowFilterModal(false);
     setIsCustomExpanded(false);
   };
+
+
+  const hasAnyOpenSession = useMemo(() => {
+  if (!allProjects.length) return false;
+  
+  return allProjects.some(project => {
+    // Check day_logs
+    const lastLogEntry = Object.values(project.day_logs || {}).pop();
+    const hasOpenFromDayLogs = lastLogEntry && 
+                               lastLogEntry.check_in && 
+                               !lastLogEntry.check_out;
+    
+    // Check ts_data_list
+    let hasOpenFromTsData = false;
+    if (project?.original_A?.ts_data_list?.length) {
+      const entries = project.original_A.ts_data_list;
+      const lastTsEntry = entries[entries.length - 1];
+      const geoData = lastTsEntry?.geo_data || '';
+      hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
+    }
+    
+    return hasOpenFromDayLogs || hasOpenFromTsData;
+  });
+}, [allProjects]);
+
+  // Add this function inside your component
+  const getFilteredProjects = useCallback(() => {
+    let filtered = [...allProjects];
+
+    // Apply period filter
+    if (activeFilters.period === "today") {
+      const todayStr = formatToDDMMYYYY(new Date());
+      filtered = filtered.filter(project => {
+        // Show projects with activity today OR pending checkouts
+        return project.day_logs &&
+          (project.day_logs[todayStr] || project.hasPendingCheckout);
+      });
+    } else if (activeFilters.period === "this_week") {
+      // Filter for this week's activities
+      const weekRange = getDateRangeFromPeriod("this_week");
+      filtered = filtered.filter(project => {
+        // Check if project has any activity within this week
+        return Object.keys(project.day_logs || {}).some(dateStr => {
+          const date = parseDateString(dateStr);
+          const start = parseDateString(weekRange.startDate);
+          const end = parseDateString(weekRange.endDate);
+          return date >= start && date <= end;
+        });
+      });
+    }
+    // For "this_month" and "custom", show all filtered projects
+
+    return filtered;
+  }, [allProjects, activeFilters.period]);
 
   const applyCustomDateRange = () => {
     if (startDateObj > endDateObj) {
@@ -517,6 +750,8 @@ const APMTimeSheet = () => {
     };
     setDateRange(range);
     setActiveFilters((prev) => ({ ...prev, period: "custom" }));
+
+    // For custom range, fetch exactly what's requested
     fetchProjects(empId, range.startDate, range.endDate);
     setIsCustomExpanded(false);
   };
@@ -532,7 +767,7 @@ const APMTimeSheet = () => {
         icon1OnPress={openFilterModal}
         filterCount={
           (activeFilters.status ? 1 : 0) +
-          (activeFilters.period !== "this_month" ? 1 : 0)
+          (activeFilters.period !== "today" ? 1 : 0)
         }
       />
 
@@ -586,7 +821,7 @@ const APMTimeSheet = () => {
                 activeFilters.period === "custom"
                   ? `Custom (${dateRange.startDate} - ${dateRange.endDate})`
                   : periodOptions.find((o) => o.value === activeFilters.period)?.label ||
-                    "This Month"
+                  "Today" // Changed from "This Month"
               }
             />
 
@@ -595,13 +830,14 @@ const APMTimeSheet = () => {
                 <EmptyState title="No Projects" subtitle="Try changing filters or pull to refresh" />
               ) : (
                 projects.map((project) => (
+                  // Update the AuditCard render in APMTimeSheet:
                   <AuditCard
-                    key={project.id}
-                    project={project}
-                    onAction={handleActivityAction}
-                    // onViewDetails={() => console.log("project", JSON.stringify(project))}
-                    // onViewDetails={}
-                  />
+  key={project.id}
+  project={project}
+  onAction={handleActivityAction}
+  allProjects={allProjects}
+  hasOpenSessionGlobally={hasAnyOpenSession}
+/>
                 ))
               )}
             </Animated.View>
