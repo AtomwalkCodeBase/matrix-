@@ -139,7 +139,10 @@ const DailyLogEntry = ({ entry }) => (
     <View style={styles.logHeader}>
       <View style={styles.logDate}>
         <Ionicons name="calendar" size={12} color={PRIMARY_COLOR} />
-        <Text style={styles.logDateText}>{formatDate(entry.date)}</Text>
+        <Text style={styles.logDateText}>
+          {formatDate(entry.date)} 
+          {entry.session_number > 1 && ` (Session ${entry.session_number})`}
+        </Text>
       </View>
       {entry.items_audited ? (
         <View style={styles.itemsBadge}>
@@ -155,9 +158,7 @@ const DailyLogEntry = ({ entry }) => (
         <View style={styles.logTimeContent}>
           <Text style={styles.logTimeLabel}>Check In</Text>
           <Text style={styles.logTimeText}>
-            {entry.check_in && typeof entry.check_in === 'object'
-              ? entry.check_in.time
-              : entry.check_in || '-'}
+            {entry.check_in || '-'}
           </Text>
         </View>
       </View>
@@ -167,11 +168,11 @@ const DailyLogEntry = ({ entry }) => (
         <View style={styles.logTimeContent}>
           <Text style={styles.logTimeLabel}>Check Out</Text>
           {entry.check_out ? (
-            <Text style={styles.logTimeText}>
-              {typeof entry.check_out === 'object' ? entry.check_out.time : entry.check_out}
-            </Text>
-          ) : (
+            <Text style={styles.logTimeText}>{entry.check_out}</Text>
+          ) : entry.is_incomplete ? (
             <Text style={[styles.logTimeText, styles.inProgressText]}>In Progress</Text>
+          ) : (
+            <Text style={styles.logTimeText}>-</Text>
           )}
         </View>
       </View>
@@ -187,19 +188,50 @@ const DailyLogEntry = ({ entry }) => (
 );
 
 // === Main Component ===
-export const AuditCard = ({ project, onAction, onViewDetails }) => {
+export const AuditCard = ({ project, onAction, allProjects , hasOpenSessionGlobally,  onViewDetails }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const checkInData = useMemo(() => {
-    if (!project?.day_logs || typeof project.day_logs !== 'object') return [];
-    return Object.values(project.day_logs).map(log => ({
-      date: log.date || '',
-      check_in: log.check_in?.time || null,
-      check_out: log.check_out || null,
-      remark: log.remarks || '',
-      items_audited: log.no_of_items || 0,
-    }));
-  }, [project?.day_logs]);
+  if (!project?.day_logs || typeof project.day_logs !== 'object') return [];
+  
+  const allLogs = [];
+  
+  Object.values(project.day_logs).forEach(log => {
+    if (log.sessions && Array.isArray(log.sessions)) {
+      // If we have multiple sessions for this date, create separate entries
+      log.sessions.forEach((session, index) => {
+        allLogs.push({
+          date: log.date,
+          session_number: index + 1, // Track session number
+          check_in: session.check_in?.time || null,
+          check_out: session.check_out?.time || null,
+          remark: log.remarks || '',
+          items_audited: session.no_of_items || 0,
+          geo_data: session.geo_data || '',
+          is_incomplete: session.check_in && !session.check_out
+        });
+      });
+    } else {
+      // Fallback for old structure
+      allLogs.push({
+        date: log.date || '',
+        session_number: 1,
+        check_in: log.check_in?.time || null,
+        check_out: log.check_out || null,
+        remark: log.remarks || '',
+        items_audited: log.no_of_items || 0,
+        is_incomplete: log.check_in && !log.check_out
+      });
+    }
+  });
+  
+  // Sort by date and session number
+  return allLogs.sort((a, b) => {
+    const dateCompare = new Date(parseAPIDate(a.date)) - new Date(parseAPIDate(b.date));
+    if (dateCompare !== 0) return dateCompare;
+    return a.session_number - b.session_number;
+  });
+}, [project?.day_logs]);
 
   const { plannedDays, loggedDates, progressPercentage } = useMemo(() => {
     const planned = getDatesBetween(project?.planned_start_date, project?.planned_end_date);
@@ -212,12 +244,26 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
     return { plannedDays: planned, loggedDates: logged, progressPercentage: progress };
   }, [project?.planned_start_date, project?.planned_end_date, checkInData]);
 
-  const { hasOpenSession, isCompleted } = useMemo(() => {
-    const lastEntry = checkInData[checkInData.length - 1];
-    const hasOpen = checkInData.length > 0 && !lastEntry?.check_out;
-    const completed = project?.complete === true || project?.project_period_status === 'Completed';
-    return { hasOpenSession: hasOpen, isCompleted: completed };
-  }, [checkInData, project]);
+const { hasOpenSession, isCompleted } = useMemo(() => {
+  // Check day_logs for open sessions
+  const lastEntry = checkInData[checkInData.length - 1];
+  const hasOpenFromDayLogs = checkInData.length > 0 && !lastEntry?.check_out;
+  
+  // Check ts_data_list for open sessions (looking at LAST entry)
+  let hasOpenFromTsData = false;
+  if (project?.original_A?.ts_data_list?.length) {
+    const entries = project.original_A.ts_data_list;
+    const lastTsEntry = entries[entries.length - 1];
+    const geoData = lastTsEntry?.geo_data || '';
+    // Check if last entry has check-in but no check-out
+    hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
+  }
+  
+  const hasOpen = hasOpenFromDayLogs || hasOpenFromTsData;
+  const completed = project?.original_A?.status === "S";
+  
+  return { hasOpenSession: hasOpen, isCompleted: completed };
+}, [checkInData, project]);
 
   const handleToggleDetails = () => {
     const newState = !isDetailsOpen;
@@ -225,58 +271,95 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
     // onViewDetails?.(project, newState);
   };
 
-  const renderPrimaryButton = () => {
-    const btnProps = {
-      style: [styles.btn],
-      textStyle: styles.btnText,
-      iconColor: '#fff',
-    };
-
-    if (project?.todaysStatus === 'Complete') {
-      return (
-        <View style={[styles.btn, styles.disabledBtn]}>
-          <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Activity is complete</Text>
-        </View>
-      );
+const renderPrimaryButton = () => {
+  // Helper to check the LAST entry status in ts_data_list
+  const getLastEntryStatus = useMemo(() => {
+    if (!project?.original_A?.ts_data_list?.length) return 'not_started';
+    
+    const entries = project.original_A.ts_data_list;
+    const lastEntry = entries[entries.length - 1];
+    const geoData = lastEntry?.geo_data || '';
+    
+    if (geoData.includes('I|') && geoData.includes('O|')) {
+      return 'checked_out'; // Has both check-in and check-out
+    } else if (geoData.includes('I|') && !geoData.includes('O|')) {
+      return 'open_session'; // Has check-in but no check-out
     }
+    return 'unknown';
+  }, [project?.original_A?.ts_data_list]);
 
-    if (project?.hasPendingCheckout) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction({ type: 'checkout_yesterday', project })}
-        >
-          <Ionicons name="time-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Checkout Yesterday</Text>
-        </TouchableOpacity>
-      );
-    }
+  // Check if activity is submitted (status: "S")
+  const isActivityCompleted = project?.original_A?.status === "S";
+  
+  // Check if this project has an open session (from day_logs)
+  const thisProjectHasOpenSession = hasOpenSession;
+  
+  // Get last entry status
+  const lastEntryStatus = getLastEntryStatus;
 
-    if (hasOpenSession) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.checkOutBtn]}
-          onPress={() => onAction({ type: 'continue', project })}
-        >
-          <Ionicons name="log-out-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Check Out</Text>
-        </TouchableOpacity>
-      );
-    }
+  // 1. If activity is completed (status: "S")
+  if (isActivityCompleted) {
+    return (
+      <View style={[styles.btn, styles.disabledBtn]}>
+        <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Activity is complete</Text>
+      </View>
+    );
+  }
 
-    if (project?.original_A && !project?.hasPendingCheckout) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction({ type: 'resume', project })}
-        >
-          <Ionicons name="play-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Resume Activity</Text>
-        </TouchableOpacity>
-      );
-    }
+  // 2. If activity has pending checkout from previous day
+  if (project?.hasPendingCheckout) {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.primaryBtn]}
+        onPress={() => onAction({ type: 'checkout_yesterday', project })}
+      >
+        <Ionicons name="time-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Checkout Yesterday</Text>
+      </TouchableOpacity>
+    );
+  }
 
+  // 3. If this project has an open session (from day_logs OR last ts_data_list entry)
+  if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.checkOutBtn]}
+        onPress={() => onAction({ type: 'continue', project })}
+      >
+        <Ionicons name="log-out-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Check Out</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // 4. If there's any open session globally, disable other projects
+  // You need to pass hasOpenSessionGlobally as prop from parent
+  // For now, we'll skip this check
+  if (hasOpenSessionGlobally && !thisProjectHasOpenSession) {
+    return (
+      <View style={[styles.btn, styles.disabledBtn]}>
+        <Ionicons name="lock-closed-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Finish Pending</Text>
+      </View>
+    );
+  }
+
+  // 5. If activity was checked out but not submitted (last entry has both I| and O|)
+  if (lastEntryStatus === 'checked_out') {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.primaryBtn]}
+        onPress={() => onAction({ type: 'resume', project })}
+      >
+        <Ionicons name="play-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Resume Activity</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // 6. If activity hasn't started yet (original_A is null)
+  if (!project?.original_A) {
     return (
       <TouchableOpacity
         style={[styles.btn, styles.primaryBtn]}
@@ -286,12 +369,42 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
         <Text style={styles.btnText}>Start Activity</Text>
       </TouchableOpacity>
     );
-  };
+  }
+
+  // 7. If activity has started but status is unknown
+  // This is a fallback for Resume button
+  if (project?.original_A) {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.primaryBtn]}
+        onPress={() => onAction({ type: 'resume', project })}
+      >
+        <Ionicons name="play-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Resume Activity</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // Default fallback
+  return (
+    <TouchableOpacity
+      style={[styles.btn, styles.primaryBtn]}
+      onPress={() => onAction({ type: 'start', project })}
+    >
+      <Ionicons name="log-in-outline" size={16} color="#fff" />
+      <Text style={styles.btnText}>Start Activity</Text>
+    </TouchableOpacity>
+  );
+};
 
   const customerName = project?.customer_name || 'Unknown Customer';
   const auditType = project?.original_P?.product_name || project?.audit_type || 'N/A';
   const noOfItems = project?.original_P?.no_of_items || 0;
   const periodStatus = project?.project_period_status || 'Planned';
+  const store_location= project?.original_A?.store_name || project?.original_P?.store_name || '';
+  const store_remark= project?.original_A?.store_remarks || project?.original_P?.store_remarks || '';
+
+  console.log("Project====",project)
 
   return (
     <View style={styles.card}>
@@ -310,6 +423,14 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
         <InfoItem icon="cube-outline" label="Items" value={noOfItems} />
       </View>
 
+      <View style={styles.timeline}>
+        <Text style={styles.sectionTitle}>Store Location</Text>
+        <TimelineRow
+          icon="home"
+          // label="Location"
+          value={store_location}
+        />
+      </View>
       {/* Timeline */}
       <View style={styles.timeline}>
         <Text style={styles.sectionTitle}>Project Timeline</Text>
@@ -318,16 +439,24 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
           label="Planned Date"
           value={`${formatDate(project?.planned_start_date)} to ${formatDate(project?.planned_end_date)}`}
         />
-        <TimelineRow
+        {project.actual_start_date && <TimelineRow
           icon="calendar-outline"
           label="Actual Date"
-          value={`${formatDate(project?.actual_start_date)} to ${formatDate(project?.actual_end_date)}`}
-        />
+          value={`${formatDate(project?.original_A?.start_date)} to ${formatDate(project?.original_A?.end_date)}`}
+        />}
       </View>
 
       {/* Expanded Details */}
       {isDetailsOpen && (
         <View style={styles.detailsSection}>
+          <View style={styles.timeline}>
+        <Text style={styles.sectionTitle}>Store Remark</Text>
+        <TimelineRow
+          icon="pin"
+          // label="Location"
+          value={store_remark}
+        />
+      </View>
           <View style={styles.progressHeader}>
             <Text style={styles.sectionTitle}>Daily Progress</Text>
             <Text style={styles.calendarProgress}>
@@ -336,7 +465,7 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
           </View>
 
           {/* Legend */}
-          <View style={styles.legendContainer}>
+          {/* <View style={styles.legendContainer}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, styles.completedDot]} />
               <Text style={styles.legendText}>(Complete)</Text>
@@ -349,10 +478,10 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
               <View style={[styles.legendDot, styles.noActivityDot]} />
               <Text style={styles.legendText}>Not Started</Text>
             </View>
-          </View>
+          </View> */}
 
           {/* Calendar */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.calendarContainer}>
+          {/* <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.calendarContainer}>
             <View style={styles.calendarWeek}>
               {plannedDays.map((date, index) => {
                 const dateIso = date.toISOString().split('T')[0];
@@ -376,7 +505,7 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
                 );
               })}
             </View>
-          </ScrollView>
+          </ScrollView> */}
 
           {/* Daily Logs */}
           {checkInData.length > 0 ? (
@@ -399,7 +528,7 @@ export const AuditCard = ({ project, onAction, onViewDetails }) => {
       {/* Action Buttons */}
       <View style={styles.actions}>
         {/* {(periodStatus === 'In Progress' || periodStatus === 'Planned') && renderPrimaryButton()} */}
-        {(periodStatus === 'In Progress' || periodStatus === 'Planned') && renderPrimaryButton()}
+         {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
         <TouchableOpacity
           style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
           onPress={handleToggleDetails}
