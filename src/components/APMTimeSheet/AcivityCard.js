@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
+import RetainerCard from './RetainerCard';
 
 const PRIMARY_COLOR = colors.primary;
 
@@ -187,51 +188,122 @@ const DailyLogEntry = ({ entry }) => (
   </View>
 );
 
+// Retainer Section Component (to be integrated inside AuditCard)
+// In AuditCard component, update the RetainerSection component:
+// Update this in your AuditCard component:
+const RetainerSection = ({ 
+  project, 
+  retainerData, 
+  onToggleRetainers,
+  onRetainerAction, // Add this new prop
+  hasOpenSessionGlobally // Add this prop
+}) => {
+  const retainers = project?.original_P?.retainer_list || [];
+  if (retainers.length === 0) return null;
+
+  const projectRetainerData = retainerData[project.id] || {};
+  const isExpanded = projectRetainerData.expanded || false;
+  const isLoading = projectRetainerData.loading || false;
+
+  return (
+    <View style={styles.retainerSection}>
+      <TouchableOpacity
+        style={styles.viewRetainersButton}
+        onPress={() => onToggleRetainers(project.id, retainers)}
+        disabled={isLoading}
+      >
+        <Text style={styles.viewRetainersText}>
+          View Retainers ({retainers.length})
+        </Text>
+        <Ionicons
+          name={isExpanded ? "chevron-up" : "chevron-down"}
+          size={20}
+          color={PRIMARY_COLOR}
+        />
+      </TouchableOpacity>
+
+      {isLoading && (
+        <View style={styles.loadingContainer}>
+          <Ionicons name="refresh-outline" size={16} color="#64748b" />
+          <Text style={styles.loadingText}>Loading retainer data...</Text>
+        </View>
+      )}
+
+      {isExpanded && projectRetainerData.retainers && (
+        <View style={styles.retainersList}>
+          {projectRetainerData.retainers.map((retainer, index) => (
+            <RetainerCard
+              key={`${project.id}-${retainer.emp_id}-${index}`}
+              retainer={retainer}
+              fullData={retainer.fullData}
+              onAction={onRetainerAction} // Pass the action handler
+              hasOpenSessionGlobally={hasOpenSessionGlobally} // Pass global open session status
+            />
+          ))}
+          
+          {projectRetainerData.error && (
+            <Text style={styles.sectionError}>{projectRetainerData.error}</Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+};
+
 // === Main Component ===
-export const AuditCard = ({ project, onAction, allProjects , hasOpenSessionGlobally,  onViewDetails }) => {
+export const AuditCard = ({ 
+  project, 
+  onAction, 
+  allProjects, 
+  hasOpenSessionGlobally, 
+  retainerData,
+  onToggleRetainers,
+  onEditRetainer,
+  onDeleteRetainer,
+  onViewRetainerDetails,
+  handleRetainerAction,
+  hasAnyOpenSession
+}) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const checkInData = useMemo(() => {
-  if (!project?.day_logs || typeof project.day_logs !== 'object') return [];
-  
-  const allLogs = [];
-  
-  Object.values(project.day_logs).forEach(log => {
-    if (log.sessions && Array.isArray(log.sessions)) {
-      // If we have multiple sessions for this date, create separate entries
-      log.sessions.forEach((session, index) => {
-        allLogs.push({
-          date: log.date,
-          session_number: index + 1, // Track session number
-          check_in: session.check_in?.time || null,
-          check_out: session.check_out?.time || null,
-          remark: log.remarks || '',
-          items_audited: session.no_of_items || 0,
-          geo_data: session.geo_data || '',
-          is_incomplete: session.check_in && !session.check_out
+    if (!project?.day_logs || typeof project.day_logs !== 'object') return [];
+    
+    const allLogs = [];
+    
+    Object.values(project.day_logs).forEach(log => {
+      if (log.sessions && Array.isArray(log.sessions)) {
+        log.sessions.forEach((session, index) => {
+          allLogs.push({
+            date: log.date,
+            session_number: index + 1,
+            check_in: session.check_in?.time || null,
+            check_out: session.check_out?.time || null,
+            remark: log.remarks || '',
+            items_audited: session.no_of_items || 0,
+            geo_data: session.geo_data || '',
+            is_incomplete: session.check_in && !session.check_out
+          });
         });
-      });
-    } else {
-      // Fallback for old structure
-      allLogs.push({
-        date: log.date || '',
-        session_number: 1,
-        check_in: log.check_in?.time || null,
-        check_out: log.check_out || null,
-        remark: log.remarks || '',
-        items_audited: log.no_of_items || 0,
-        is_incomplete: log.check_in && !log.check_out
-      });
-    }
-  });
-  
-  // Sort by date and session number
-  return allLogs.sort((a, b) => {
-    const dateCompare = new Date(parseAPIDate(a.date)) - new Date(parseAPIDate(b.date));
-    if (dateCompare !== 0) return dateCompare;
-    return a.session_number - b.session_number;
-  });
-}, [project?.day_logs]);
+      } else {
+        allLogs.push({
+          date: log.date || '',
+          session_number: 1,
+          check_in: log.check_in?.time || null,
+          check_out: log.check_out || null,
+          remark: log.remarks || '',
+          items_audited: log.no_of_items || 0,
+          is_incomplete: log.check_in && !log.check_out
+        });
+      }
+    });
+    
+    return allLogs.sort((a, b) => {
+      const dateCompare = new Date(parseAPIDate(a.date)) - new Date(parseAPIDate(b.date));
+      if (dateCompare !== 0) return dateCompare;
+      return a.session_number - b.session_number;
+    });
+  }, [project?.day_logs]);
 
   const { plannedDays, loggedDates, progressPercentage } = useMemo(() => {
     const planned = getDatesBetween(project?.planned_start_date, project?.planned_end_date);
@@ -244,122 +316,134 @@ export const AuditCard = ({ project, onAction, allProjects , hasOpenSessionGloba
     return { plannedDays: planned, loggedDates: logged, progressPercentage: progress };
   }, [project?.planned_start_date, project?.planned_end_date, checkInData]);
 
-const { hasOpenSession, isCompleted } = useMemo(() => {
-  // Check day_logs for open sessions
-  const lastEntry = checkInData[checkInData.length - 1];
-  const hasOpenFromDayLogs = checkInData.length > 0 && !lastEntry?.check_out;
-  
-  // Check ts_data_list for open sessions (looking at LAST entry)
-  let hasOpenFromTsData = false;
-  if (project?.original_A?.ts_data_list?.length) {
-    const entries = project.original_A.ts_data_list;
-    const lastTsEntry = entries[entries.length - 1];
-    const geoData = lastTsEntry?.geo_data || '';
-    // Check if last entry has check-in but no check-out
-    hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
-  }
-  
-  const hasOpen = hasOpenFromDayLogs || hasOpenFromTsData;
-  const completed = project?.original_A?.status === "S";
-  
-  return { hasOpenSession: hasOpen, isCompleted: completed };
-}, [checkInData, project]);
+  const { hasOpenSession, isCompleted } = useMemo(() => {
+    const lastEntry = checkInData[checkInData.length - 1];
+    const hasOpenFromDayLogs = checkInData.length > 0 && !lastEntry?.check_out;
+    
+    let hasOpenFromTsData = false;
+    if (project?.original_A?.ts_data_list?.length) {
+      const entries = project.original_A.ts_data_list;
+      const lastTsEntry = entries[entries.length - 1];
+      const geoData = lastTsEntry?.geo_data || '';
+      hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
+    }
+    
+    const hasOpen = hasOpenFromDayLogs || hasOpenFromTsData;
+    const completed = project?.original_A?.status === "S";
+    
+    return { hasOpenSession: hasOpen, isCompleted: completed };
+  }, [checkInData, project]);
 
   const handleToggleDetails = () => {
-    const newState = !isDetailsOpen;
-    setIsDetailsOpen(newState);
-    // onViewDetails?.(project, newState);
+    setIsDetailsOpen(!isDetailsOpen);
   };
 
-const renderPrimaryButton = () => {
-  // Helper to check the LAST entry status in ts_data_list
-  const getLastEntryStatus = useMemo(() => {
-    if (!project?.original_A?.ts_data_list?.length) return 'not_started';
-    
-    const entries = project.original_A.ts_data_list;
-    const lastEntry = entries[entries.length - 1];
-    const geoData = lastEntry?.geo_data || '';
-    
-    if (geoData.includes('I|') && geoData.includes('O|')) {
-      return 'checked_out'; // Has both check-in and check-out
-    } else if (geoData.includes('I|') && !geoData.includes('O|')) {
-      return 'open_session'; // Has check-in but no check-out
+  const renderPrimaryButton = () => {
+    const getLastEntryStatus = useMemo(() => {
+      if (!project?.original_A?.ts_data_list?.length) return 'not_started';
+      
+      const entries = project.original_A.ts_data_list;
+      const lastEntry = entries[entries.length - 1];
+      const geoData = lastEntry?.geo_data || '';
+      
+      if (geoData.includes('I|') && geoData.includes('O|')) {
+        return 'checked_out';
+      } else if (geoData.includes('I|') && !geoData.includes('O|')) {
+        return 'open_session';
+      }
+      return 'unknown';
+    }, [project?.original_A?.ts_data_list]);
+
+    const isActivityCompleted = project?.original_A?.status === "S";
+    const thisProjectHasOpenSession = hasOpenSession;
+    const lastEntryStatus = getLastEntryStatus;
+
+    // 1. If activity is completed (status: "S")
+    if (isActivityCompleted) {
+      return (
+        <View style={[styles.btn, styles.disabledBtn]}>
+          <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Activity is complete</Text>
+        </View>
+      );
     }
-    return 'unknown';
-  }, [project?.original_A?.ts_data_list]);
 
-  // Check if activity is submitted (status: "S")
-  const isActivityCompleted = project?.original_A?.status === "S";
-  
-  // Check if this project has an open session (from day_logs)
-  const thisProjectHasOpenSession = hasOpenSession;
-  
-  // Get last entry status
-  const lastEntryStatus = getLastEntryStatus;
+    // 2. If activity has pending checkout from previous day
+    if (project?.hasPendingCheckout) {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn]}
+          onPress={() => onAction({ type: 'checkout_yesterday', project })}
+        >
+          <Ionicons name="time-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Checkout Yesterday</Text>
+        </TouchableOpacity>
+      );
+    }
 
-  // 1. If activity is completed (status: "S")
-  if (isActivityCompleted) {
-    return (
-      <View style={[styles.btn, styles.disabledBtn]}>
-        <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Activity is complete</Text>
-      </View>
-    );
-  }
+    // 3. If this project has an open session
+    if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.checkOutBtn]}
+          onPress={() => onAction({ type: 'continue', project })}
+        >
+          <Ionicons name="log-out-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Check Out</Text>
+        </TouchableOpacity>
+      );
+    }
 
-  // 2. If activity has pending checkout from previous day
-  if (project?.hasPendingCheckout) {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn]}
-        onPress={() => onAction({ type: 'checkout_yesterday', project })}
-      >
-        <Ionicons name="time-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Checkout Yesterday</Text>
-      </TouchableOpacity>
-    );
-  }
+    // 4. If there's any open session globally, disable other projects
+    if (hasOpenSessionGlobally && !thisProjectHasOpenSession) {
+      return (
+        <View style={[styles.btn, styles.disabledBtn]}>
+          <Ionicons name="lock-closed-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Finish Pending</Text>
+        </View>
+      );
+    }
 
-  // 3. If this project has an open session (from day_logs OR last ts_data_list entry)
-  if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.checkOutBtn]}
-        onPress={() => onAction({ type: 'continue', project })}
-      >
-        <Ionicons name="log-out-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Check Out</Text>
-      </TouchableOpacity>
-    );
-  }
+    // 5. If activity was checked out but not submitted
+    if (lastEntryStatus === 'checked_out') {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn]}
+          onPress={() => onAction({ type: 'resume', project })}
+        >
+          <Ionicons name="play-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Resume Activity</Text>
+        </TouchableOpacity>
+      );
+    }
 
-  // 4. If there's any open session globally, disable other projects
-  // You need to pass hasOpenSessionGlobally as prop from parent
-  // For now, we'll skip this check
-  if (hasOpenSessionGlobally && !thisProjectHasOpenSession) {
-    return (
-      <View style={[styles.btn, styles.disabledBtn]}>
-        <Ionicons name="lock-closed-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Finish Pending</Text>
-      </View>
-    );
-  }
+    // 6. If activity hasn't started yet
+    if (!project?.original_A) {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn]}
+          onPress={() => onAction({ type: 'start', project })}
+        >
+          <Ionicons name="log-in-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Start Activity</Text>
+        </TouchableOpacity>
+      );
+    }
 
-  // 5. If activity was checked out but not submitted (last entry has both I| and O|)
-  if (lastEntryStatus === 'checked_out') {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn]}
-        onPress={() => onAction({ type: 'resume', project })}
-      >
-        <Ionicons name="play-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Resume Activity</Text>
-      </TouchableOpacity>
-    );
-  }
+    // 7. Fallback for Resume button
+    if (project?.original_A) {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn]}
+          onPress={() => onAction({ type: 'resume', project })}
+        >
+          <Ionicons name="play-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Resume Activity</Text>
+        </TouchableOpacity>
+      );
+    }
 
-  // 6. If activity hasn't started yet (original_A is null)
-  if (!project?.original_A) {
+    // Default fallback
     return (
       <TouchableOpacity
         style={[styles.btn, styles.primaryBtn]}
@@ -369,33 +453,7 @@ const renderPrimaryButton = () => {
         <Text style={styles.btnText}>Start Activity</Text>
       </TouchableOpacity>
     );
-  }
-
-  // 7. If activity has started but status is unknown
-  // This is a fallback for Resume button
-  if (project?.original_A) {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn]}
-        onPress={() => onAction({ type: 'resume', project })}
-      >
-        <Ionicons name="play-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Resume Activity</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  // Default fallback
-  return (
-    <TouchableOpacity
-      style={[styles.btn, styles.primaryBtn]}
-      onPress={() => onAction({ type: 'start', project })}
-    >
-      <Ionicons name="log-in-outline" size={16} color="#fff" />
-      <Text style={styles.btnText}>Start Activity</Text>
-    </TouchableOpacity>
-  );
-};
+  };
 
   const customerName = project?.customer_name || 'Unknown Customer';
   const auditType = project?.original_P?.product_name || project?.audit_type || 'N/A';
@@ -403,8 +461,6 @@ const renderPrimaryButton = () => {
   const periodStatus = project?.project_period_status || 'Planned';
   const store_location= project?.original_A?.store_name || project?.original_P?.store_name || '';
   const store_remark= project?.original_A?.store_remarks || project?.original_P?.store_remarks || '';
-
-  console.log("Project====",project)
 
   return (
     <View style={styles.card}>
@@ -427,10 +483,10 @@ const renderPrimaryButton = () => {
         <Text style={styles.sectionTitle}>Store Location</Text>
         <TimelineRow
           icon="home"
-          // label="Location"
           value={store_location}
         />
       </View>
+
       {/* Timeline */}
       <View style={styles.timeline}>
         <Text style={styles.sectionTitle}>Project Timeline</Text>
@@ -446,66 +502,35 @@ const renderPrimaryButton = () => {
         />}
       </View>
 
+      {/* Retainer Section - Always visible if there are retainers */}
+<RetainerSection
+  project={project}
+  retainerData={retainerData}
+  onToggleRetainers={onToggleRetainers}
+  onEdit={onEditRetainer}
+  onDelete={onDeleteRetainer}
+  onViewDetails={onViewRetainerDetails}
+  onRetainerAction={handleRetainerAction} // Add this
+  hasOpenSessionGlobally={hasAnyOpenSession} // Pass from parent
+/>
+
       {/* Expanded Details */}
       {isDetailsOpen && (
         <View style={styles.detailsSection}>
           <View style={styles.timeline}>
-        <Text style={styles.sectionTitle}>Store Remark</Text>
-        <TimelineRow
-          icon="pin"
-          // label="Location"
-          value={store_remark}
-        />
-      </View>
+            <Text style={styles.sectionTitle}>Store Remark</Text>
+            <TimelineRow
+              icon="pin"
+              value={store_remark}
+            />
+          </View>
+          
           <View style={styles.progressHeader}>
             <Text style={styles.sectionTitle}>Daily Progress</Text>
             <Text style={styles.calendarProgress}>
               {loggedDates.length}/{plannedDays.length} days completed
             </Text>
           </View>
-
-          {/* Legend */}
-          {/* <View style={styles.legendContainer}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, styles.completedDot]} />
-              <Text style={styles.legendText}>(Complete)</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, styles.inProgressDot]} />
-              <Text style={styles.legendText}>(In Progress)</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, styles.noActivityDot]} />
-              <Text style={styles.legendText}>Not Started</Text>
-            </View>
-          </View> */}
-
-          {/* Calendar */}
-          {/* <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.calendarContainer}>
-            <View style={styles.calendarWeek}>
-              {plannedDays.map((date, index) => {
-                const dateIso = date.toISOString().split('T')[0];
-                const isLogged = loggedDates.includes(dateIso);
-                const isToday = date.toDateString() === new Date().toDateString();
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                const logEntry = checkInData.find(e => {
-                  const eIso = parseAPIDate(e.date)?.toISOString().split('T')[0];
-                  return eIso === dateIso;
-                });
-
-                return (
-                  <CalendarDay
-                    key={index}
-                    date={date}
-                    isLogged={isLogged}
-                    isToday={isToday}
-                    isWeekend={isWeekend}
-                    logEntry={logEntry}
-                  />
-                );
-              })}
-            </View>
-          </ScrollView> */}
 
           {/* Daily Logs */}
           {checkInData.length > 0 ? (
@@ -527,8 +552,7 @@ const renderPrimaryButton = () => {
 
       {/* Action Buttons */}
       <View style={styles.actions}>
-        {/* {(periodStatus === 'In Progress' || periodStatus === 'Planned') && renderPrimaryButton()} */}
-         {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
+        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
         <TouchableOpacity
           style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
           onPress={handleToggleDetails}
@@ -841,176 +865,52 @@ const styles = StyleSheet.create({
   secondaryBtnText: {
     color: PRIMARY_COLOR,
   },
-  // Add these styles after the progressFill style
-calendarContainer: {
-  marginTop: 12,
-},
-calendarScroll: {
-  paddingHorizontal: 8,
-},
-calendarWeek: {
-  flexDirection: 'row',
-  gap: 4,
-  alignItems: 'flex-start',
-},
-calendarDay: {
-  alignItems: 'center',
-  width: 48,
-  paddingVertical: 4,
-},
-dayOfWeek: {
-  width: 24,
-  height: 16,
-  borderRadius: 3,
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginBottom: 2,
-},
-weekendDay: {
-  backgroundColor: '#fef3c7',
-},
-dayOfWeekText: {
-  fontSize: 8,
-  fontWeight: '600',
-  color: '#64748b',
-},
-weekendText: {
-  color: '#d97706',
-},
-dateCircle: {
-  width: 36,
-  height: 36,
-  borderRadius: 18,
-  alignItems: 'center',
-  justifyContent: 'center',
-  position: 'relative',
-  borderWidth: 2,
-  borderColor: '#e2e8f0',
-  backgroundColor: '#fff',
-},
-loggedDate: {
-  backgroundColor: PRIMARY_COLOR,
-  borderColor: PRIMARY_COLOR,
-},
-todayDate: {
-  borderColor: '#3b82f6',
-  backgroundColor: '#eff6ff',
-},
-weekendDate: {
-  borderColor: '#fde68a',
-  backgroundColor: '#fffbeb',
-},
-dateNumber: {
-  fontSize: 12,
-  fontWeight: '600',
-  color: '#64748b',
-  zIndex: 2,
-},
-loggedDateNumber: {
-  color: '#fff',
-},
-todayDateNumber: {
-  color: '#3b82f6',
-  fontWeight: '700',
-},
-weekendDateNumber: {
-  color: '#d97706',
-},
-activityDot: {
-  position: 'absolute',
-  bottom: -2,
-  right: -2,
-  width: 8,
-  height: 8,
-  borderRadius: 4,
-  zIndex: 3,
-},
-completedDot: {
-  backgroundColor: '#10b981',
-},
-inProgressDot: {
-  backgroundColor: '#f59e0b',
-},
-dayStatus: {
-  fontSize: 10,
-  fontWeight: '500',
-  marginTop: 2,
-  height: 12,
-},
-completedDay: {
-  color: '#10b981',
-},
-todayDay: {
-  color: '#3b82f6',
-},
-calendarHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 8,
-},
-calendarDays: {
-  fontSize: 12,
-  fontWeight: '600',
-  color: '#1e293b',
-},
-calendarProgress: {
-  fontSize: 11,
-  color: '#64748b',
-  fontWeight: '500',
-},
-legendContainer: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  backgroundColor: '#e8eef6',
-  paddingHorizontal: 12,
-  paddingVertical: 8,
-  borderRadius: 8,
-  marginBottom: 12,
-  borderWidth: 1,
-  borderColor: '#e8eef6',
-},
-legendItem: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 6,
-},
-legendDot: {
-  width: 10,
-  height: 10,
-  borderRadius: 5,
-},
-completedDot: {
-  backgroundColor: '#10b981',
-},
-inProgressDot: {
-  backgroundColor: '#f59e0b',
-},
-noActivityDot: {
-  backgroundColor: '#cbd5e1',
-  borderWidth: 1,
-  borderColor: '#94a3b8',
-},
-legendText: {
-  fontSize: 11,
-  color: '#444',
-  fontWeight: '500',
-},
 
-// Enhanced date circle styles
-inProgressDate: {
-  backgroundColor: '#fff7ed',
-  borderColor: '#f59e0b',
-  borderWidth: 2,
-},
-inProgressDateNumber: {
-  color: '#d97706',
-  fontWeight: '700',
-},
-
-// Day status text
-inProgressDay: {
-  color: '#d97706',
-  fontWeight: '600',
-},
+  // Retainer Section Styles (only styles used in AuditCard component)
+  retainerSection: {
+    marginTop: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    backgroundColor: '#f8fafc',
+    overflow: 'hidden',
+  },
+  viewRetainersButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#e8eef6',
+  },
+  viewRetainersText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: PRIMARY_COLOR,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748b',
+  },
+  retainersList: {
+    padding: 12,
+    gap: 12,
+  },
+  sectionError: {
+    fontSize: 13,
+    color: '#dc2626',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    padding: 8,
+    backgroundColor: '#fef2f2',
+    borderRadius: 6,
+  },
 });

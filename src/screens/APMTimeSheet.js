@@ -6,6 +6,8 @@ import {
   RefreshControl,
   Animated,
   Alert,
+  TouchableOpacity,
+  Text,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -34,7 +36,6 @@ import {
   DateForApiFormate,
   getTodayApiDateStr,
   parseApiDate,
-
 } from "../components/APMTimeSheet/utils";
 
 import { getAllocationList, postAllocationData } from "../services/productServices";
@@ -42,12 +43,13 @@ import { useNavigation } from "expo-router";
 import { AuditCard } from "../components/APMTimeSheet/AcivityCard";
 import RetainerCard from "../components/APMTimeSheet/RetainerCard";
 import { colors } from "../Styles/appStyle";
+import Icon from "react-native-vector-icons/MaterialIcons";
 
 const PROJECTS_PER_PAGE = 10;
 
 const DEFAULT_FILTERS = {
   status: null,
-  period: "today", // Change from "this_month" to "today"
+  period: "today",
 };
 
 const APMTimeSheet = () => {
@@ -57,6 +59,10 @@ const APMTimeSheet = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // New state for retainer data and loading
+  const [retainerData, setRetainerData] = useState({}); // { projectId: { retainers: [], loading: boolean, expanded: boolean } }
+  const [loadingRetainers, setLoadingRetainers] = useState({}); // Track loading per project
 
   const [activeFilters, setActiveFilters] = useState({ ...DEFAULT_FILTERS });
   const [pendingFilters, setPendingFilters] = useState({ ...DEFAULT_FILTERS });
@@ -124,8 +130,6 @@ const APMTimeSheet = () => {
   );
 
   // Initialize dates & load employee
-  // Initialize dates & load employee
-  // Initialize dates & load employee
   useEffect(() => {
     const init = async () => {
       try {
@@ -137,20 +141,16 @@ const APMTimeSheet = () => {
         }
         setEmpId(storedEmpId);
 
-        // Set default filters
         setActiveFilters({ ...DEFAULT_FILTERS });
         setPendingFilters({ ...DEFAULT_FILTERS });
 
-        // Default: Today (for display) but fetch this month's data
         const todayRange = getDateRangeFromPeriod("today");
-        const monthRange = getDateRangeFromPeriod("this_month"); // Get month range for API call
+        const monthRange = getDateRangeFromPeriod("this_month");
 
-        // Set display range to today
         setDateRange(todayRange);
         setStartDateObj(parseDateString(todayRange.startDate) || new Date());
         setEndDateObj(parseDateString(todayRange.endDate) || new Date());
 
-        // Fetch with month range to get all data
         await fetchProjects(storedEmpId, monthRange.startDate, monthRange.endDate);
       } catch (err) {
         console.error("Initialization error:", err);
@@ -177,20 +177,6 @@ const APMTimeSheet = () => {
     applyFiltersAndPagination(allProjects, activeFilters);
   }, [allProjects, activeFilters]);
 
-  // Debug: Log when activeFilters change
-  useEffect(() => {
-    console.log("Active filters changed:", activeFilters);
-    console.log("All projects count:", allProjects.length);
-  }, [activeFilters]);
-
-  // Debug: Log when allProjects change
-  useEffect(() => {
-    console.log("All projects updated, count:", allProjects.length);
-    if (allProjects.length > 0) {
-      console.log("First project:", JSON.stringify(allProjects[0]));
-    }
-  }, [allProjects]);
-
   // Sync custom date pickers → dateRange
   useEffect(() => {
     if (activeFilters.period !== "custom") return;
@@ -199,7 +185,6 @@ const APMTimeSheet = () => {
     const endStr = formatDate(endDateObj);
 
     if (startDateObj > endDateObj) {
-      // auto-swap invalid range
       setStartDateObj(endDateObj);
       setEndDateObj(startDateObj);
       setDateRange({ startDate: endStr, endDate: startStr });
@@ -208,10 +193,6 @@ const APMTimeSheet = () => {
     }
   }, [startDateObj, endDateObj, activeFilters.period]);
 
-  // Helper: update date range + refetch
-
-  // Fetch projects from API
-  // Fetch projects from API
   // Fetch projects from API
   const fetchProjects = async (employeeId, start, end) => {
     setIsLoading(true);
@@ -220,13 +201,9 @@ const APMTimeSheet = () => {
       const raw = Array.isArray(res?.data) ? res.data : [];
       const normalized = normalizeProjects(raw);
 
-      console.log("Raw API response:", JSON.stringify(raw));
-      console.log("Normalized projects:", JSON.stringify(normalized));
-
-      // Store ALL projects without filtering
       setAllProjects(normalized);
-      console.log("All projects stored:", normalized.length);
-
+      // Reset retainer data when projects are reloaded
+      setRetainerData({});
     } catch (err) {
       console.error(err);
       setAllProjects([]);
@@ -237,36 +214,115 @@ const APMTimeSheet = () => {
     }
   };
 
-  // Apply filters + pagination
-  // Apply filters + pagination
+  // NEW: Fetch retainer data for a specific project
+  const fetchRetainersForProject = async (projectId, retainerList) => {
+    if (!retainerList || retainerList.length === 0) return;
+
+    // Set loading state for this project
+    setRetainerData(prev => ({
+      ...prev,
+      [projectId]: {
+        ...prev[projectId],
+        loading: true,
+        expanded: prev[projectId]?.expanded || false
+      }
+    }));
+
+    try {
+      const retainerPromises = retainerList.map(async (retainer) => {
+        try {
+          // Call API with retainer's emp_id
+          const res = await getAllocationList(retainer.emp_id, dateRange.startDate, dateRange.endDate);
+
+          // The API returns an array, we take the first item if available
+          const retainerData = Array.isArray(res?.data) ? res.data : [];
+
+          return {
+            ...retainer,
+            fullData: retainerData[0] || null, // Store the full retainer data
+            fetchedAt: new Date().toISOString()
+          };
+        } catch (error) {
+          console.error(`Error fetching retainer ${retainer.emp_id}:`, error);
+          return {
+            ...retainer,
+            fullData: null,
+            error: "Failed to load data",
+            fetchedAt: new Date().toISOString()
+          };
+        }
+      });
+
+      const retainersWithData = await Promise.all(retainerPromises);
+
+      // Update retainer data state
+      setRetainerData(prev => ({
+        ...prev,
+        [projectId]: {
+          retainers: retainersWithData,
+          loading: false,
+          expanded: true
+        }
+      }));
+    } catch (error) {
+      console.error(`Error fetching retainers for project ${projectId}:`, error);
+      setRetainerData(prev => ({
+        ...prev,
+        [projectId]: {
+          ...prev[projectId],
+          loading: false,
+          error: "Failed to load retainer data"
+        }
+      }));
+    }
+  };
+
+  // Toggle retainer visibility
+  const toggleRetainers = (projectId, retainerList) => {
+    const currentState = retainerData[projectId];
+
+    if (currentState?.expanded) {
+      // Collapse
+      setRetainerData(prev => ({
+        ...prev,
+        [projectId]: {
+          ...prev[projectId],
+          expanded: false
+        }
+      }));
+    } else {
+      // Expand and fetch if not already loaded
+      if (!currentState?.retainers || currentState.retainers.length === 0) {
+        fetchRetainersForProject(projectId, retainerList);
+      } else {
+        setRetainerData(prev => ({
+          ...prev,
+          [projectId]: {
+            ...prev[projectId],
+            expanded: true
+          }
+        }));
+      }
+    }
+  };
+
   // Apply filters + pagination
   const applyFiltersAndPagination = useCallback((list, filters, page = 1) => {
     let filtered = [...list];
 
-    console.log("Applying filters:", filters);
-    console.log("Total projects before filtering:", filtered.length);
-
-    // Apply status filter
     if (filters.status && filters.status !== "All") {
       filtered = filtered.filter((p) => {
         const statusMatch = p.project_period_status === filters.status ||
           p.status === filters.status;
         return statusMatch;
       });
-      console.log("After status filter:", filtered.length);
     }
 
-    // Apply period filter
     if (filters.period) {
       switch (filters.period) {
         case "today":
           const todayStr = formatToDDMMYYYY(new Date());
           const todayApiStr = getTodayApiDateStr();
-
-          console.log("Filtering for today:", {
-            dd_mm_yyyy: todayStr,
-            api_format: todayApiStr
-          });
 
           filtered = filtered.filter(project => {
             const hasActivityToday = project.day_logs && project.day_logs[todayApiStr];
@@ -275,29 +331,18 @@ const APMTimeSheet = () => {
 
             return hasActivityToday || project.hasPendingCheckout || isPlannedForToday;
           });
-          console.log("After today filter:", filtered.length);
           break;
 
         case "this_week":
           const weekRange = getDateRangeFromPeriod("this_week");
-          console.log("Week range:", weekRange);
-
-          // Parse week dates (dd-mm-yyyy format)
           const weekStart = parseDateString(weekRange.startDate);
           const weekEnd = parseDateString(weekRange.endDate);
 
-          console.log("Parsed week dates:", {
-            weekStart: weekStart?.toString(),
-            weekEnd: weekEnd?.toString()
-          });
-
           filtered = filtered.filter(project => {
-            // 1. Check if project has any activity within this week
             const hasActivityInWeek = Object.keys(project.day_logs || {}).some(dateStr => {
-              const activityDate = parseApiDate(dateStr); // Use parseApiDate for API dates
+              const activityDate = parseApiDate(dateStr);
               if (!activityDate || !weekStart || !weekEnd) return false;
 
-              // Reset times to compare only dates
               const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
               const weekStartOnly = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
               const weekEndOnly = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
@@ -305,17 +350,8 @@ const APMTimeSheet = () => {
               return activityDateOnly >= weekStartOnly && activityDateOnly <= weekEndOnly;
             });
 
-            // 2. Check if project is PLANNED for this week
-            const plannedStart = parseApiDate(project.planned_start_date); // Use parseApiDate
-            const plannedEnd = parseApiDate(project.planned_end_date); // Use parseApiDate
-
-            console.log(`Project ${project.id} dates:`, {
-              planned_start: project.planned_start_date,
-              planned_end: project.planned_end_date,
-              plannedStart: plannedStart?.toString(),
-              plannedEnd: plannedEnd?.toString(),
-              hasActivityInWeek
-            });
+            const plannedStart = parseApiDate(project.planned_start_date);
+            const plannedEnd = parseApiDate(project.planned_end_date);
 
             const isPlannedForWeek = (plannedStart && weekStart && weekEnd &&
               plannedStart >= weekStart && plannedStart <= weekEnd) ||
@@ -324,29 +360,18 @@ const APMTimeSheet = () => {
 
             return hasActivityInWeek || isPlannedForWeek || project.hasPendingCheckout;
           });
-          console.log("After week filter:", filtered.length);
           break;
 
         case "this_month":
           const monthRange = getDateRangeFromPeriod("this_month");
-          console.log("Month range:", monthRange);
-
-          // Parse month dates (dd-mm-yyyy format)
           const monthStart = parseDateString(monthRange.startDate);
           const monthEnd = parseDateString(monthRange.endDate);
 
-          console.log("Parsed month dates:", {
-            monthStart: monthStart?.toString(),
-            monthEnd: monthEnd?.toString()
-          });
-
           filtered = filtered.filter(project => {
-            // 1. Check if project has any activity within this month
             const hasActivityInMonth = Object.keys(project.day_logs || {}).some(dateStr => {
-              const activityDate = parseApiDate(dateStr); // Use parseApiDate for API dates
+              const activityDate = parseApiDate(dateStr);
               if (!activityDate || !monthStart || !monthEnd) return false;
 
-              // Reset times to compare only dates
               const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
               const monthStartOnly = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate());
               const monthEndOnly = new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate());
@@ -354,17 +379,8 @@ const APMTimeSheet = () => {
               return activityDateOnly >= monthStartOnly && activityDateOnly <= monthEndOnly;
             });
 
-            // 2. Check if project is PLANNED for this month
-            const plannedStart = parseApiDate(project.planned_start_date); // Use parseApiDate
-            const plannedEnd = parseApiDate(project.planned_end_date); // Use parseApiDate
-
-            console.log(`Project ${project.id} dates:`, {
-              planned_start: project.planned_start_date,
-              planned_end: project.planned_end_date,
-              plannedStart: plannedStart?.toString(),
-              plannedEnd: plannedEnd?.toString(),
-              hasActivityInMonth
-            });
+            const plannedStart = parseApiDate(project.planned_start_date);
+            const plannedEnd = parseApiDate(project.planned_end_date);
 
             const isPlannedForMonth = (plannedStart && monthStart && monthEnd &&
               plannedStart >= monthStart && plannedStart <= monthEnd) ||
@@ -373,7 +389,6 @@ const APMTimeSheet = () => {
 
             return hasActivityInMonth || isPlannedForMonth || project.hasPendingCheckout;
           });
-          console.log("After month filter:", filtered.length);
           break;
 
         default:
@@ -381,7 +396,6 @@ const APMTimeSheet = () => {
       }
     }
 
-    // Sort: Today's completed → bottom
     const todayStr = formatToDDMMYYYY(new Date());
     const sorted = [...filtered].sort((a, b) => {
       const aIsTodayComplete = a.todaysStatus === "complete" && a.activityDate === todayStr;
@@ -392,11 +406,9 @@ const APMTimeSheet = () => {
     const startIdx = (page - 1) * PROJECTS_PER_PAGE;
     const paginated = sorted.slice(0, startIdx + PROJECTS_PER_PAGE);
 
-    console.log("Final filtered projects:", paginated.length);
     setProjects(paginated);
   }, []);
 
-  // Load more on scroll
   const loadMore = () => {
     if (isLoadingMore) return;
     const totalFiltered = allProjects.filter((p) => {
@@ -446,23 +458,20 @@ const APMTimeSheet = () => {
     const isAddMode = mode === "ADD";
     setIsLoading(true);
     try {
-
       const loc = await getCurrentLocation();
       if (!loc) {
         setIsLoading(false);
-        return false; // stop the flow if location failed
+        return false;
       }
       const { apiDate: defaultApiDate, currentTime } = getCurrentDateTimeDefaults();
       const formData = new FormData();
 
       let activityDate = data.activityDate;
 
-      // If a Date object was passed from the modal, convert to dd-mm-yyyy
       if (activityDate instanceof Date) {
         activityDate = DateForApiFormate(activityDate);
       }
 
-      // For "checkout_yesterday", force activity_date to the pending checkout date
       if (!activityDate && project?.modalContext?.type === "checkout_yesterday") {
         activityDate = project?.pendingCheckoutDate || defaultApiDate;
       }
@@ -498,7 +507,6 @@ const APMTimeSheet = () => {
       }
 
       if (isAddMode) {
-        // START / ADD mode
         if (!project.original_P?.id) {
           console.warn("Missing original_P.id for ADD mode", project);
           return false;
@@ -507,10 +515,8 @@ const APMTimeSheet = () => {
         formData.append("p_id", String(project.original_P.id));
         formData.append("start_time", formatAMPMTime(startTime));
         formData.append("geo_type", "I");
-        // As per spec: initial no_of_items is 0 on Start
         formData.append("no_of_items", "0");
       } else {
-        // UPDATE mode: Resume / Continue / Complete
         if (!project.original_A?.id) {
           console.warn("Missing original_A.id for UPDATE mode", project);
           return false;
@@ -528,12 +534,10 @@ const APMTimeSheet = () => {
         }
 
         if (startTime) {
-          // Resume path – treat as new check-in
           formData.append("start_time", formatAMPMTime(startTime));
           formData.append("remarks", "Project resume from Mobile");
           formData.append("geo_type", "I");
         } else {
-          // Pure checkout: only end_time, no start_time
           formData.append("geo_type", "O");
         }
       }
@@ -543,12 +547,6 @@ const APMTimeSheet = () => {
           formData.append(key, value);
         }
       });
-
-      console.log("==== FORM DATA BEFORE API ====");
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
-      console.log("================================");
 
       const res = await postAllocationData(formData);
 
@@ -569,7 +567,7 @@ const APMTimeSheet = () => {
       setErrorMessage(
         isAddMode
           ? "An error occurred while starting the activity."
-          : "An error occurred while updarrrting the activity."
+          : "An error occurred while updating the activity."
       );
       setShowErrorModal(true);
       return false;
@@ -625,7 +623,6 @@ const APMTimeSheet = () => {
       return;
     }
 
-    // continue / complete / checkout_yesterday → open modal
     if (["continue", "complete", "checkout_yesterday"].includes(type)) {
       setSelectedProject({ ...project, modalContext: { type } });
       setIsFormModalOpen(true);
@@ -638,10 +635,9 @@ const APMTimeSheet = () => {
       mode: "UPDATE",
       data: formData,
     }).then(async () => {
-      await onRefresh();      // ✅ refresh after submit
+      await onRefresh();
       setIsFormModalOpen(false);
     });
-    
 
   const handleMarkCompleteFromModal = (formData) =>
     handleActivitySubmit({
@@ -650,9 +646,10 @@ const APMTimeSheet = () => {
       data: formData,
       extraFields: { is_completed: 1 },
     }).then(async () => {
-      await onRefresh();       // ✅ refresh after complete
+      await onRefresh();
       setIsFormModalOpen(false);
     });
+
   // Filter controls
   const openFilterModal = () => {
     setPendingFilters({ ...activeFilters });
@@ -664,13 +661,10 @@ const APMTimeSheet = () => {
 
     if (pendingFilters.period !== "custom") {
       const range = getDateRangeFromPeriod(pendingFilters.period);
-
-      // Always fetch month data for complete dataset
       const monthRange = getDateRangeFromPeriod("this_month");
-      setDateRange(range); // Set display range
+      setDateRange(range);
       fetchProjects(empId, monthRange.startDate, monthRange.endDate);
     }
-    // for custom → dateRange already updated via picker
     setShowFilterModal(false);
   };
 
@@ -681,65 +675,32 @@ const APMTimeSheet = () => {
     const todayRange = getDateRangeFromPeriod("today");
     const monthRange = getDateRangeFromPeriod("this_month");
 
-    setDateRange(todayRange); // Display today
-    await fetchProjects(empId, monthRange.startDate, monthRange.endDate); // Fetch month data
+    setDateRange(todayRange);
+    await fetchProjects(empId, monthRange.startDate, monthRange.endDate);
     setShowFilterModal(false);
     setIsCustomExpanded(false);
   };
 
-
   const hasAnyOpenSession = useMemo(() => {
-  if (!allProjects.length) return false;
-  
-  return allProjects.some(project => {
-    // Check day_logs
-    const lastLogEntry = Object.values(project.day_logs || {}).pop();
-    const hasOpenFromDayLogs = lastLogEntry && 
-                               lastLogEntry.check_in && 
-                               !lastLogEntry.check_out;
-    
-    // Check ts_data_list
-    let hasOpenFromTsData = false;
-    if (project?.original_A?.ts_data_list?.length) {
-      const entries = project.original_A.ts_data_list;
-      const lastTsEntry = entries[entries.length - 1];
-      const geoData = lastTsEntry?.geo_data || '';
-      hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
-    }
-    
-    return hasOpenFromDayLogs || hasOpenFromTsData;
-  });
-}, [allProjects]);
+    if (!allProjects.length) return false;
 
-  // Add this function inside your component
-  const getFilteredProjects = useCallback(() => {
-    let filtered = [...allProjects];
+    return allProjects.some(project => {
+      const lastLogEntry = Object.values(project.day_logs || {}).pop();
+      const hasOpenFromDayLogs = lastLogEntry &&
+        lastLogEntry.check_in &&
+        !lastLogEntry.check_out;
 
-    // Apply period filter
-    if (activeFilters.period === "today") {
-      const todayStr = formatToDDMMYYYY(new Date());
-      filtered = filtered.filter(project => {
-        // Show projects with activity today OR pending checkouts
-        return project.day_logs &&
-          (project.day_logs[todayStr] || project.hasPendingCheckout);
-      });
-    } else if (activeFilters.period === "this_week") {
-      // Filter for this week's activities
-      const weekRange = getDateRangeFromPeriod("this_week");
-      filtered = filtered.filter(project => {
-        // Check if project has any activity within this week
-        return Object.keys(project.day_logs || {}).some(dateStr => {
-          const date = parseDateString(dateStr);
-          const start = parseDateString(weekRange.startDate);
-          const end = parseDateString(weekRange.endDate);
-          return date >= start && date <= end;
-        });
-      });
-    }
-    // For "this_month" and "custom", show all filtered projects
+      let hasOpenFromTsData = false;
+      if (project?.original_A?.ts_data_list?.length) {
+        const entries = project.original_A.ts_data_list;
+        const lastTsEntry = entries[entries.length - 1];
+        const geoData = lastTsEntry?.geo_data || '';
+        hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
+      }
 
-    return filtered;
-  }, [allProjects, activeFilters.period]);
+      return hasOpenFromDayLogs || hasOpenFromTsData;
+    });
+  }, [allProjects]);
 
   const applyCustomDateRange = () => {
     if (startDateObj > endDateObj) {
@@ -753,24 +714,30 @@ const APMTimeSheet = () => {
     setDateRange(range);
     setActiveFilters((prev) => ({ ...prev, period: "custom" }));
 
-    // For custom range, fetch exactly what's requested
     fetchProjects(empId, range.startDate, range.endDate);
     setIsCustomExpanded(false);
   };
 
   if (isLoading && !refreshing) return <Loader visible={true} />;
 
-  const handleEdit = (retainer) => {
-    console.log('Edit:', retainer.employee_name);
+  // Add this function to your APMTimeSheet component
+  const handleRetainerAction = ({ type, retainer }) => {
+    console.log(`Retainer action: ${type}`, retainer);
+
+    // Check if retainer has fullData, if not show error
+    if (!retainer.fullData) {
+      setErrorMessage("Retainer activity data not loaded");
+      setShowErrorModal(true);
+      return;
+    }
+
+    // Use the same logic as handleActivityAction
+    handleActivityAction({
+      type,
+      project: retainer.fullData
+    });
   };
 
-  const handleDelete = (retainer) => {
-    console.log('Delete:', retainer.employee_name);
-  };
-
-  const handleViewDetails = (retainer) => {
-    console.log('View Details:', retainer.employee_name);
-  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
@@ -835,57 +802,34 @@ const APMTimeSheet = () => {
                 activeFilters.period === "custom"
                   ? `Custom (${dateRange.startDate} - ${dateRange.endDate})`
                   : periodOptions.find((o) => o.value === activeFilters.period)?.label ||
-                  "Today" // Changed from "This Month"
+                  "Today"
               }
             />
 
-          <Animated.View style={{ opacity: fadeAnim }}>
-  {projects.length === 0 ? (
-    <EmptyState
-      title="No Projects"
-      subtitle="Try changing filters or pull to refresh"
-    />
-  ) : (
-    projects.map((project) => {
-      const retainers = project.original_P?.retainer_list || [];
-
-      return (
-        <React.Fragment key={project.id}>
-          {/* Audit Card */}
-          <AuditCard
-            project={project}
-            onAction={handleActivityAction}
-            allProjects={allProjects}
-            hasOpenSessionGlobally={hasAnyOpenSession}
-          />
-
-          {/* Retainer Section */}
-          {retainers.length > 0 && (
-            <>
-              {/* <View style={styles.headerBar}>
-                <Text style={styles.title}>Retainer List</Text>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countText}>{retainers.length}</Text>
-                </View>
-              </View> */}
-
-              {retainers.map((retainer) => (
-                <RetainerCard
-                  key={retainer.emp_id}   // ✅ stable key (NOT index)
-                  retainer={retainer}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                  onViewDetails={handleViewDetails}
+            <Animated.View style={{ opacity: fadeAnim }}>
+              {projects.length === 0 ? (
+                <EmptyState
+                  title="No Projects"
+                  subtitle="Try changing filters or pull to refresh"
                 />
-              ))}
-            </>
-          )}
-        </React.Fragment>
-      );
-    })
-  )}
-</Animated.View>
+              ) : (
+                projects.map((project) => (
+                  <React.Fragment key={project.id}>
+                    {/* Audit Card */}
+                    <AuditCard
+                      project={project}
+                      onAction={handleActivityAction}
+                      allProjects={allProjects}
+                      hasOpenSessionGlobally={hasAnyOpenSession}
+                      retainerData={retainerData}
+                      onToggleRetainers={toggleRetainers}
+                      onRetainerAction={handleRetainerAction} // Make sure this is passed
+                    />
 
+                  </React.Fragment>
+                ))
+              )}
+            </Animated.View>
 
             {isLoadingMore && <Text style={styles.loadingMore}>Loading more...</Text>}
           </>
@@ -929,20 +873,40 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f8fafc" },
   scrollContainer: { padding: 16, paddingBottom: 40 },
   loadingMore: { textAlign: "center", marginVertical: 16, color: "#666" },
-    headerBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: 16,
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: colors.text,
-    }, countText: {
-        color: colors.white,
-        fontWeight: 'bold',
-        fontSize: 14,
-      },
-},
-);
+  retainerSection: {
+    marginTop: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    backgroundColor: '#ffffff',
+    padding: 12,
+  },
+  viewRetainersButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 6,
+  },
+  viewRetainersText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  retainersList: {
+    marginTop: 12,
+  },
+  loadingContainer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#dc2626',
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+});
