@@ -40,6 +40,13 @@ export const colors = {
   primaryLight: '#b9cce5',
   cardBg: '#f8f9fa',
   overlayBg: 'rgba(0, 0, 0, 0.6)',
+    background: '#F5F7FA',
+  text: '#2C3E50',
+  textLight: '#7F8C8D',
+  border: '#E1E8ED',
+  success: '#27AE60',
+  warning: '#F39C12',
+  danger: '#E74C3C'
 };
 
 const statusBarHeight = Constants.statusBarHeight;

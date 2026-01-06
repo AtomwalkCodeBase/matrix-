@@ -40,6 +40,8 @@ import {
 import { getAllocationList, postAllocationData } from "../services/productServices";
 import { useNavigation } from "expo-router";
 import { AuditCard } from "../components/APMTimeSheet/AcivityCard";
+import RetainerCard from "../components/APMTimeSheet/RetainerCard";
+import { colors } from "../Styles/appStyle";
 
 const PROJECTS_PER_PAGE = 10;
 
@@ -758,6 +760,18 @@ const APMTimeSheet = () => {
 
   if (isLoading && !refreshing) return <Loader visible={true} />;
 
+  const handleEdit = (retainer) => {
+    console.log('Edit:', retainer.employee_name);
+  };
+
+  const handleDelete = (retainer) => {
+    console.log('Delete:', retainer.employee_name);
+  };
+
+  const handleViewDetails = (retainer) => {
+    console.log('View Details:', retainer.employee_name);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
       <HeaderComponent
@@ -825,22 +839,53 @@ const APMTimeSheet = () => {
               }
             />
 
-            <Animated.View style={{ opacity: fadeAnim }}>
-              {projects.length === 0 ? (
-                <EmptyState title="No Projects" subtitle="Try changing filters or pull to refresh" />
-              ) : (
-                projects.map((project) => (
-                  // Update the AuditCard render in APMTimeSheet:
-                  <AuditCard
-  key={project.id}
-  project={project}
-  onAction={handleActivityAction}
-  allProjects={allProjects}
-  hasOpenSessionGlobally={hasAnyOpenSession}
-/>
-                ))
-              )}
-            </Animated.View>
+          <Animated.View style={{ opacity: fadeAnim }}>
+  {projects.length === 0 ? (
+    <EmptyState
+      title="No Projects"
+      subtitle="Try changing filters or pull to refresh"
+    />
+  ) : (
+    projects.map((project) => {
+      const retainers = project.original_P?.retainer_list || [];
+
+      return (
+        <React.Fragment key={project.id}>
+          {/* Audit Card */}
+          <AuditCard
+            project={project}
+            onAction={handleActivityAction}
+            allProjects={allProjects}
+            hasOpenSessionGlobally={hasAnyOpenSession}
+          />
+
+          {/* Retainer Section */}
+          {retainers.length > 0 && (
+            <>
+              {/* <View style={styles.headerBar}>
+                <Text style={styles.title}>Retainer List</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countText}>{retainers.length}</Text>
+                </View>
+              </View> */}
+
+              {retainers.map((retainer) => (
+                <RetainerCard
+                  key={retainer.emp_id}   // ✅ stable key (NOT index)
+                  retainer={retainer}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onViewDetails={handleViewDetails}
+                />
+              ))}
+            </>
+          )}
+        </React.Fragment>
+      );
+    })
+  )}
+</Animated.View>
+
 
             {isLoadingMore && <Text style={styles.loadingMore}>Loading more...</Text>}
           </>
@@ -884,4 +929,20 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: "#f8fafc" },
   scrollContainer: { padding: 16, paddingBottom: 40 },
   loadingMore: { textAlign: "center", marginVertical: 16, color: "#666" },
-});
+    headerBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+      color: colors.text,
+    }, countText: {
+        color: colors.white,
+        fontWeight: 'bold',
+        fontSize: 14,
+      },
+},
+);
