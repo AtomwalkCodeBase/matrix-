@@ -10,9 +10,11 @@ const DatePickerButton = styled.TouchableOpacity`
   justify-content: space-between;
   align-items: center;
   border-width: 1px;
-  border-color: #ccc;
+  border-color: ${({ disabled }) => (disabled ? '#ddd' : '#ccc')};
   padding: 10px;
   border-radius: 5px;
+    background-color: ${({ disabled }) => (disabled ? '#f2f2f2' : '#fff')};
+  opacity: ${({ disabled }) => (disabled ? 0.6 : 1)};
 `;
 
 const FieldContainer = styled.View`
@@ -28,6 +30,7 @@ const Label = styled.Text`
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 5px;
+  color: ${({ disabled }) => (disabled ? '#999' : '#000')};
 `;
 
 const Icon = styled.Image`
@@ -35,7 +38,7 @@ const Icon = styled.Image`
   height: 24px;
 `;
 
-const TimePicker = ({ error, label, cDate, setCDate }) => {
+const TimePicker = ({ error, label, cDate, setCDate, disable=false }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const isValidDate = cDate instanceof Date && !isNaN(cDate);
@@ -52,13 +55,13 @@ const TimePicker = ({ error, label, cDate, setCDate }) => {
 
   return (
     <FieldContainer>
-      <Label>{label}</Label>
-      <DatePickerButton onPress={() => setShowDatePicker(true)}>
+      <Label disabled={disable}>{label}</Label>
+      <DatePickerButton disabled={disable} onPress={() => !disable && setShowDatePicker(true)}>
         <DateText>{isValidDate ? formatTime(cDate) : '--:--'}</DateText>
         <Ionicons name="time-outline" size={22} color="black" />
       </DatePickerButton>
 
-      {showDatePicker && (
+      {showDatePicker && !disable && (
         <DateTimePicker
           value={isValidDate ? cDate : new Date()}
           mode="time"

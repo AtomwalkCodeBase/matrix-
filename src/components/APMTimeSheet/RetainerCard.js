@@ -4,61 +4,64 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
 
 // Main Retainer Card Component
+// In RetainerCard.js, update the button logic to use the same logic as primary activities
 const RetainerCard = ({ 
   retainer, 
   fullData, 
-  onAction, // New prop for handling activity actions
-  hasOpenSessionGlobally = false // New prop to check if there's any open session globally
+  onAction,
+  hasOpenSessionGlobally = false
 }) => {
-
-  console.log("Retainer data in card---",retainer)
+  
+  // console.log("Retainer data in card---", retainer);
+  // console.log("FullData in card---", fullData);
   
   // Determine which data to display
   const displayData = fullData || retainer;
   
+  // Get the retainer project data (normalized like primary projects)
+  const retainerProject = fullData;
+  
   // Determine status based on available data
   const getStatus = () => {
-    if (fullData?.status_display) {
-      return fullData.status_display;
+    if (retainerProject?.project_period_status) {
+      return retainerProject.project_period_status;
     }
-    if (fullData?.status === 'S') {
+    if (retainerProject?.status_display) {
+      return retainerProject.status_display;
+    }
+    if (retainerProject?.status === 'S') {
       return 'SUBMITTED';
     }
-    if (fullData?.status === 'A') {
+    if (retainerProject?.status === 'A') {
       return 'ACTIVE';
     }
     return 'ASSIGNED';
   };
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'ACTIVE':
-      case 'ASSIGNED':
-        return colors.success;
-      case 'SUBMITTED':
-        return colors.info;
-      case 'COMPLETED':
-        return colors.secondary;
-      default:
-        return colors.warning;
-    }
+    const s = (status || '').toLowerCase();
+    if (s.includes('completed')) return '#10b981';
+    if (s.includes('in progress') || s.includes('active')) return '#f59e0b';
+    if (s.includes('submitted')) return '#3b82f6';
+    if (s.includes('assigned') || s.includes('planned')) return '#64748b';
+    return '#94a3b8';
   };
 
   const status = getStatus();
   const statusColor = getStatusColor(status);
 
-  // Check if retainer has an open session
+  // Check if retainer has an open session (same logic as primary projects)
   const hasOpenSession = () => {
-    if (!fullData?.day_logs) return false;
+    if (!retainerProject?.day_logs) return false;
     
-    const lastLogEntry = Object.values(fullData.day_logs || {}).pop();
+    const lastLogEntry = Object.values(retainerProject.day_logs || {}).pop();
     const hasOpenFromDayLogs = lastLogEntry &&
       lastLogEntry.check_in &&
       !lastLogEntry.check_out;
 
     let hasOpenFromTsData = false;
-    if (fullData?.original_A?.ts_data_list?.length) {
-      const entries = fullData.original_A.ts_data_list;
+    if (retainerProject?.original_A?.ts_data_list?.length) {
+      const entries = retainerProject.original_A.ts_data_list;
       const lastTsEntry = entries[entries.length - 1];
       const geoData = lastTsEntry?.geo_data || '';
       hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
@@ -67,9 +70,9 @@ const RetainerCard = ({
     return hasOpenFromDayLogs || hasOpenFromTsData;
   };
 
-  // Function to determine button state and action for retainer
+  // Function to determine button state and action for retainer (SAME LOGIC AS PRIMARY)
   const renderRetainerActivityButton = () => {
-    if (!fullData) {
+    if (!retainerProject) {
       // If we don't have full retainer data, show disabled button
       return (
         <View style={[styles.btn, styles.disabledBtn]}>
@@ -80,86 +83,83 @@ const RetainerCard = ({
     }
 
     // Check if retainer activity is completed
-    const isCompleted = fullData?.original_A?.status === "S";
+    const isCompleted = retainerProject?.original_A?.status === "S";
     const hasSession = hasOpenSession();
+    const todaysStatus = retainerProject.todaysStatus || "Planned";
+    const hasPendingCheckout = retainerProject.hasPendingCheckout === true;
 
     // 1. If activity is completed
     if (isCompleted) {
       return (
         <View style={[styles.btn, styles.disabledBtn]}>
           <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Activity Complete</Text>
+          <Text style={styles.btnText}>Activity Completed</Text>
         </View>
       );
     }
 
     // 2. If retainer has pending checkout from previous day
-    if (fullData?.hasPendingCheckout) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction && onAction({ 
-            type: 'checkout_yesterday', 
-            retainer: displayData 
-          })}
-        >
-          <Ionicons name="time-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Checkout Yesterday</Text>
-        </TouchableOpacity>
-      );
-    }
+    // if (hasPendingCheckout) {
+    //   return (
+    //     <TouchableOpacity
+    //       style={[styles.btn, styles.primaryBtn]}
+    //       onPress={() => onAction && onAction({ 
+    //         type: 'checkout_yesterday', 
+    //         retainer: {
+    //           ...retainer,
+    //           fullData: retainerProject
+    //         }
+    //       })}
+    //     >
+    //       <Ionicons name="time-outline" size={16} color="#fff" />
+    //       <Text style={styles.btnText}>Checkout Yesterday</Text>
+    //     </TouchableOpacity>
+    //   );
+    // }
 
-    // 3. If retainer has an open session
-    if (hasSession) {
+    // 3. If retainer has an open session or today's status is Active
+    if (hasSession || todaysStatus === "Active") {
       return (
         <TouchableOpacity
-          style={[styles.btn, styles.checkOutBtn]}
-          onPress={() => onAction && onAction({ 
-            type: 'continue', 
-            retainer: displayData 
-          })}
+          style={[styles.btn, styles.completeBtn]}
+          onPress={() => onAction({ type: 'continue', project: retainerProject, retainer })}
+          // onPress={() => onAction && onAction({ 
+          //   type: 'continue', 
+          //   retainer: {
+          //     ...retainer,
+          //     fullData: retainerProject
+          //   }
+          // })}
         >
           <Ionicons name="log-out-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Check Out</Text>
+          <Text style={styles.btnText}>Complete Activity</Text>
         </TouchableOpacity>
       );
     }
 
     // 4. If there's any open session globally and retainer doesn't have one
-    if (hasOpenSessionGlobally && !hasSession) {
-      return (
-        <View style={[styles.btn, styles.disabledBtn]}>
-          <Ionicons name="lock-closed-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Finish Pending</Text>
-        </View>
-      );
-    }
+    // if (hasOpenSessionGlobally && !hasSession) {
+    //   return (
+    //     <View style={[styles.btn, styles.disabledBtn]}>
+    //       <Ionicons name="lock-closed-outline" size={16} color="#fff" />
+    //       <Text style={styles.btnText}>Finish Pending</Text>
+    //     </View>
+    //   );
+    // }
 
-    // 5. If activity was checked out but not submitted
-    if (fullData?.original_A?.id && !hasSession) {
+    // 5. If retainer hasn't started activity yet (no original_A)
+    if (!retainerProject?.original_A) {
       return (
         <TouchableOpacity
           style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction && onAction({ 
-            type: 'resume', 
-            retainer: displayData 
-          })}
-        >
-          <Ionicons name="play-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Resume Activity</Text>
-        </TouchableOpacity>
-      );
-    }
-
-    // 6. If retainer hasn't started activity yet
-    if (!fullData?.original_A) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction && onAction({ 
-            type: 'start', 
-            retainer: displayData 
-          })}
+          onPress={() => onAction({ type: 'start', project: retainerProject, retainer })}
+          // onPress={() => onAction && onAction({ 
+          //   type: 'start', 
+          //   retainer: {
+          //     ...retainer,
+          //     fullData: retainerProject
+          //   }
+          // })}
         >
           <Ionicons name="log-in-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Start Activity</Text>
@@ -167,35 +167,22 @@ const RetainerCard = ({
       );
     }
 
-    // 7. Fallback for Resume button
-    if (fullData?.original_A) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction && onAction({ 
-            type: 'resume', 
-            retainer: displayData 
-          })}
-        >
-          <Ionicons name="play-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Resume Activity</Text>
-        </TouchableOpacity>
-      );
-    }
-
-    // Default fallback
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn]}
-        onPress={() => onAction && onAction({ 
-          type: 'start', 
-          retainer: displayData 
-        })}
-      >
-        <Ionicons name="log-in-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Start Activity</Text>
-      </TouchableOpacity>
-    );
+    // 6. Default to Resume (if has original_A but not active today)
+    // return (
+    //   <TouchableOpacity
+    //     style={[styles.btn, styles.primaryBtn]}
+    //     onPress={() => onAction && onAction({ 
+    //       type: 'resume', 
+    //       retainer: {
+    //         ...retainer,
+    //         fullData: retainerProject
+    //       }
+    //     })}
+    //   >
+    //     <Ionicons name="play-outline" size={16} color="#fff" />
+    //     <Text style={styles.btnText}>Resume Activity</Text>
+    //   </TouchableOpacity>
+    // );
   };
 
   return (
@@ -219,10 +206,10 @@ const RetainerCard = ({
       </View>
 
       {/* Project Info (if available) */}
-      {fullData?.project_name && (
+      {retainerProject?.project_name && (
         <View style={styles.projectInfo}>
           <Ionicons name="briefcase-outline" size={14} color={colors.primary} />
-          <Text style={styles.projectName}>Project: {fullData.project_name}</Text>
+          <Text style={styles.projectName}>Project: {retainerProject.project_name}</Text>
         </View>
       )}
 
@@ -236,7 +223,7 @@ const RetainerCard = ({
             <Ionicons name="people-outline" size={16} color={colors.primary} />
             <Text style={styles.label}>Resources:</Text>
           </View>
-          <Text style={styles.value}>{retainer.no_resource}</Text>
+          <Text style={styles.value}>{retainer.no_resource || 0}</Text>
         </View>
         
         <View style={styles.infoRow}>
@@ -244,7 +231,7 @@ const RetainerCard = ({
             <Ionicons name="calendar-outline" size={16} color={colors.primary} />
             <Text style={styles.label}>Start:</Text>
           </View>
-          <Text style={styles.value}>{retainer.start_date}</Text>
+          <Text style={styles.value}>{retainer.start_date || 'Not set'}</Text>
         </View>
         
         <View style={styles.infoRow}>
@@ -252,7 +239,7 @@ const RetainerCard = ({
             <Ionicons name="calendar-outline" size={16} color={colors.primary} />
             <Text style={styles.label}>End:</Text>
           </View>
-          <Text style={styles.value}>{retainer.end_date}</Text>
+          <Text style={styles.value}>{retainer.end_date || 'Not set'}</Text>
         </View>
         
         <View style={styles.infoRow}>
@@ -260,7 +247,7 @@ const RetainerCard = ({
             <Ionicons name="cube-outline" size={16} color={colors.primary} />
             <Text style={styles.label}>Items:</Text>
           </View>
-          <Text style={styles.value}>{retainer.no_of_items}</Text>
+          <Text style={styles.value}>{retainer.no_of_items || 0}</Text>
         </View>
       </View>
 
@@ -390,6 +377,9 @@ const styles = StyleSheet.create({
   },
   checkOutBtn: {
     backgroundColor: '#ef4444',
+  },
+  completeBtn: {
+    backgroundColor: colors.success,
   },
   disabledBtn: {
     backgroundColor: '#94a3b8',

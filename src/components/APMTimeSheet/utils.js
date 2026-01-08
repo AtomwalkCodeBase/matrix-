@@ -216,15 +216,12 @@ const buildDayLogsFromAEntries = (aEntries = []) => {
 
 
 export const buildActivityGroupMap = (apiData = []) => {
-  console.log("buildActivityGroupMap called with data length:", apiData.length);
   
   if (!Array.isArray(apiData) || apiData.length === 0) return [];
 
   // Separate P and A items
   const pItems = apiData.filter(item => item.activity_type === "P");
   const aItems = apiData.filter(item => item.activity_type === "A");
-  
-  console.log(`P items: ${pItems.length}, A items: ${aItems.length}`);
 
   const groups = {};
   
@@ -241,7 +238,6 @@ export const buildActivityGroupMap = (apiData = []) => {
         order_item_id: pItem.order_item_id,
         order_item_key: pItem.order_item_key // Keep for reference
       };
-      console.log(`Created group for P id ${pItem.id}, order_item_id: ${pItem.order_item_id}, order_item_key: ${pItem.order_item_key}`);
     }
   });
   
@@ -259,7 +255,6 @@ export const buildActivityGroupMap = (apiData = []) => {
     if (matchingKey) {
       // Add A item to existing group
       groups[matchingKey].allAEntries.push(aItem);
-      console.log(`Assigned A id ${aItem.id} (free_code: ${aItem.free_code}) to group ${matchingKey}`);
     } else {
       // No matching P found - check if there's an orphan group for this A
       const orphanKey = `orphan_${aItem.id}_${aItem.order_item_id}`;
@@ -271,7 +266,6 @@ export const buildActivityGroupMap = (apiData = []) => {
           order_item_id: aItem.order_item_id,
           order_item_key: aItem.order_item_key // Keep for reference
         };
-        console.log(`Created orphan group for A id ${aItem.id}, order_item_id: ${aItem.order_item_id}`);
       } else {
         groups[orphanKey].allAEntries.push(aItem);
       }
@@ -295,31 +289,13 @@ export const buildActivityGroupMap = (apiData = []) => {
       order_item_key: group.order_item_key
     };
   });
-
-  console.log(`Total groups created: ${result.length}`);
-  
-  // Debug: Show each group
-  result.forEach((group, index) => {
-    console.log(`Group ${index + 1}:`);
-    console.log(`  Key: ${group.key}`);
-    console.log(`  Has P: ${group.original_P ? `Yes (id: ${group.original_P.id})` : 'No'}`);
-    console.log(`  Has A: ${group.original_A ? `Yes (id: ${group.original_A.id}, free_code: ${group.original_A.free_code})` : 'No'}`);
-    console.log(`  order_item_id: ${group.order_item_id}`);
-    console.log(`  order_item_key: ${group.order_item_key}`);
-    console.log(`  Total A entries: ${group.allAEntries.length}`);
-  });
   
   return result;
 };
 
 export const normalizeProjects = (apiData = []) => {
-  console.log("normalizeProjects called with data length:", apiData.length);
-  
   const groups = buildActivityGroupMap(apiData);
-  console.log("Groups created:", groups.length);
-  
   const todayApiStr = getTodayApiDateStr();
-  console.log("Today's API date string:", todayApiStr);
   
   // For each grouped item, build the final object
   const final = groups.map(group => {
@@ -488,8 +464,6 @@ export const normalizeProjects = (apiData = []) => {
         original_A
     };
   });
-
-  console.log(`Normalized ${final.length} projects`);
   return final;
 };
 

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
@@ -81,125 +82,20 @@ const TimelineRow = ({ icon, label, value }) => (
   </View>
 );
 
-const CalendarDay = ({ date, isLogged, isToday, isWeekend, logEntry }) => {
-  const dayOfMonth = date.getDate();
-  const dateIso = date.toISOString().split('T')[0];
-
-  return (
-    <View style={styles.calendarDay}>
-      <View style={[styles.dayOfWeek, isWeekend && styles.weekendDay]}>
-        <Text style={[styles.dayOfWeekText, isWeekend && styles.weekendText]}>
-          {date.toLocaleDateString('en-US', { weekday: 'short' })}
-        </Text>
-      </View>
-
-      <TouchableOpacity
-        style={[
-          styles.dateCircle,
-          isLogged && styles.loggedDate,
-          isToday && !isLogged && styles.todayDate,
-          isWeekend && styles.weekendDate,
-        ]}
-        activeOpacity={0.7}
-      >
-        <Text
-          style={[
-            styles.dateNumber,
-            isLogged && styles.loggedDateNumber,
-            isToday && !isLogged && styles.todayDateNumber,
-            isWeekend && styles.weekendDateNumber,
-          ]}
-        >
-          {dayOfMonth}
-        </Text>
-        {isLogged && (
-          <View
-            style={[
-              styles.activityDot,
-              logEntry?.check_out ? styles.completedDot : styles.inProgressDot,
-            ]}
-          />
-        )}
-      </TouchableOpacity>
-
-      <Text
-        style={[
-          styles.dayStatus,
-          isLogged && styles.completedDay,
-          !isLogged && isToday && styles.todayDay,
-        ]}
-      >
-        {isLogged ? 'Checked In' : isToday ? 'Today' : ''}
-      </Text>
-    </View>
-  );
-};
-
-const DailyLogEntry = ({ entry }) => (
-  <View style={styles.logEntry}>
-    <View style={styles.logHeader}>
-      <View style={styles.logDate}>
-        <Ionicons name="calendar" size={12} color={PRIMARY_COLOR} />
-        <Text style={styles.logDateText}>
-          {formatDate(entry.date)} 
-          {entry.session_number > 1 && ` (Session ${entry.session_number})`}
-        </Text>
-      </View>
-      {entry.items_audited ? (
-        <View style={styles.itemsBadge}>
-          <Ionicons name="cube-outline" size={10} color={PRIMARY_COLOR} />
-          <Text style={styles.itemsBadgeText}>{entry.items_audited} items</Text>
-        </View>
-      ) : null}
-    </View>
-
-    <View style={styles.logTimes}>
-      <View style={styles.logTimeItem}>
-        <Ionicons name="log-in" size={14} color="#10b981" />
-        <View style={styles.logTimeContent}>
-          <Text style={styles.logTimeLabel}>Check In</Text>
-          <Text style={styles.logTimeText}>
-            {entry.check_in || '-'}
-          </Text>
-        </View>
-      </View>
-      <View style={styles.timeDivider} />
-      <View style={styles.logTimeItem}>
-        <Ionicons name="log-out" size={14} color="#ef4444" />
-        <View style={styles.logTimeContent}>
-          <Text style={styles.logTimeLabel}>Check Out</Text>
-          {entry.check_out ? (
-            <Text style={styles.logTimeText}>{entry.check_out}</Text>
-          ) : entry.is_incomplete ? (
-            <Text style={[styles.logTimeText, styles.inProgressText]}>In Progress</Text>
-          ) : (
-            <Text style={styles.logTimeText}>-</Text>
-          )}
-        </View>
-      </View>
-    </View>
-
-    {entry.remark ? (
-      <View style={styles.remarkContainer}>
-        <Ionicons name="chatbox-outline" size={10} color="#64748b" />
-        <Text style={styles.remarkText}>{entry.remark}</Text>
-      </View>
-    ) : null}
-  </View>
-);
-
-// Retainer Section Component (to be integrated inside AuditCard)
-// In AuditCard component, update the RetainerSection component:
-// Update this in your AuditCard component:
+// === Retainer Section Component ===
 const RetainerSection = ({ 
   project, 
   retainerData, 
   onToggleRetainers,
-  onRetainerAction, // Add this new prop
-  hasOpenSessionGlobally // Add this prop
+  onRetainerAction,
+  hasOpenSessionGlobally
 }) => {
   const retainers = project?.original_P?.retainer_list || [];
-  if (retainers.length === 0) return null;
+  
+  // Filter out retainers with a_type: "A"
+  const validRetainers = retainers.filter(retainer => retainer.a_type !== "A");
+  
+  if (validRetainers.length === 0) return null;
 
   const projectRetainerData = retainerData[project.id] || {};
   const isExpanded = projectRetainerData.expanded || false;
@@ -209,11 +105,13 @@ const RetainerSection = ({
     <View style={styles.retainerSection}>
       <TouchableOpacity
         style={styles.viewRetainersButton}
-        onPress={() => onToggleRetainers(project.id, retainers)}
+        onPress={() => {
+          onToggleRetainers(project.id, validRetainers);
+        }}
         disabled={isLoading}
       >
         <Text style={styles.viewRetainersText}>
-          View Retainers ({retainers.length})
+          View Retainers ({validRetainers.length})
         </Text>
         <Ionicons
           name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -231,18 +129,39 @@ const RetainerSection = ({
 
       {isExpanded && projectRetainerData.retainers && (
         <View style={styles.retainersList}>
-          {projectRetainerData.retainers.map((retainer, index) => (
-            <RetainerCard
-              key={`${project.id}-${retainer.emp_id}-${index}`}
-              retainer={retainer}
-              fullData={retainer.fullData}
-              onAction={onRetainerAction} // Pass the action handler
-              hasOpenSessionGlobally={hasOpenSessionGlobally} // Pass global open session status
-            />
-          ))}
+          {projectRetainerData.retainers.map((retainer, index) => {
+            // Additional safety check - filter out any a_type: "A" that might have slipped through
+            if (retainer.a_type === "A") return null;
+            
+            // Debug each retainer
+            // console.log(`🎯 Retainer ${index}:`, {
+            //   name: retainer.employee_name,
+            //   emp_id: retainer.emp_id,
+            //   hasFullData: !!retainer.fullData,
+            //   fullDataKeys: retainer.fullData ? Object.keys(retainer.fullData) : []
+            // });
+
+            return (
+              <RetainerCard
+                key={`${project.id}-${retainer.emp_id}-${index}`}
+                retainer={retainer}
+                fullData={retainer.fullData}
+                onAction={onRetainerAction}
+                hasOpenSessionGlobally={hasOpenSessionGlobally}
+              />
+            );
+          })}
           
           {projectRetainerData.error && (
             <Text style={styles.sectionError}>{projectRetainerData.error}</Text>
+          )}
+          
+          {/* Show message if no valid retainers after filtering */}
+          {projectRetainerData.retainers && 
+           projectRetainerData.retainers.filter(r => r.a_type !== "A").length === 0 && (
+            <Text style={styles.noRetainersText}>
+              No active retainers available
+            </Text>
           )}
         </View>
       )}
@@ -258,10 +177,7 @@ export const AuditCard = ({
   hasOpenSessionGlobally, 
   retainerData,
   onToggleRetainers,
-  onEditRetainer,
-  onDeleteRetainer,
-  onViewRetainerDetails,
-  handleRetainerAction,
+  onRetainerAction,  // This should be passed from APMTimeSheet
   hasAnyOpenSession
 }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -338,25 +254,52 @@ export const AuditCard = ({
     setIsDetailsOpen(!isDetailsOpen);
   };
 
+  // Debug: Log what props we received
+  // console.log("🔄 AuditCard rendering for project:", project.project_code, {
+  //   hasOnRetainerAction: !!onRetainerAction,
+  //   hasRetainerData: !!retainerData,
+  //   retainerKeys: Object.keys(retainerData || {}),
+  //   hasOpenSessionGlobally,
+  //   retainerCount: project?.original_P?.retainer_list?.length || 0
+  // });
+
+  const handleRetainerActionWrapper = (actionData) => {
+    // console.log("📞 AuditCard received retainer action:", {
+    //   type: actionData.type,
+    //   retainerName: actionData.retainer?.employee_name,
+    //   retainerId: actionData.retainer?.emp_id
+    // });
+
+    if (onRetainerAction) {
+      onRetainerAction(actionData);
+    } else {
+      console.error("❌ onRetainerAction is undefined in AuditCard");
+      Alert.alert(
+        "Debug Info",
+        `onRetainerAction prop is not provided to AuditCard.\n\nAction Type: ${actionData.type}\nRetainer: ${actionData.retainer?.employee_name}`,
+        [{ text: "OK" }]
+      );
+    }
+  };
+  const lastEntryStatus = useMemo(() => {
+    if (!project?.original_A?.ts_data_list?.length) return 'not_started';
+    
+    const entries = project.original_A.ts_data_list;
+    const lastEntry = entries[entries.length - 1];
+    const geoData = lastEntry?.geo_data || '';
+    
+    if (geoData.includes('I|') && geoData.includes('O|')) {
+      return 'checked_out';
+    } else if (geoData.includes('I|') && !geoData.includes('O|')) {
+      return 'open_session';
+    }
+    return 'unknown';
+  }, [project?.original_A?.ts_data_list]);
+
   const renderPrimaryButton = () => {
-    const getLastEntryStatus = useMemo(() => {
-      if (!project?.original_A?.ts_data_list?.length) return 'not_started';
-      
-      const entries = project.original_A.ts_data_list;
-      const lastEntry = entries[entries.length - 1];
-      const geoData = lastEntry?.geo_data || '';
-      
-      if (geoData.includes('I|') && geoData.includes('O|')) {
-        return 'checked_out';
-      } else if (geoData.includes('I|') && !geoData.includes('O|')) {
-        return 'open_session';
-      }
-      return 'unknown';
-    }, [project?.original_A?.ts_data_list]);
 
     const isActivityCompleted = project?.original_A?.status === "S";
     const thisProjectHasOpenSession = hasOpenSession;
-    const lastEntryStatus = getLastEntryStatus;
 
     // 1. If activity is completed (status: "S")
     if (isActivityCompleted) {
@@ -503,16 +446,32 @@ export const AuditCard = ({
       </View>
 
       {/* Retainer Section - Always visible if there are retainers */}
-<RetainerSection
-  project={project}
-  retainerData={retainerData}
-  onToggleRetainers={onToggleRetainers}
-  onEdit={onEditRetainer}
-  onDelete={onDeleteRetainer}
-  onViewDetails={onViewRetainerDetails}
-  onRetainerAction={handleRetainerAction} // Add this
-  hasOpenSessionGlobally={hasAnyOpenSession} // Pass from parent
-/>
+      <RetainerSection
+        project={project}
+        retainerData={retainerData}
+        onToggleRetainers={onToggleRetainers}
+        // onRetainerAction={handleRetainerActionWrapper}
+        onRetainerAction={onAction}
+        hasOpenSessionGlobally={hasOpenSessionGlobally}
+      />
+
+      {/* Action Buttons */}
+      <View style={styles.actions}>
+        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
+        <TouchableOpacity
+          style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
+          onPress={handleToggleDetails}
+        >
+          <Ionicons
+            name={isDetailsOpen ? 'close-circle-outline' : 'document-text-outline'}
+            size={16}
+            color={isDetailsOpen ? '#fff' : PRIMARY_COLOR}
+          />
+          <Text style={[styles.btnText, !isDetailsOpen && styles.secondaryBtnText]}>
+            {isDetailsOpen ? 'Minimize Details' : 'Details'}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Expanded Details */}
       {isDetailsOpen && (
@@ -527,9 +486,9 @@ export const AuditCard = ({
           
           <View style={styles.progressHeader}>
             <Text style={styles.sectionTitle}>Daily Progress</Text>
-            <Text style={styles.calendarProgress}>
+            {/* <Text style={styles.calendarProgress}>
               {loggedDates.length}/{plannedDays.length} days completed
-            </Text>
+            </Text> */}
           </View>
 
           {/* Daily Logs */}
@@ -549,27 +508,63 @@ export const AuditCard = ({
           )}
         </View>
       )}
-
-      {/* Action Buttons */}
-      <View style={styles.actions}>
-        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
-        <TouchableOpacity
-          style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
-          onPress={handleToggleDetails}
-        >
-          <Ionicons
-            name={isDetailsOpen ? 'close-circle-outline' : 'document-text-outline'}
-            size={16}
-            color={isDetailsOpen ? '#fff' : PRIMARY_COLOR}
-          />
-          <Text style={[styles.btnText, !isDetailsOpen && styles.secondaryBtnText]}>
-            {isDetailsOpen ? 'Minimize Details' : 'Details'}
-          </Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 };
+
+// DailyLogEntry Component (moved down to fix reference)
+const DailyLogEntry = ({ entry }) => (
+  <View style={styles.logEntry}>
+    <View style={styles.logHeader}>
+      <View style={styles.logDate}>
+        <Ionicons name="calendar" size={12} color={PRIMARY_COLOR} />
+        <Text style={styles.logDateText}>
+          {formatDate(entry.date)} 
+          {entry.session_number > 1 && ` (Session ${entry.session_number})`}
+        </Text>
+      </View>
+      {entry.items_audited ? (
+        <View style={styles.itemsBadge}>
+          <Ionicons name="cube-outline" size={10} color={PRIMARY_COLOR} />
+          <Text style={styles.itemsBadgeText}>{entry.items_audited} items</Text>
+        </View>
+      ) : null}
+    </View>
+
+    <View style={styles.logTimes}>
+      <View style={styles.logTimeItem}>
+        <Ionicons name="log-in" size={14} color="#10b981" />
+        <View style={styles.logTimeContent}>
+          <Text style={styles.logTimeLabel}>Check In</Text>
+          <Text style={styles.logTimeText}>
+            {entry.check_in || '-'}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.timeDivider} />
+      <View style={styles.logTimeItem}>
+        <Ionicons name="log-out" size={14} color="#ef4444" />
+        <View style={styles.logTimeContent}>
+          <Text style={styles.logTimeLabel}>Check Out</Text>
+          {entry.check_out ? (
+            <Text style={styles.logTimeText}>{entry.check_out}</Text>
+          ) : entry.is_incomplete ? (
+            <Text style={[styles.logTimeText, styles.inProgressText]}>In Progress</Text>
+          ) : (
+            <Text style={styles.logTimeText}>-</Text>
+          )}
+        </View>
+      </View>
+    </View>
+
+    {entry.remark ? (
+      <View style={styles.remarkContainer}>
+        <Ionicons name="chatbox-outline" size={10} color="#64748b" />
+        <Text style={styles.remarkText}>{entry.remark}</Text>
+      </View>
+    ) : null}
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -692,7 +687,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     padding: 12,
     borderRadius: 8,
-    marginBottom: 12,
+    marginTop: 12,
   },
   progressHeader: {
     flexDirection: 'row',
@@ -866,7 +861,7 @@ const styles = StyleSheet.create({
     color: PRIMARY_COLOR,
   },
 
-  // Retainer Section Styles (only styles used in AuditCard component)
+  // Retainer Section Styles
   retainerSection: {
     marginTop: 12,
     marginBottom: 12,
@@ -913,4 +908,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#fef2f2',
     borderRadius: 6,
   },
+  noRetainersText: {
+    fontSize: 13,
+    color: '#64748b',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    padding: 12,
+    backgroundColor: '#f8fafc',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderStyle: 'dashed',
+  },
+  calendarProgress: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600',
+  }
 });

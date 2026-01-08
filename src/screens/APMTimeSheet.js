@@ -216,7 +216,27 @@ const APMTimeSheet = () => {
 
   // NEW: Fetch retainer data for a specific project
   const fetchRetainersForProject = async (projectId, retainerList) => {
-    if (!retainerList || retainerList.length === 0) return;
+
+    if (!retainerList || retainerList.length === 0) {
+      console.log('No retainers to fetch');
+      return;
+    }
+
+    // Filter out retainers with a_type: "A"
+    const filteredRetainers = retainerList.filter(retainer => retainer.a_type !== "A");
+
+    if (filteredRetainers.length === 0) {
+      setRetainerData(prev => ({
+        ...prev,
+        [projectId]: {
+          retainers: [],
+          loading: false,
+          expanded: true,
+          noValidRetainers: true
+        }
+      }));
+      return;
+    }
 
     // Set loading state for this project
     setRetainerData(prev => ({
@@ -229,31 +249,104 @@ const APMTimeSheet = () => {
     }));
 
     try {
-      const retainerPromises = retainerList.map(async (retainer) => {
+      const retainerPromises = filteredRetainers.map(async (retainer) => {
         try {
           // Call API with retainer's emp_id
           const res = await getAllocationList(retainer.emp_id, dateRange.startDate, dateRange.endDate);
 
-          // The API returns an array, we take the first item if available
-          const retainerData = Array.isArray(res?.data) ? res.data : [];
+          const rawRetainerData = Array.isArray(res?.data) ? res.data : [];
+
+          if (rawRetainerData.length === 0) {
+            // Create a minimal fullData structure
+            const minimalFullData = {
+              original_P: {
+                id: retainer.a_id,
+                emp_id: retainer.emp_id,
+                employee_name: retainer.employee_name,
+                no_of_items: retainer.no_of_items || 0,
+                start_date: retainer.start_date,
+                end_date: retainer.end_date
+              },
+              project_period_status: 'Planned',
+              todaysStatus: 'Planned',
+              hasPendingCheckout: false,
+              isRetainer: true
+            };
+
+            return {
+              ...retainer,
+              fullData: minimalFullData,
+              fetchedAt: new Date().toISOString(),
+              hasRealData: false
+            };
+          }
+
+          // Normalize retainer data using the same logic as primary projects
+          const normalizedRetainerProjects = normalizeProjects(rawRetainerData);
+          // Find the matching retainer project
+          let matchingRetainerProject = null;
+
+          if (retainer.a_id) {
+            matchingRetainerProject = normalizedRetainerProjects.find(project => {
+              return project.original_P?.id === retainer.a_id ||
+                project.original_A?.id === retainer.a_id;
+            });
+          }
+
+          // If no match found, take the first one or create a minimal one
+          if (!matchingRetainerProject) {
+            if (normalizedRetainerProjects.length > 0) {
+              matchingRetainerProject = normalizedRetainerProjects[0];
+            } else {
+              // Create minimal data
+              matchingRetainerProject = {
+                original_P: {
+                  id: retainer.a_id,
+                  emp_id: retainer.emp_id,
+                  employee_name: retainer.employee_name
+                },
+                project_period_status: 'Planned',
+                todaysStatus: 'Planned',
+                hasPendingCheckout: false,
+                isRetainer: true
+              };
+            }
+          }
 
           return {
             ...retainer,
-            fullData: retainerData[0] || null, // Store the full retainer data
-            fetchedAt: new Date().toISOString()
+            fullData: matchingRetainerProject,
+            fetchedAt: new Date().toISOString(),
+            hasRealData: true
           };
         } catch (error) {
           console.error(`Error fetching retainer ${retainer.emp_id}:`, error);
+
+          // Return with minimal data
+          const minimalFullData = {
+            original_P: {
+              id: retainer.a_id,
+              emp_id: retainer.emp_id,
+              employee_name: retainer.employee_name
+            },
+            project_period_status: 'Planned',
+            todaysStatus: 'Planned',
+            hasPendingCheckout: false,
+            isRetainer: true
+          };
+
           return {
             ...retainer,
-            fullData: null,
+            fullData: minimalFullData,
             error: "Failed to load data",
-            fetchedAt: new Date().toISOString()
+            fetchedAt: new Date().toISOString(),
+            hasRealData: false
           };
         }
       });
 
       const retainersWithData = await Promise.all(retainerPromises);
+      // console.log('Retainers with data:', retainersWithData);
 
       // Update retainer data state
       setRetainerData(prev => ({
@@ -279,6 +372,23 @@ const APMTimeSheet = () => {
 
   // Toggle retainer visibility
   const toggleRetainers = (projectId, retainerList) => {
+    // Filter out retainers with a_type: "A"
+    const validRetainers = retainerList?.filter(retainer => retainer.a_type !== "A") || [];
+
+    if (validRetainers.length === 0) {
+      // Show message if no valid retainers
+      setRetainerData(prev => ({
+        ...prev,
+        [projectId]: {
+          retainers: [],
+          loading: false,
+          expanded: true,
+          noValidRetainers: true
+        }
+      }));
+      return;
+    }
+
     const currentState = retainerData[projectId];
 
     if (currentState?.expanded) {
@@ -453,16 +563,18 @@ const APMTimeSheet = () => {
 
   // Submit activity (Start / Resume / Complete)
   const handleActivitySubmit = async ({ project, mode, data = {}, extraFields = {} }) => {
-    if (!project) return false;
+    let processedProject = project;
 
     const isAddMode = mode === "ADD";
     setIsLoading(true);
+
     try {
       const loc = await getCurrentLocation();
       if (!loc) {
         setIsLoading(false);
         return false;
       }
+
       const { apiDate: defaultApiDate, currentTime } = getCurrentDateTimeDefaults();
       const formData = new FormData();
 
@@ -487,11 +599,44 @@ const APMTimeSheet = () => {
         startTime = data.startTime;
       }
 
-      const resolvedEmpId =
-        empId ||
-        project?.original_P?.emp_id ||
-        project?.original_A?.emp_id ||
-        "";
+      // For retainer projects
+      let resolvedEmpId = "";
+      let pId = "";
+      let aId = "";
+
+      if (project.isRetainer && project.retainerData) {
+        // Use retainer's emp_id from retainerData
+        resolvedEmpId = project.original_P.emp_id || "";
+        console.log('Using retainer emp_id:', resolvedEmpId);
+
+        // For ADD mode, we need p_id
+        if (isAddMode) {
+          // Use retainer's a_id as p_id or get from original_P
+          pId = project.retainerData.a_id || project.original_P?.id;
+          console.log('Retainer p_id:', pId);
+        } else {
+          // For UPDATE mode, use original_A.id
+          aId = project.original_A?.id || project.retainerData.a_id;
+          console.log('Retainer a_id:', aId);
+        }
+      } else {
+        // Primary project logic
+        resolvedEmpId = project?.original_P?.emp_id || project?.original_A?.emp_id || "";
+
+        if (isAddMode) {
+          pId = project.original_P?.id;
+        } else {
+          aId = project.original_A?.id;
+        }
+      }
+
+      if (!resolvedEmpId) {
+        console.error('No employee ID found');
+        setErrorMessage("Unable to identify employee");
+        setShowErrorModal(true);
+        setIsLoading(false);
+        return false;
+      }
 
       formData.append("emp_id", resolvedEmpId);
       formData.append("activity_date", DateForApiFormate(activityDate));
@@ -506,19 +651,41 @@ const APMTimeSheet = () => {
         formData.append("submitted_file", data.file);
       }
 
-      if (isAddMode) {
-        if (!project.original_P?.id) {
-          console.warn("Missing original_P.id for ADD mode", project);
+      if (isAddMode && processedProject.isRetainer) {
+        const pId = processedProject.retainerData?.a_id ||
+          processedProject.original_P?.id;
+
+        if (pId) {
+          formData.append("p_id", String(pId));
+        } else {
+          console.error('No p_id found for retainer');
+          setErrorMessage("Unable to identify retainer project");
+          setShowErrorModal(true);
+          setIsLoading(false);
           return false;
         }
+      }
+
+      if (isAddMode) {
+        if (!pId) {
+          console.warn("Missing p_id for ADD mode", project);
+          setErrorMessage("Unable to identify project");
+          setShowErrorModal(true);
+          setIsLoading(false);
+          return false;
+        }
+
         formData.append("call_mode", "ADD");
-        formData.append("p_id", String(project.original_P.id));
+        formData.append("p_id", String(pId));
         formData.append("start_time", formatAMPMTime(startTime));
         formData.append("geo_type", "I");
         formData.append("no_of_items", "0");
       } else {
-        if (!project.original_A?.id) {
-          console.warn("Missing original_A.id for UPDATE mode", project);
+        if (!aId) {
+          console.warn("Missing a_id for UPDATE mode", project);
+          setErrorMessage("Unable to identify activity");
+          setShowErrorModal(true);
+          setIsLoading(false);
           return false;
         }
 
@@ -527,7 +694,7 @@ const APMTimeSheet = () => {
           String(Number(data.noOfItems || 0))
         );
         formData.append("call_mode", "UPDATE");
-        formData.append("a_id", String(project.original_A.id));
+        formData.append("a_id", String(aId));
 
         if (data.endTime) {
           formData.append("end_time", formatAMPMTime(data.endTime));
@@ -547,6 +714,10 @@ const APMTimeSheet = () => {
           formData.append(key, value);
         }
       });
+
+              for (let [key, value] of formData.entries()) {
+    console.log(key, value);
+  }
 
       const res = await postAllocationData(formData);
 
@@ -577,14 +748,16 @@ const APMTimeSheet = () => {
   };
 
   // Action handlers
-  const handleActivityAction = ({ type, project }) => {
+  const handleActivityAction = ({ type, project, retainer = false }) => {
     if (type === "start") {
+      if(!retainer){
       const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
       if (hasOpenSession) {
         setErrorMessage("Finish Pending");
         setShowErrorModal(true);
         return;
       }
+    }
 
       setConfirmPopup({
         isOpen: true,
@@ -600,12 +773,14 @@ const APMTimeSheet = () => {
     }
 
     if (type === "resume") {
+      if(retainer){
       const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
       if (hasOpenSession) {
         setErrorMessage("Finish Pending");
         setShowErrorModal(true);
         return;
       }
+    }
       setConfirmPopup({
         isOpen: true,
         title: "Resume Activity",
@@ -624,7 +799,7 @@ const APMTimeSheet = () => {
     }
 
     if (["continue", "complete", "checkout_yesterday"].includes(type)) {
-      setSelectedProject({ ...project, modalContext: { type } });
+      setSelectedProject({ ...project, modalContext: { type }, retainer });
       setIsFormModalOpen(true);
     }
   };
@@ -634,22 +809,44 @@ const APMTimeSheet = () => {
       project: selectedProject,
       mode: "UPDATE",
       data: formData,
-    }).then(async () => {
-      await onRefresh();
+    }).then(async (success) => {
+      if (success) {
+        await onRefresh();
+        // Refresh retainer data if it was a retainer action
+        if (selectedProject?.retainer) {
+          const parentProject = projects.find(p =>
+            p.original_P?.retainer_list?.some(r => r.emp_id === selectedProject.retainerData?.emp_id)
+          );
+          if (parentProject) {
+            fetchRetainersForProject(parentProject.id, parentProject.original_P?.retainer_list || []);
+          }
+        }
+      }
       setIsFormModalOpen(false);
     });
 
+  // Update handleMarkCompleteFromModal for retainers
   const handleMarkCompleteFromModal = (formData) =>
     handleActivitySubmit({
       project: selectedProject,
       mode: "UPDATE",
       data: formData,
       extraFields: { is_completed: 1 },
-    }).then(async () => {
-      await onRefresh();
+    }).then(async (success) => {
+      if (success) {
+        await onRefresh();
+        if (selectedProject?.isRetainer) {
+          const parentProject = projects.find(p =>
+            p.original_P?.retainer_list?.some(r => r.emp_id === selectedProject.retainerData?.emp_id)
+          );
+          if (parentProject) {
+            fetchRetainersForProject(parentProject.id, parentProject.original_P?.retainer_list || []);
+          }
+        }
+      }
       setIsFormModalOpen(false);
     });
-
+  
   // Filter controls
   const openFilterModal = () => {
     setPendingFilters({ ...activeFilters });
@@ -720,37 +917,18 @@ const APMTimeSheet = () => {
 
   if (isLoading && !refreshing) return <Loader visible={true} />;
 
-  // Add this function to your APMTimeSheet component
-  const handleRetainerAction = ({ type, retainer }) => {
-    console.log(`Retainer action: ${type}`, retainer);
-
-    // Check if retainer has fullData, if not show error
-    if (!retainer.fullData) {
-      setErrorMessage("Retainer activity data not loaded");
-      setShowErrorModal(true);
-      return;
-    }
-
-    // Use the same logic as handleActivityAction
-    handleActivityAction({
-      type,
-      project: retainer.fullData
-    });
-  };
-
-
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
-      <HeaderComponent
-        headerTitle="Projects TimeSheet"
-        onBackPress={() => navigate.goBack()}
-        icon1Name="filter"
-        icon1OnPress={openFilterModal}
-        filterCount={
-          (activeFilters.status ? 1 : 0) +
-          (activeFilters.period !== "today" ? 1 : 0)
-        }
-      />
+        <HeaderComponent
+          headerTitle="Projects TimeSheet"
+          onBackPress={() => navigate.goBack()}
+          icon1Name="filter"
+          icon1OnPress={openFilterModal}
+          filterCount={
+            (activeFilters.status ? 1 : 0) +
+            (activeFilters.period !== "today" ? 1 : 0)
+          }
+        />
 
       <FilterModal
         visible={showFilterModal}
@@ -813,21 +991,21 @@ const APMTimeSheet = () => {
                   subtitle="Try changing filters or pull to refresh"
                 />
               ) : (
-                projects.map((project) => (
-                  <React.Fragment key={project.id}>
-                    {/* Audit Card */}
-                    <AuditCard
-                      project={project}
-                      onAction={handleActivityAction}
-                      allProjects={allProjects}
-                      hasOpenSessionGlobally={hasAnyOpenSession}
-                      retainerData={retainerData}
-                      onToggleRetainers={toggleRetainers}
-                      onRetainerAction={handleRetainerAction} // Make sure this is passed
-                    />
-
-                  </React.Fragment>
-                ))
+                projects.map((project) => {
+                  return (
+                    <React.Fragment key={project.id}>
+                      <AuditCard
+                        project={project}
+                        onAction={handleActivityAction}
+                        allProjects={allProjects}
+                        hasOpenSessionGlobally={hasAnyOpenSession}
+                        retainerData={retainerData}
+                        onToggleRetainers={toggleRetainers}
+                        hasAnyOpenSession={hasAnyOpenSession}
+                      />
+                    </React.Fragment>
+                  );
+                })
               )}
             </Animated.View>
 

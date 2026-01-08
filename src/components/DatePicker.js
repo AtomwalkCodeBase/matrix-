@@ -9,9 +9,11 @@ const DatePickerButton = styled.TouchableOpacity`
   justify-content: space-between;
   align-items: center;
   border-width: 1px;
-  border-color: #ccc;
+  border-color: ${({ disabled }) => (disabled ? '#ddd' : '#ccc')};
   padding: 10px;
   border-radius: 5px;
+      background-color: ${({ disabled }) => (disabled ? '#f2f2f2' : '#fff')};
+  opacity: ${({ disabled }) => (disabled ? 0.6 : 1)};
 `;
 
 const FieldContainer = styled.View`
@@ -27,6 +29,7 @@ const Label = styled.Text`
   font-size: 16px;
   font-weight: 600;
   margin-bottom: 5px;
+    color: ${({ disabled }) => (disabled ? '#999' : '#000')};
 `;
 
 const Icon = styled.Image`
@@ -34,18 +37,18 @@ const Icon = styled.Image`
   height: 24px;
 `;
 
-const DatePicker = ({ error, label, cDate, setCDate, minimumDate, maximumDate }) => {
+const DatePicker = ({ error, label, cDate, setCDate, minimumDate, maximumDate, disable=false }) => {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   return (
     <FieldContainer>
-      <Label>{label}</Label>
-      <DatePickerButton onPress={() => setShowDatePicker(true)}>
+      <Label disabled={disable}>{label}</Label>
+      <DatePickerButton disabled={disable} onPress={() => !disable && setShowDatePicker(true)}>
         <DateText>{cDate instanceof Date && !isNaN(cDate) ? cDate.toDateString() : '--:--:----'}</DateText>
         <Icon source={require('../../assets/images/c-icon.png')} />
       </DatePickerButton>
 
-      {showDatePicker && (
+      {showDatePicker && !disable && (
         <DateTimePicker
           value={cDate instanceof Date && !isNaN(cDate) ? cDate : new Date()}
           mode="date"

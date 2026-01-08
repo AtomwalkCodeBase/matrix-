@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
 import { View, Text, Modal, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import Ionicons from "react-native-vector-icons/Ionicons";
 
@@ -9,6 +9,7 @@ import FilePicker from '../FilePicker';
 import RemarksInput from '../RemarkInput';
 import { colors } from '../../Styles/appStyle';
 import { formatAMPMTime, formatAPITime, getCurrentDateTimeDefaults, parseApiDate } from './utils';
+import { AppContext } from '../../../context/AppContext';
 
 const ActivitySubmitCard = ({
     visible,
@@ -18,13 +19,16 @@ const ActivitySubmitCard = ({
     onSubmitActivity,        // <-- parent callback
     onCompleteActivity       // <-- parent callback
 }) => {
+  const { profile } = useContext(AppContext);
+
+  const isExecutive = profile.grade_level < 100;
+
+  const isRetainer = editingTask?.retainer;
+
 
     const getToday = () => new Date();
-    const getYesterday = () => {
-        const d = new Date();
-        d.setDate(d.getDate() - 1);
-        return d;
-    };
+
+    // console.log("editingTask", editingTask);
 
     const getCurrentTime = () => {
         const now = new Date();
@@ -101,6 +105,10 @@ const ActivitySubmitCard = ({
 
         if (!date || !endTime || !noOfItems) return false;
 
+        if (editingTask?.original_P?.is_file_applicable && !fileUri) {
+          return false;
+        }
+
         // If planned_end_date is today → remarks required for submit button
         if (isTodayPlannedEnd && !remarks) return false;
 
@@ -149,10 +157,37 @@ const ActivitySubmitCard = ({
             mode: "UPDATE",
             //  endTime: toAmPm(formData.endTime),
             file,
-            is_complete: 1
+            is_completed: 1
         });
 
         onClose();
+    };
+
+        const renderHeader = () => {
+        if (isRetainer) {
+            return (
+                <View style={styles.retainerHeader}>
+                    <Ionicons name="person-circle-outline" size={24} color={colors.primary} />
+                    <Text style={styles.retainerTitle}>Complete Retainer Activity</Text>
+                    <Text style={styles.retainerName}>{editingTask.original_P.employee_name}</Text>
+
+                    <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                        <Ionicons name="close" size={24} color="#666" />
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        return (
+            <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>
+                    {isPendingCheckout ? "Pending Checkout" : "Activity Checkout"}
+                </Text>
+                <TouchableOpacity onPress={onClose}>
+                    <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+            </View>
+        );
     };
 
     return (
@@ -161,21 +196,22 @@ const ActivitySubmitCard = ({
                 <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 
                 <View style={styles.modalContent}>
-                    <View style={styles.modalHeader}>
+                  {renderHeader()}
+                    {/* <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Activity Checkout</Text>
 
                         <TouchableOpacity onPress={onClose}>
                             <Ionicons name="close" size={24} color="#666" />
                         </TouchableOpacity>
-                    </View>
+                    </View> */}
 
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}  keyboardShouldPersistTaps="handled">
 
-                        {isPendingCheckout && (
+                        {isPendingCheckout && !isRetainer && (
                             <Text style={styles.warningText}>⚠️ Your yesterday checkout is still pending!</Text>
                         )}
 
-                        <Text style={{backgroundColor: colors.primary, borderRadius: 10, color: "white", textAlign: "center", padding: 3, fontWeight: 500}}>NO of Items Assigned you to Audit: {editingTask?.original_P?.no_of_items}</Text>
+                        <Text style={{backgroundColor: colors.primary, borderRadius: 10, color: "white", textAlign: "center", padding: 6, fontWeight: 500,fontSize: 14}}>NO of Items Assigned you to Audit: {editingTask?.original_P?.no_of_items}</Text>
 
                         <View style={styles.formGroup}>
                             <DatePicker
@@ -183,6 +219,7 @@ const ActivitySubmitCard = ({
                                 cDate={formData.date}
                                 setCDate={(date) => setFormData(prev => ({ ...prev, date }))}
                                 maximumDate={new Date()}
+                                disable={Boolean(isExecutive)}
                             />
                         </View>
 
@@ -193,6 +230,7 @@ const ActivitySubmitCard = ({
                                 setCDate={(value) =>
                                     setFormData(prev => ({ ...prev, endTime: value }))
                                 }
+                                disable={Boolean(isExecutive)}
                             />
                         </View>
                         <View style={styles.formGroup}>
@@ -215,6 +253,12 @@ const ActivitySubmitCard = ({
                             setFileUri={setFileUri}
                             setFileMimeType={setFileMimeType}
                         />
+                        
+                        {editingTask?.original_P?.is_file_applicable && (
+                        <Text style={{ color: "red", fontSize: 12, marginTop: 5 }}>
+                          File upload is mandatory for this activity.
+                        </Text>
+                      )}
 
                         <View style={styles.formGroup}>
                             <RemarksInput
@@ -226,11 +270,11 @@ const ActivitySubmitCard = ({
                             />
                             
                         </View>
-                        {remarkError ? (
-    <Text style={{ color: "red", marginTop: -5, marginBottom: 10 }}>
-        {remarkError}
-    </Text>
-) : null}
+                                            {remarkError ? (
+                        <Text style={{ color: "red", marginTop: -5, marginBottom: 10 }}>
+                            {remarkError}
+                        </Text>
+                    ) : null}
 
                         {/* BUTTONS */}
                         <View style={styles.buttonRow}>
@@ -287,7 +331,20 @@ const ActivitySubmitCard = ({
       </TouchableOpacity>
       </>
 
-  ) : isTodayPlannedEnd ? (
+  ) : editingTask?.retainer ?  
+  <TouchableOpacity
+        style={[
+          styles.button,
+          styles.applyButton,
+          !isValid && styles.disabledButton
+        ]}
+        disabled={!isValid}
+        onPress={handleMarkComplete}
+      >
+        <Text style={styles.applyButtonText}>Mark as Complete</Text>
+      </TouchableOpacity>
+
+  : isTodayPlannedEnd ? (
     <>
       <TouchableOpacity
         style={[
@@ -467,4 +524,36 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: "bold",
       },
+          retainerHeader: {
+        alignItems: "center",
+        paddingBottom: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: "#eee",
+    },
+    retainerTitle: {
+        fontSize: 18,
+        fontWeight: "bold",
+        color: colors.primary,
+        marginTop: 8,
+    },
+    retainerName: {
+        fontSize: 14,
+        color: "#666",
+        marginTop: 4,
+    },
+    retainerInfo: {
+        backgroundColor: colors.primary,
+        borderRadius: 10,
+        color: "white",
+        textAlign: "center",
+        padding: 12,
+        fontWeight: "600",
+        marginBottom: 15,
+        fontSize: 14,
+    },
+    closeBtn: {
+      position: "absolute",
+      right: 0,
+      top: 3 
+    }
 });
