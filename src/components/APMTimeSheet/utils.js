@@ -216,7 +216,6 @@ const buildDayLogsFromAEntries = (aEntries = []) => {
 
 
 export const buildActivityGroupMap = (apiData = []) => {
-  
   if (!Array.isArray(apiData) || apiData.length === 0) return [];
 
   // Separate P and A items
@@ -236,7 +235,7 @@ export const buildActivityGroupMap = (apiData = []) => {
         original_P: pItem,
         allAEntries: [],
         order_item_id: pItem.order_item_id,
-        order_item_key: pItem.order_item_key // Keep for reference
+        order_item_key: pItem.order_item_key
       };
     }
   });
@@ -244,27 +243,38 @@ export const buildActivityGroupMap = (apiData = []) => {
   // 2. Now assign A items to groups
   aItems.forEach(aItem => {
     // Try to find matching P item by comparing A's free_code with P's id
-    const matchingKey = Object.keys(groups).find(key => {
-      const group = groups[key];
-      // Check if A's free_code matches P's id AND order_item_id matches
-      return group.original_P && 
-             String(group.original_P.id) === String(aItem.free_code) && 
-             group.order_item_id === aItem.order_item_id;
-    });
+    let matchingKey = null;
+    
+    // First, check if free_code matches any P's id
+    if (aItem.free_code) {
+      matchingKey = Object.keys(groups).find(key => {
+        const group = groups[key];
+        return group.original_P && 
+               String(group.original_P.id) === String(aItem.free_code);
+      });
+    }
+    
+    // If no match by free_code, try by order_item_id (fallback)
+    if (!matchingKey && aItem.order_item_id) {
+      matchingKey = Object.keys(groups).find(key => {
+        const group = groups[key];
+        return group.order_item_id === aItem.order_item_id;
+      });
+    }
     
     if (matchingKey) {
       // Add A item to existing group
       groups[matchingKey].allAEntries.push(aItem);
     } else {
-      // No matching P found - check if there's an orphan group for this A
-      const orphanKey = `orphan_${aItem.id}_${aItem.order_item_id}`;
+      // No matching P found - create orphan group for this A
+      const orphanKey = `orphan_A_${aItem.id}`;
       if (!groups[orphanKey]) {
         groups[orphanKey] = {
           key: orphanKey,
           original_P: null,
           allAEntries: [aItem],
           order_item_id: aItem.order_item_id,
-          order_item_key: aItem.order_item_key // Keep for reference
+          order_item_key: aItem.order_item_key
         };
       } else {
         groups[orphanKey].allAEntries.push(aItem);
