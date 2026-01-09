@@ -536,12 +536,49 @@ const APMTimeSheet = () => {
   };
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    if (empId) {
-      await fetchProjects(empId, dateRange.startDate, dateRange.endDate);
+  setRefreshing(true);
+  
+  try {
+    // RESET to initial state completely
+    setAllProjects([]);
+    setProjects([]);
+    setRetainerData({});
+    
+    // Get fresh employee ID (in case it changed)
+    const storedEmpId = await AsyncStorage.getItem("empId");
+    if (!storedEmpId) {
+      setErrorMessage("Employee ID not found. Please login again.");
+      setShowErrorModal(true);
+      setRefreshing(false);
+      return;
     }
+    
+    setEmpId(storedEmpId);
+    
+    // Reset filters to default
+    setActiveFilters({ ...DEFAULT_FILTERS });
+    setPendingFilters({ ...DEFAULT_FILTERS });
+    
+    // Get current date ranges (same as initial load)
+    const todayRange = getDateRangeFromPeriod("today");
+    const monthRange = getDateRangeFromPeriod("this_month");
+    
+    // Set dates (same as initial load)
+    setDateRange(todayRange);
+    setStartDateObj(parseDateString(todayRange.startDate) || new Date());
+    setEndDateObj(parseDateString(todayRange.endDate) || new Date());
+    
+    // Fetch projects with same parameters as initial load
+    await fetchProjects(storedEmpId, monthRange.startDate, monthRange.endDate);
+    
+  } catch (err) {
+    console.error("Refresh error:", err);
+    setErrorMessage("Failed to refresh. Please try again.");
+    setShowErrorModal(true);
+  } finally {
     setRefreshing(false);
-  };
+  }
+};
 
   // Location helper
   const getCurrentLocation = async () => {
