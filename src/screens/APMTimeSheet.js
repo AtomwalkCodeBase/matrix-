@@ -561,6 +561,44 @@ const APMTimeSheet = () => {
     }
   };
 
+  const extractApiErrorMessage = (error, fallback) => {
+  const backendMessage =
+    error?.response?.data?.error ||
+    error?.response?.data?.message ||
+    "";
+
+  // SPECIFIC CASE HANDLING
+  if (
+    backendMessage ===
+    "Invalid request - No valid Time Sheet record found."
+  ) {
+    return "There is no record found for check-out. Please reload the screen and try again.";
+  }
+
+  // Existing generic handling
+  if (error?.response?.data?.error) {
+    return error.response.data.error;
+  }
+
+  if (error?.response?.data?.message) {
+    return error.response.data.message;
+  }
+
+  if (error?.response?.data?.errors) {
+    return Object.values(error.response.data.errors)
+      .flat()
+      .join("\n");
+  }
+
+  if (error?.message) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
+
+
   // Submit activity (Start / Resume / Complete)
   const handleActivitySubmit = async ({ project, mode, data = {}, extraFields = {} }) => {
     let processedProject = project;
@@ -715,9 +753,9 @@ const APMTimeSheet = () => {
         }
       });
 
-              for (let [key, value] of formData.entries()) {
-    console.log(key, value);
-  }
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
 
       const res = await postAllocationData(formData);
 
@@ -726,22 +764,33 @@ const APMTimeSheet = () => {
       }
 
       const apiMsg =
+        res?.data?.error ||
         res?.data?.message ||
         (isAddMode
           ? "Failed to start activity. Please try again."
           : "Failed to update activity. Please try again.");
+
       setErrorMessage(apiMsg);
       setShowErrorModal(true);
       return false;
+
     } catch (error) {
-      console.error("Error in handleActivitySubmit", error);
-      setErrorMessage(
+      console.error(
+        "Error in handleActivitySubmit",
+        error?.response?.data || error?.message || error
+      );
+
+      const errorMessage = extractApiErrorMessage(
+        error,
         isAddMode
           ? "An error occurred while starting the activity."
           : "An error occurred while updating the activity."
       );
+
+      setErrorMessage(errorMessage);
       setShowErrorModal(true);
       return false;
+
     } finally {
       setIsLoading(false);
     }
@@ -750,14 +799,14 @@ const APMTimeSheet = () => {
   // Action handlers
   const handleActivityAction = ({ type, project, retainer = false }) => {
     if (type === "start") {
-      if(!retainer){
-      const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
-      if (hasOpenSession) {
-        setErrorMessage("Finish Pending");
-        setShowErrorModal(true);
-        return;
+      if (!retainer) {
+        const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
+        if (hasOpenSession) {
+          setErrorMessage("Finish Pending");
+          setShowErrorModal(true);
+          return;
+        }
       }
-    }
 
       setConfirmPopup({
         isOpen: true,
@@ -773,14 +822,14 @@ const APMTimeSheet = () => {
     }
 
     if (type === "resume") {
-      if(retainer){
-      const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
-      if (hasOpenSession) {
-        setErrorMessage("Finish Pending");
-        setShowErrorModal(true);
-        return;
+      if (retainer) {
+        const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
+        if (hasOpenSession) {
+          setErrorMessage("Finish Pending");
+          setShowErrorModal(true);
+          return;
+        }
       }
-    }
       setConfirmPopup({
         isOpen: true,
         title: "Resume Activity",
@@ -846,7 +895,7 @@ const APMTimeSheet = () => {
       }
       setIsFormModalOpen(false);
     });
-  
+
   // Filter controls
   const openFilterModal = () => {
     setPendingFilters({ ...activeFilters });
@@ -919,16 +968,16 @@ const APMTimeSheet = () => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
-        <HeaderComponent
-          headerTitle="Projects TimeSheet"
-          onBackPress={() => navigate.goBack()}
-          icon1Name="filter"
-          icon1OnPress={openFilterModal}
-          filterCount={
-            (activeFilters.status ? 1 : 0) +
-            (activeFilters.period !== "today" ? 1 : 0)
-          }
-        />
+      <HeaderComponent
+        headerTitle="Projects TimeSheet"
+        onBackPress={() => navigate.goBack()}
+        icon1Name="filter"
+        icon1OnPress={openFilterModal}
+        filterCount={
+          (activeFilters.status ? 1 : 0) +
+          (activeFilters.period !== "today" ? 1 : 0)
+        }
+      />
 
       <FilterModal
         visible={showFilterModal}
