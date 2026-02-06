@@ -25,10 +25,11 @@ const ActivitySubmitCard = ({
 
     const isRetainer = editingTask?.retainer;
 
+    const contextType = editingTask?.modalContext?.type;
+
 
     const getToday = () => new Date();
 
-    // console.log("editingTask", editingTask);
 
     const getCurrentTime = () => {
         const now = new Date();
@@ -66,7 +67,8 @@ const ActivitySubmitCard = ({
     const [formData, setFormData] = useState({
         date: getToday(),
         endTime: isPendingCheckout ? getCurrentTime() : parseTimeToDate(getCurrentTime()),
-        noOfItems: "",
+        noOfItems: "0",
+        noOfResource: "0",
         remarks: "",
     });
 
@@ -74,6 +76,8 @@ const ActivitySubmitCard = ({
     const [fileName, setFileName] = useState("");
     const [fileMimeType, setFileMimeType] = useState("");
     const [remarkError, setRemarkError] = useState("");
+
+        // console.log("editingTask", editingTask);
 
     useEffect(() => {
         if (visible) {
@@ -90,6 +94,8 @@ const ActivitySubmitCard = ({
                 ...prev,
                 date: dateToUse,
                 endTime: isPendingCheckout ? getCurrentTime() : parseTimeToDate(getCurrentTime()),
+                noOfItems: "0",
+                noOfResource : "0",
             }));
             setFileUri(null);
             setFileName("");
@@ -101,24 +107,36 @@ const ActivitySubmitCard = ({
     // VALIDATION CHECK
     // --------------------------
     const isValid = useMemo(() => {
-        const { date, endTime, noOfItems, remarks } = formData;
+        const { date, endTime, remarks } = formData;
 
-        if (!date || !endTime || !noOfItems) return false;
+        if (!date || !endTime) return false;
 
-        if (editingTask?.original_P?.is_file_applicable && !fileUri) {
-            return false;
+        if (isTodayPlannedEnd) {
+
+            if (!remarks) return false;
+
+            if (editingTask?.original_P?.is_file_applicable && !fileUri) {
+                return false;
+            }
         }
 
-        // If planned_end_date is today → remarks required for submit button
-        if (isTodayPlannedEnd && !remarks) return false;
-
         return true;
-    }, [formData, isTodayPlannedEnd]);
+    }, [ formData, isTodayPlannedEnd, editingTask?.original_P?.is_file_applicable, fileUri]);
+
+        // console.log("editingTask", formData);
 
     // --------------------------
     // BUTTON HANDLERS
     // --------------------------
     const handleSubmit = () => {
+         if(contextType === "update_retainer"){
+             onSubmitActivity({
+            ...formData,
+            mode: "DATA_CORRECT",
+            //  endTime: toAmPm(formData.endTime),
+        });
+        }else{
+
         if (!isValid) return;
 
         const file =
@@ -136,6 +154,7 @@ const ActivitySubmitCard = ({
             //  endTime: toAmPm(formData.endTime),
             file,
         });
+    }
 
         onClose();
     };
@@ -219,7 +238,7 @@ const ActivitySubmitCard = ({
                                 cDate={formData.date}
                                 setCDate={(date) => setFormData(prev => ({ ...prev, date }))}
                                 maximumDate={new Date()}
-                                disable={Boolean(isExecutive)}
+                                disable={Boolean(isExecutive) || contextType === "update_retainer"}
                             />
                         </View>
 
@@ -230,10 +249,10 @@ const ActivitySubmitCard = ({
                                 setCDate={(value) =>
                                     setFormData(prev => ({ ...prev, endTime: value }))
                                 }
-                                disable={Boolean(isExecutive)}
+                                disable={Boolean(isExecutive) || contextType === "update_retainer" }
                             />
                         </View>
-                        <View style={styles.formGroup}>
+                       {!isExecutive && <View style={styles.formGroup}>
                             <AmountInput
                                 label="Number of Items Audited *"
                                 placeholder="Enter item number"
@@ -243,7 +262,18 @@ const ActivitySubmitCard = ({
                                 }
                             />
                         </View>
-
+}
+                       {isRetainer && <View style={styles.formGroup}>
+                            <AmountInput
+                                label="Number of Resources *"
+                                placeholder="Enter no of resource"
+                                claimAmount={formData.noOfResource}
+                                setClaimAmount={(value) =>
+                                    setFormData(prev => ({ ...prev, noOfResource: value }))
+                                }
+                            />
+                        </View>
+}
 {editingTask?.original_P?.is_file_applicable && (
                             <FilePicker
                             label="Attach File"
@@ -262,6 +292,7 @@ const ActivitySubmitCard = ({
                             </Text>
                         )}
 
+                        {contextType !== "update_retainer" && 
                         <View style={styles.formGroup}>
                             <RemarksInput
                                 label="Remarks"
@@ -270,8 +301,9 @@ const ActivitySubmitCard = ({
                                     setFormData(prev => ({ ...prev, remarks: v }))
                                 }
                             />
+                        </View>}
 
-                        </View>
+
                         {remarkError ? (
                             <Text style={{ color: "red", marginTop: -5, marginBottom: 10 }}>
                                 {remarkError}
@@ -334,7 +366,8 @@ const ActivitySubmitCard = ({
                                 </>
 
                             ) : editingTask?.retainer ?
-                                <TouchableOpacity
+                            <>
+                                {contextType !== "update_retainer" && <TouchableOpacity
                                     style={[
                                         styles.button,
                                         styles.applyButton,
@@ -344,8 +377,19 @@ const ActivitySubmitCard = ({
                                     onPress={handleMarkComplete}
                                 >
                                     <Text style={styles.applyButtonText}>Mark as Complete</Text>
-                                </TouchableOpacity>
+                                </TouchableOpacity>}
 
+                               { contextType === "update_retainer" && <TouchableOpacity
+                                    style={[
+                                        styles.button,
+                                        styles.applyButton,
+                                    ]}
+                                    // disabled={!isValid}
+                                    onPress={handleSubmit}
+                                >
+                                    <Text style={styles.applyButtonText}>Update</Text>
+                                </TouchableOpacity>}
+                                </>
                                 : isTodayPlannedEnd ? (
                                     <>
                                         <TouchableOpacity

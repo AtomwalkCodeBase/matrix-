@@ -1,11 +1,12 @@
 import React from 'react'; // Remove useMemo import
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
 
 // Main Retainer Card Component
 // In RetainerCard.js, update the button logic to use the same logic as primary activities
 const RetainerCard = ({ 
+  parentProject,
   retainer, 
   fullData, 
   onAction,
@@ -20,6 +21,7 @@ const RetainerCard = ({
   
   // Get the retainer project data (normalized like primary projects)
   const retainerProject = fullData;
+  const complete = true;
   
   // Determine status based on available data
   const getStatus = () => {
@@ -88,12 +90,23 @@ const RetainerCard = ({
     const todaysStatus = retainerProject.todaysStatus || "Planned";
     const hasPendingCheckout = retainerProject.hasPendingCheckout === true;
 
+    // console.log("retainerProject", parentProject)
+
     // 1. If activity is completed
     if (isCompleted) {
       return (
+         <View style={{gap: 10}}>
         <View style={[styles.btn, styles.disabledBtn]}>
           <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Activity Completed</Text>
+        </View>
+       {!parentProject.complete && <TouchableOpacity
+        style={[styles.btn, styles.primaryBtn]}
+        onPress={() => onAction({ type: 'update_retainer', project: retainerProject, retainer })}
+      >
+        <FontAwesome6 name="pen-to-square" size={16} color="#fff" />
+        <Text style={styles.btnText}>Update Activity</Text>
+      </TouchableOpacity>}
         </View>
       );
     }
@@ -153,13 +166,6 @@ const RetainerCard = ({
         <TouchableOpacity
           style={[styles.btn, styles.primaryBtn]}
           onPress={() => onAction({ type: 'start', project: retainerProject, retainer })}
-          // onPress={() => onAction && onAction({ 
-          //   type: 'start', 
-          //   retainer: {
-          //     ...retainer,
-          //     fullData: retainerProject
-          //   }
-          // })}
         >
           <Ionicons name="log-in-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Start Activity</Text>

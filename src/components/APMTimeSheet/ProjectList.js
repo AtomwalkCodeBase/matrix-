@@ -41,8 +41,6 @@ const UniversalProjectList = ({
       </View>
     );
 
-    // console.log(projects)
-
   return (
     <View>
       {projects.map((project, index) => (

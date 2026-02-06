@@ -14,7 +14,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import HeaderComponent from "../components/HeaderComponent";
 import Loader from "../components/old_components/Loader";
 import { colors } from "../Styles/appStyle";
-import { getAllocationList, getEmplyoeeList } from "../services/productServices";
+import { getAllocationList, getEmplyoeeList, postTimeList } from "../services/productServices";
 import PeriodDisplay from "../components/APMTimeSheet/PeriodDisplay";
 import CustomDateRangeCard from "../components/APMTimeSheet/CustomDateRangeCard";
 import UniversalProjectList from "../components/APMTimeSheet/ProjectList";
@@ -22,10 +22,15 @@ import Employees from "../components/APMTimeSheet/Employees";
 import FilterModal from "../components/FilterModal";
 import ProjectCardManager from "../components/APMTimeSheet/ProjectCardManager";
 import { useNavigation } from "expo-router";
-import { formatDate, getDateRangeFromPeriod, mapAllocationData, parseDateString, searchByKeys } from "../components/APMTimeSheet/utils";
+import { apiDateToDDMMYYYY, formatDate, getDateRangeFromPeriod, mapAllocationData, mapEmployeeCustomerOrderItemData, parseDateString, searchByKeys, searchEmployeesBase } from "../components/APMTimeSheet/utils";
 import ProjectDetailModal from "../components/APMTimeSheet/ProjectDetailModal";
 import TabNavigation from "../components/TabNavigation";
 import EmployeeProjectModal from "../components/APMTimeSheet/EmployeeProjectModal";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import EmployeeListScreen, { EmployeeCard, EmployeeDetailModal } from "../components/APMTimeSheet/EmployeeCards";
+import ConfirmationModal from "../components/ConfirmationModal";
+import SuccessModal from "../components/SuccessModal";
+import ErrorModal from "../components/ErrorModal";
 
 const { width } = Dimensions.get('window');
 
@@ -43,6 +48,7 @@ const ManagerDashboard = () => {
 
   const [projectsData, setProjectsData] = useState([]);
   const [employeeData, setEmployeeData] = useState([]);
+  const [empWiseData, setEmpWiseData] = useState([]);
 
   // UI STATES
   const [activeTab, setActiveTab] = useState("projects");
@@ -52,11 +58,13 @@ const ManagerDashboard = () => {
   const [activeFilters, setActiveFilters] = useState({
     period: "this_month",
     employees: [],
+    customers: [],
   });
 
   const [pendingFilters, setPendingFilters] = useState({
     period: "this_month",
     employees: [],
+    customers:[]
   });
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -71,6 +79,16 @@ const ManagerDashboard = () => {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
 
+    const [selectedEmployeeWise, setSelectedEmployeeWise] = useState(null);
+    const [approveSessionData, setApproveSessionData] = useState(null);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [confirmModalVisible, setConfirmModalVisible] = useState(false);
+    const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
+    const [successMessage, setSuccessMessage] = useState('');
+    const [isErrorModalVisible, setIsErrorModalVisible] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+
   // ---------------------
   // DATA FETCHING
   // ---------------------
@@ -83,14 +101,64 @@ const ManagerDashboard = () => {
     }
   };
 
+   const handleCardPress = (employee) => {
+    setSelectedEmployeeWise(employee);
+    setModalVisible(true);
+  };
+
+  const handleApproveAll = (data) => {
+    setConfirmModalVisible(true)
+    setApproveSessionData(data);
+  };
+
+  const handleConfirm = async () => {
+    if (!approveSessionData) return;
+    const approverId = await AsyncStorage.getItem("empId")
+
+    setIsLoading(true);
+
+    try {
+      const payload = {
+        emp_id: approveSessionData.planned.original_P.emp_id,
+        start_date: apiDateToDDMMYYYY(approveSessionData.actual_start_date),
+        end_date: apiDateToDDMMYYYY(approveSessionData.actual_end_date),
+        call_mode: "WEEKLY_APPROVE",
+        a_emp_id: approverId,
+      };
+
+      const response = await postTimeList(payload);
+
+      // console.log(payload)
+
+      // const response = { status: 200 }
+       if (response.status === 200) {
+        setIsSuccessModalVisible(true);
+        setSuccessMessage(`Weekly Timesheet approved" successfully for: ${approveSessionData.actual_start_date} to ${approveSessionData.actual_end_date}`);
+        getTimeSheetList();
+      } else {
+        setIsErrorModalVisible(true);
+        setErrorMessage(`Failed to approve Timesheet`);
+      }
+    } catch (error) {
+    //    console.error(`Error approving weekly Timesheet:`, error);
+      setIsErrorModalVisible(true);
+      setErrorMessage(error?.response?.data?.message || `Failed to approve Timesheet`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const fetchActivities = async () => {
     try {
       setLoading(true);
 
+      const mEmpId = await AsyncStorage.getItem("empId")
+
       const res = await getAllocationList(
         null,
+        mEmpId,
         dateRange.startDate,
-        dateRange.endDate
+        dateRange.endDate,
       );
 
       const allocationData = Array.isArray(res?.data) ? res.data : [];
@@ -99,10 +167,12 @@ const ManagerDashboard = () => {
 
       if (allocationData.length > 0) {
         const { projectsData, employeeData } = mapAllocationData(allocationData);
+        const empWiseData = mapEmployeeCustomerOrderItemData(allocationData);
 
         setProjectsData(projectsData);
         setEmployeeData(employeeData);
-        // console.log(" Projects Data:", projectsData);
+        setEmpWiseData(empWiseData);
+        // console.log(" Projects Data:", empWiseData);
         // console.log(" Employee Data:", employeeData);
       } else {
         setProjectsData([]);
@@ -132,6 +202,24 @@ const ManagerDashboard = () => {
     []
   );
 
+  const customerOptions = useMemo(() => {
+  const map = {};
+
+  empWiseData.forEach(emp => {
+    (emp.customers || []).forEach(cust => {
+      if (!map[cust.customer_name]) {
+        map[cust.customer_name] = {
+          label: cust.customer_name,
+          value: cust.customer_name,
+        };
+      }
+    });
+  });
+
+  return Object.values(map);
+}, [empWiseData]);
+
+
   const filterConfigs = [
     {
       label: "Period",
@@ -143,10 +231,10 @@ const ManagerDashboard = () => {
           period: v,
         })),
     },
-    {
+    ...(activeTab === "employees_base" ? [{
       label: "Employees",
       type: "multi-select",
-      options: employees.map((emp) => ({
+      options: empWiseData.map((emp) => ({
         label: emp.employee_name,
         value: emp.emp_id,
       })),
@@ -155,6 +243,17 @@ const ManagerDashboard = () => {
         setPendingFilters((prev) => ({
           ...prev,
           employees: v,
+        })),
+    }] : []),
+    {
+      label: "Customer",
+      type: "multi-select",
+      options: customerOptions,
+      value: pendingFilters.customers,
+      setValue: (v) =>
+        setPendingFilters((prev) => ({
+          ...prev,
+          customers: v,
         })),
     },
   ];
@@ -175,8 +274,49 @@ const ManagerDashboard = () => {
     setShowFilterModal(false);
   };
 
+  const filteredEmployeeData = useMemo(() => {
+  let data = empWiseData;
+
+  // Employee filter
+  if (activeFilters.employees.length) {
+    data = data.filter(emp =>
+      activeFilters.employees.includes(emp.emp_id)
+    );
+  }
+
+  // Customer filter
+  if (activeFilters.customers.length) {
+    data = data
+      .map(emp => {
+        const matchedCustomers = emp.customers.filter(cust =>
+          activeFilters.customers.includes(cust.customer_name)
+        );
+
+        if (!matchedCustomers.length) return null;
+
+        return {
+          ...emp,
+          customers: matchedCustomers,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  return data;
+}, [empWiseData, activeFilters]);
+
+const finalEmployeeData = useMemo(() => {
+  if (!searchQuery.trim()) {
+    return filteredEmployeeData;
+  }
+
+  return searchEmployeesBase(filteredEmployeeData, searchQuery);
+}, [filteredEmployeeData, searchQuery]);
+
+
+
   const clearFilters = () => {
-    const def = { period: "today", employees: [] };
+    const def = { period: "today", employees: [], customers: [],  };
     setPendingFilters(def);
     setActiveFilters(def);
 
@@ -239,8 +379,8 @@ const ManagerDashboard = () => {
 
 
   const handleViewDetails = (project, employee) => {
-    console.log("project ksksdbksdbs", project)
-    console.log("emp[plyoee sjdchhsdj", employee)
+    // console.log("project ksksdbksdbs", project)
+    // console.log("emp[plyoee sjdchhsdj", employee)
     if(project){
     setSelectedProject(project);
     setShowProjectModal(true);
@@ -265,6 +405,10 @@ const ManagerDashboard = () => {
       );
     }
 
+    if (activeTab === "employees_base") {
+      return searchEmployeesBase(empWiseData,searchQuery);
+    }
+
     if (activeTab === "employees") {
       return searchByKeys(
         employeeData,
@@ -274,7 +418,7 @@ const ManagerDashboard = () => {
     }
 
     return [];
-  }, [activeTab, searchQuery, projectsData, employeeData]);
+  }, [activeTab, searchQuery, projectsData, employeeData, empWiseData]);
 
   const DashboardStats = () => {
     const stats = [
@@ -341,6 +485,8 @@ const ManagerDashboard = () => {
           />
         }
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled={true}
+        contentContainerStyle={{ flexGrow: 1 }}
       >
         {/* STATS OVERVIEW */}
         <DashboardStats />
@@ -387,7 +533,7 @@ const ManagerDashboard = () => {
               placeholder={
                 activeTab === "projects"
                   ? "Search by Project Name or Order Key..."
-                  : "Search by Name, ID or Project..."
+                  : "Search by emp name, id or customer..."
               }
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -396,8 +542,8 @@ const ManagerDashboard = () => {
           </View>
         </View>
 
-        <TabNavigation tabs={[{ label: 'Projects', value: 'projects' }, { label: 'Employees', value: 'employees' }]} activeTab={activeTab} setActiveTab={setActiveTab} />
-
+        <TabNavigation tabs={[{ label: 'Projects', value: 'projects', }, { label: 'Employees', value: 'employees_base' }]} activeTab={activeTab} setActiveTab={setActiveTab} />
+ {/* { label: 'Employees', value: 'employees' } */}
         {/* CONTENT */}
         <View style={styles.contentContainer}>
           {activeTab === "projects" ? (
@@ -409,6 +555,16 @@ const ManagerDashboard = () => {
               showHours={true}
               showEmployeesPreview={true}
             />
+          ) : activeTab === "employees_base" ? (
+            <>
+              {finalEmployeeData.map((item) => (
+                <EmployeeCard
+                  key={item.emp_id}
+                  employee={item}
+                  onPress={() => handleCardPress(item)}
+                />
+              ))}
+            </>
           ) : (
             <Employees activities={searchedData} employees={employees} onViewDetails={handleViewDetails} />
           )}
@@ -432,6 +588,7 @@ const ManagerDashboard = () => {
           showProjectModal={showProjectModal}
           project={selectedProject}
           onClose={() => setShowProjectModal(false)}
+          onApproveAll={handleApproveAll}
         />
       )}
 
@@ -441,6 +598,40 @@ const ManagerDashboard = () => {
         onClose={() => setShowEmployeeDetailsModal(false)}
         employeeData={selectedEmployee}
       />}
+
+      
+      <EmployeeDetailModal
+        visible={modalVisible}
+        employee={selectedEmployeeWise}
+        onClose={() => setModalVisible(false)}
+        onApproveAll={handleApproveAll}
+      />
+
+      <ConfirmationModal
+        visible={confirmModalVisible}
+        message="Are you sure you want to approve this order item's timesheet for this employee?"
+        onConfirm={() => {
+            handleConfirm()
+            setConfirmModalVisible(false);
+        }}
+        onCancel={() => setConfirmModalVisible(false)}
+        confirmText="Confirm"
+        cancelText="Cancel"
+            />
+
+        <SuccessModal
+          visible={isSuccessModalVisible}
+          onClose={() => setIsSuccessModalVisible(false)}
+          message={successMessage}
+        />
+
+        <ErrorModal
+          visible={isErrorModalVisible}
+          message={errorMessage}
+          onClose={() => setIsErrorModalVisible(false)}
+        />
+
+        <Loader visible={isLoading} />
     </SafeAreaView>
   );
 };

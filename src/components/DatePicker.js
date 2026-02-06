@@ -18,7 +18,7 @@ const DatePickerButton = styled.TouchableOpacity`
 
 const FieldContainer = styled.View`
   /* margin-bottom: 20px; */
-  margin-top: 5px;
+  margin-top: 10px;
 `;
 
 

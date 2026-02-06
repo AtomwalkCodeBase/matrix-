@@ -14,6 +14,7 @@ const Label = styled.Text`
   font-size: 16px;
   margin-top: 15px;
   margin-bottom: 5px;
+  font-weight: 600;
 `;
 
 const AmountInput = ({ error, label,placeholder ,claimAmount, setClaimAmount }) => {

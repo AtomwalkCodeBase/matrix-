@@ -47,6 +47,11 @@ export const formatToDDMMYYYY = (dateValue) => {
     return ""
 }
 
+export const apiDateToDDMMYYYY = (apiDateStr) => {
+  const date = parseApiDate(apiDateStr);
+  return date ? formatToDDMMYYYY(date) : "";
+};
+
 export const formatAPITime = (time24) => {
   if (!time24) return ""
   const [h, m] = time24.split(":")
@@ -444,7 +449,7 @@ export const normalizeProjects = (apiData = []) => {
         project_name,
         activity_name,
         activity_id,
-        project_code: order_item_key,
+        order_item_key: order_item_key,
         order_item_id: order_item_id, // Add this field
 
         planned_start_date: planned_start_date || null,
@@ -805,15 +810,19 @@ export const getStatusStyles = (status_display) => {
 
     switch (key) {
       case 'IN_PROGRESS':
-        return { bgColor: colors.warning, color: colors.black, borderColor: colors.warning, icon: 'access-time' };
+        return { bgColor: colors.lightblue, color: colors.black, borderColor: colors.lightblue, icon: 'access-time' };
       case 'REJECTED':
-        return { bgColor: colors.red, color: colors.white, borderColor: colors.red, icon: 'cancel' };
+        return { bgColor: colors.danger, color: colors.white, borderColor: colors.danger, icon: 'cancel' };
       case 'CANCELLED':
-        return { bgColor: colors.red, color: colors.white, borderColor: colors.red, icon: 'cancel' };
+        return { bgColor: colors.danger, color: colors.white, borderColor: colors.danger, icon: 'cancel' };
       case 'COMPLETED':
-        return { bgColor: colors.green, color: colors.white, borderColor: colors.green, icon: 'check-circle' };
+        return { bgColor: colors.success, color: colors.white, borderColor: colors.success, icon: 'check-circle' };
       case 'PLANNED':
-        return { bgColor: colors.textSecondary, color: colors.white, borderColor: colors.grey, icon: 'pause' };
+        return { bgColor: colors.grey, color: colors.black, borderColor: colors.grey, icon: 'pause' };
+      case 'SUBMITTED':
+        return { bgColor: colors.warning, color: colors.white, borderColor: colors.warning, icon: 'pause' };
+      case 'PENDING':
+        return { bgColor: colors.warning, color: colors.white, borderColor: colors.warning, icon: 'pause' };
       default:
         return { bgColor: colors.textSecondary, color: colors.white, borderColor: colors.grey, icon: 'question-mark' };
     }
@@ -831,4 +840,227 @@ export const searchByKeys = (data = [], query = "", keys = []) => {
         .includes(q)
     )
   );
+};
+
+export const searchEmployeesBase = (data = [], query = "") => {
+  if (!query.trim()) return data;
+
+  const q = query.toLowerCase();
+
+  return data
+    .map(emp => {
+      const empMatch =
+        emp.employee_name?.toLowerCase().includes(q) ||
+        emp.emp_id?.toLowerCase().includes(q);
+
+      const matchedCustomers = (emp.customers || []).filter(cust =>
+        cust.customer_name?.toLowerCase().includes(q)
+      );
+
+      // If employee matches → keep all customers
+      if (empMatch) {
+        return emp;
+      }
+
+      // If customer matches → keep only matched customers
+      if (matchedCustomers.length > 0) {
+        return {
+          ...emp,
+          customers: matchedCustomers
+        };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+};
+
+
+export const getMonthRange = ({ type = "current", mode = "month", offset = 0, weekStartsOn = 0,} = {}) => {
+  const today = new Date();
+
+  let direction = 0;
+  if (type === "previous") direction = -1;
+  if (type === "next") direction = 1;
+  if (type === "current") direction = 0;
+
+  const finalOffset = direction + offset;
+
+  let start = new Date(today);
+  let end = new Date(today);
+
+  if (mode === "month") {
+    // Move to target month
+    start.setMonth(today.getMonth() + finalOffset, 1);
+    end.setMonth(today.getMonth() + finalOffset + 1, 0); // last day of that month
+  } 
+  else if (mode === "week") {
+    const currentDay = today.getDay();
+    // How many days to subtract to reach the start of the week
+    const diffToWeekStart = (currentDay - weekStartsOn + 7) % 7;
+
+    // Go to start of current week, then apply offset
+    start.setDate(today.getDate() - diffToWeekStart + finalOffset * 7);
+    
+    end = new Date(start);
+    end.setDate(start.getDate() + 6);
+  } 
+  else {
+    throw new Error(`Unsupported mode: "${mode}". Use "month" or "week".`);
+  }
+
+  const format = (date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  return {
+    start: format(start),
+    end: format(end),
+  };
+};
+
+const isPastDate = (dateStr) => {
+  if (!dateStr) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const date = new Date(dateStr);
+  date.setHours(0, 0, 0, 0);
+
+  return date < today;
+};
+
+export const mapEmployeeCustomerOrderItemData = (apiData = []) => {
+  if (!Array.isArray(apiData) || apiData.length === 0) return [];
+
+  const employeeMap = {};
+
+  /* ---------------------------------------------------
+     STEP 1: Separate P and A entries
+  --------------------------------------------------- */
+  const plannedMap = {};
+  const actualMap = {};
+
+  apiData.forEach(item => {
+    if (item.activity_type === "P") {
+      plannedMap[item.id] = item;
+    }
+
+    if (item.activity_type === "A") {
+      const pId = String(item.free_code || "");
+      if (!actualMap[pId]) actualMap[pId] = [];
+      actualMap[pId].push(item);
+    }
+  });
+
+  /* ---------------------------------------------------
+     STEP 2: Process Planned (P) and attach Actual (A)
+  --------------------------------------------------- */
+  Object.values(plannedMap).forEach(P => {
+    const emp_id = P.emp_id;
+    const employee_name = P.employee_name;
+    const customer_name = P.customer_name;
+    const order_item_id = P.order_item_id;
+
+    const A = (actualMap[String(P.id)] || []).find(
+      a => a.order_item_id === P.order_item_id
+    ) || null;
+
+    /* ---------- Employee ---------- */
+    if (!employeeMap[emp_id]) {
+      employeeMap[emp_id] = {
+        emp_id,
+        employee_name,
+        customers: {}
+      };
+    }
+
+    /* ---------- Customer ---------- */
+    if (!employeeMap[emp_id].customers[customer_name]) {
+      employeeMap[emp_id].customers[customer_name] = {
+        customer_name,
+        order_items: {}
+      };
+    }
+
+    const customerNode = employeeMap[emp_id].customers[customer_name];
+
+    /* ---------- Order Item ---------- */
+    if (!customerNode.order_items[order_item_id]) {
+      customerNode.order_items[order_item_id] = {
+        order_item_id,
+        order_item_key: P.order_item_key,
+
+        /* common / lifted fields */
+        p_id: P.id || null,
+        a_id: A?.id || null,
+        activity_id: P.activity_id,
+
+        project_name: P.project_name,
+        customer_name: P.customer_name,
+        audit_type: P.product_name || A?.product_name || "",
+        audit_item_no_planned: P.no_of_items || 0,
+        audit_item_no_actual: A?.no_of_items || 0,
+        location: P.store_name || A?.store_name || "",
+        remarks: P.store_remarks || "",
+
+        planned_start_date: P.start_date || null,
+        planned_end_date: P.end_date || null,
+        planned_start_time: P.start_time || null,
+        planned_end_time: P.end_time || null,
+        actual_start_date: A?.start_date || null,
+        actual_end_date: A?.end_date || null,
+
+        order_item_complete_status: A
+        ? A.status === "S"
+            ? "completed"
+            : "in progress"
+        : isPastDate(P.start_date)
+            ? "pending"
+            : "planned",
+
+
+        /* PLANNED */
+        planned: {
+          exists: true,
+          effort: P.effort || 0,
+          effort_unit: P.effort_unit || null,
+          remarks: P.remarks || "",
+          original_P: P
+        },
+
+        /* ACTUAL */
+        actual: A
+          ? {
+              exists: true,
+              effort: A.effort || 0,
+              effort_unit: A.effort_unit || null,
+              status: A.status || "",
+              start_date: A.start_date || null,
+              end_date: A.end_date || null,
+              day_logs: buildDayLogsFromAEntries([A]),
+              submitted_file: A.submitted_file || null,
+              original_A: A
+            }
+          : {
+              exists: false,
+              original_A: null
+            }
+      };
+    }
+  });
+
+  /* ---------------------------------------------------
+     STEP 3: Convert maps → arrays
+  --------------------------------------------------- */
+  return Object.values(employeeMap).map(emp => ({
+    ...emp,
+    customers: Object.values(emp.customers).map(cust => ({
+      ...cust,
+      order_items: Object.values(cust.order_items)
+    }))
+  }));
 };

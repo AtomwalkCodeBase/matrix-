@@ -194,6 +194,16 @@ export const getAllocation = async () => {
   return `${newendpoint}/get_emp_allocation_data/${db_name}/`;
 };
 
+export const getExpensePlannedItemList = async () => {
+  const db_name = await getDbName();
+  return `${newendpoint}/order_item_expense_list/${db_name}/`;
+};
+
+export const processExpensePlannedItemList = async () => {
+  const db_name = await getDbName();
+  return `${newendpoint}/process_order_item_expense/${db_name}/`;
+};
+
 export const processAllocation = async () => {
   const db_name = await getDbName();
   return `${newendpoint}/process_emp_allocation/${db_name}/`;

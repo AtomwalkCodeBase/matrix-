@@ -197,7 +197,7 @@ const APMTimeSheet = () => {
   const fetchProjects = async (employeeId, start, end) => {
     setIsLoading(true);
     try {
-      const res = await getAllocationList(employeeId, start, end);
+      const res = await getAllocationList(employeeId, null, start, end);
       const raw = Array.isArray(res?.data) ? res.data : [];
       const normalized = normalizeProjects(raw);
 
@@ -252,7 +252,7 @@ const APMTimeSheet = () => {
       const retainerPromises = filteredRetainers.map(async (retainer) => {
         try {
           // Call API with retainer's emp_id
-          const res = await getAllocationList(retainer.emp_id, dateRange.startDate, dateRange.endDate);
+          const res = await getAllocationList(retainer.emp_id, null, dateRange.startDate, dateRange.endDate);
 
           const rawRetainerData = Array.isArray(res?.data) ? res.data : [];
 
@@ -641,6 +641,9 @@ const APMTimeSheet = () => {
     let processedProject = project;
 
     const isAddMode = mode === "ADD";
+
+    const isUpdateRetainer = mode === "UPDATE" && project?.modalContext?.type === "update_retainer";
+
     setIsLoading(true);
 
     try {
@@ -682,7 +685,7 @@ const APMTimeSheet = () => {
       if (project.isRetainer && project.retainerData) {
         // Use retainer's emp_id from retainerData
         resolvedEmpId = project.original_P.emp_id || "";
-        console.log('Using retainer emp_id:', resolvedEmpId);
+        // console.log('Using retainer emp_id:', resolvedEmpId);
 
         // For ADD mode, we need p_id
         if (isAddMode) {
@@ -763,6 +766,22 @@ const APMTimeSheet = () => {
           setIsLoading(false);
           return false;
         }
+        if (isUpdateRetainer) {
+    formData.append("call_mode", "DATA_CORRECT");
+    formData.append("a_id", String(aId));
+    formData.append("geo_type", "O");
+
+    formData.append(
+      "no_of_items",
+      String(Number(data.noOfItems || 0))
+    );
+
+    formData.append(
+      "no_of_resource",
+      String(Number(data.noOfResource || 0))
+    );
+
+  }else {
 
         formData.append(
           "no_of_items",
@@ -783,6 +802,7 @@ const APMTimeSheet = () => {
           formData.append("geo_type", "O");
         }
       }
+    }
 
       Object.entries(extraFields).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -790,9 +810,9 @@ const APMTimeSheet = () => {
         }
       });
 
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
+      // for (let [key, value] of formData.entries()) {
+      //   console.log(key, value);
+      // }
 
       const res = await postAllocationData(formData);
 
@@ -884,7 +904,7 @@ const APMTimeSheet = () => {
       return;
     }
 
-    if (["continue", "complete", "checkout_yesterday"].includes(type)) {
+    if (["continue", "complete", "checkout_yesterday", "update_retainer"].includes(type)) {
       setSelectedProject({ ...project, modalContext: { type }, retainer });
       setIsFormModalOpen(true);
     }

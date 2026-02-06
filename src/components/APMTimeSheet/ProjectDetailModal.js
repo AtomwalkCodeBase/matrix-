@@ -32,9 +32,10 @@ const SectionHeader = ({ title, icon, count }) => (
 );
 
 const DayLogCard = ({ date, log }) => {
-  const totalHours = log.check_out?.time && log.check_in?.time 
-    ? calculateWorkHours(log.check_in.time, log.check_out.time)
+  const totalHours = log.last_check_out?.time && log.first_check_in?.time 
+    ? calculateWorkHours(log.first_check_in.time, log.last_check_out.time)
     : 'In Progress';
+
 
   return (
     <View style={styles.dayLogCard}>
@@ -43,7 +44,7 @@ const DayLogCard = ({ date, log }) => {
           <Ionicons name="calendar" size={16} color={colors.primary} />
         </View>
         <Text style={styles.dayLogDate}>{date}</Text>
-        {log.check_out?.time && (
+        {log.last_check_out?.time && (
           <View style={styles.workHoursBadge}>
             <Ionicons name="time" size={12} color="#4CAF50" />
             <Text style={styles.workHoursText}>{totalHours}</Text>
@@ -59,7 +60,7 @@ const DayLogCard = ({ date, log }) => {
             </View>
             <View>
               <Text style={styles.timeBlockLabel}>Check In</Text>
-              <Text style={styles.timeBlockValue}>{log.check_in?.time || 'N/A'}</Text>
+              <Text style={styles.timeBlockValue}>{log.first_check_in?.time || 'N/A'}</Text>
             </View>
           </View>
 
@@ -72,7 +73,7 @@ const DayLogCard = ({ date, log }) => {
             <View>
               <Text style={styles.timeBlockLabel}>Check Out</Text>
               <Text style={styles.timeBlockValue}>
-                {log.check_out?.time || 'N/A'}
+                {log.last_check_out?.time || 'N/A'}
               </Text>
             </View>
           </View>
@@ -83,19 +84,19 @@ const DayLogCard = ({ date, log }) => {
             <MaterialIcons name="inventory" size={18} color="#FF9800" />
             <View style={styles.statContent}>
               <Text style={styles.statLabel}>Items</Text>
-              {/* <Text style={styles.statValue}>{log.no_of_items || 0}</Text> */}
-              <Text style={styles.statValue}>{0}</Text>
+              <Text style={styles.statValue}>{log.no_of_items || 0}</Text>
+              {/* <Text style={styles.statValue}>{0}</Text> */}
             </View>
           </View>
           
-          <View style={styles.statItem}>
+          {/* <View style={styles.statItem}>
             <MaterialIcons name="trending-up" size={18} color="#9C27B0" />
             <View style={styles.statContent}>
               <Text style={styles.statLabel}>Effort</Text>
-              {/* <Text style={styles.statValue}>{log.effort || 0}</Text> */}
+              <Text style={styles.statValue}>{log.effort || 0}</Text>
               <Text style={styles.statValue}>{0}</Text>
             </View>
-          </View>
+          </View> */}
         </View>
 
         {log.remarks && log.remarks.trim() !== '' && (
@@ -133,8 +134,7 @@ const calculateWorkHours = (checkIn, checkOut) => {
   }
 };
 
-const EmployeeCard = ({ employee,rawProjectData, onExpand, isExpanded }) => {
-  console.log("employeeCard", JSON.stringify(employee))
+const EmployeeCard = ({ employee,rawProjectData, onExpand, isExpanded, onApproveAll }) => {
 
   const statusStyles = getStatusStyles(employee.activity_status === true ? "Completed" : rawProjectData.project_period_status);
 
@@ -210,25 +210,25 @@ const EmployeeCard = ({ employee,rawProjectData, onExpand, isExpanded }) => {
                   ))}
                 </View>
               </ScrollView>
-                  {employee.activity_status === true &&
+                  {/* {employee.activity_status === true &&
                 <>
                  <TouchableOpacity
                                   style={[styles.btn, styles.primaryBtn]}
-                                  // onPress={() => onAction({ type: 'checkout_yesterday', project })}
+                                  onPress={() => onApproveAll(employee)}
                                 >
                                   <Feather name="check-circle" size={16} color="#fff" />
-                                  <Text style={styles.btnText}>Approve</Text>
+                                  <Text style={styles.btnText}>Approve All</Text>
                                 </TouchableOpacity>
 
-                 <TouchableOpacity
-                          style={[styles.btn, styles.checkOutBtn]}
-                          // onPress={() => onAction({ type: 'checkout_yesterday', project })}
-                        >
-                          <MaterialCommunityIcons name="cancel" size={16} color='#fff' />
-                          <Text style={styles.btnText}>Reject</Text>
-                        </TouchableOpacity>
-                </>  
-                }
+                   <TouchableOpacity
+                           style={[styles.btn, styles.checkOutBtn]}
+                           onPress={() => onAction({ type: 'checkout_yesterday', project })}
+                         >
+                           <MaterialCommunityIcons name="cancel" size={16} color='#fff' />
+                           <Text style={styles.btnText}>Reject</Text>
+                         </TouchableOpacity>
+                 </>   
+                } */}
             </View>
           ) : (
             <View style={styles.noDataContainer}>
@@ -243,7 +243,7 @@ const EmployeeCard = ({ employee,rawProjectData, onExpand, isExpanded }) => {
 };
 
 // Main Component
-const ProjectDetailScreen = ({ showProjectModal, project, onClose }) => {
+const ProjectDetailScreen = ({ showProjectModal, project, onClose, onApproveAll }) => {
   const [expandedEmployees, setExpandedEmployees] = useState({});
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -339,6 +339,7 @@ const ProjectDetailScreen = ({ showProjectModal, project, onClose }) => {
                 rawProjectData={project}
                 isExpanded={expandedEmployees[employee.emp_id]}
                 onExpand={() => toggleEmployee(employee.emp_id)}
+                onApproveAll={onApproveAll}
               />
             ))}
 

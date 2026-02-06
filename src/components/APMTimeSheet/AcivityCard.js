@@ -143,6 +143,7 @@ const RetainerSection = ({
 
             return (
               <RetainerCard
+                parentProject={project}
                 key={`${project.id}-${retainer.emp_id}-${index}`}
                 retainer={retainer}
                 fullData={retainer.fullData}

@@ -196,36 +196,36 @@ const HomePage = ({ navigation }) => {
       icon: <MaterialCommunityIcons name="timetable" size={24} color={colors.primary} />,
       onPress: () => router.push('TimeSheet')
     },
-    {
-      id: 3,
-      title: 'Leaves',
-      icon: <FontAwesome5 name="calendar-alt" size={24} color={colors.primary} />,
-      onPress: () => router.push('LeaveScreen')
-    },
     // {
-    //   id: 5,
-    //   title: 'Claims',
-    //   icon: <FontAwesome5 name="rupee-sign" size={24} color={colors.primary} />,
-    //   onPress: () => router.push('ClaimScreen')
+    //   id: 3,
+    //   title: 'Leaves',
+    //   icon: <FontAwesome5 name="calendar-alt" size={24} color={colors.primary} />,
+    //   onPress: () => router.push('LeaveScreen')
     // },
+    {
+      id: 5,
+      title: 'Expense Tracker',
+      icon: <FontAwesome5 name="rupee-sign" size={24} color={colors.primary} />,
+      onPress: () => router.push('ExpenseTracker')
+    },
     // ...(isManager ? [{
     //   id: 6,
     //   title: 'Approve Claims',
     //   icon: <FontAwesome5 name="money-bill-wave-alt" size={24} color={colors.primary} />,
     //   onPress: () => router.push('ApproveClaim')
     // }] : []),
-    {
-      id: 7,
-      title: 'Holiday',
-      icon: <FontAwesome5 name="umbrella-beach" size={24} color={colors.primary} />,
-      onPress: () => router.push('HolidayList')
-    },
-    {
-      id: 8,
-      title: 'Travel Request',
-      icon: <MaterialCommunityIcons name="airplane" size={24} color={colors.primary} />,
-      onPress: () => router.push({ pathname: 'TravelScreen', params: { empId },})
-    },
+    // {
+    //   id: 7,
+    //   title: 'Holiday',
+    //   icon: <FontAwesome5 name="umbrella-beach" size={24} color={colors.primary} />,
+    //   onPress: () => router.push('HolidayList')
+    // },
+    // {
+    //   id: 8,
+    //   title: 'Travel Request',
+    //   icon: <MaterialCommunityIcons name="airplane" size={24} color={colors.primary} />,
+    //   onPress: () => router.push({ pathname: 'TravelScreen', params: { empId },})
+    // },
   ];
 
   return (
