@@ -144,7 +144,8 @@ const [selectedCompany, setSelectedCompany] = useState({ label: "Demo Waste Mana
 
   const handleCompanyChange = async (item) => {
     if (!item) return;
-setSelectedCompany({ label: "Demo Waste Management", value: "APM_002" });
+setSelectedCompany(item);
+console.log(item)
   setCompanyError('');
   };
 
@@ -282,7 +283,7 @@ setSelectedCompany({ label: "Demo Waste Management", value: "APM_002" });
                   {/* {dbList.length > 0 && ( */}
                     <CompanyDropdown
                       label="Company"
-                      data={[{label: "Demo Waste Management", value: "APM_002"}]}
+                      data={[{label: "Matrix Live Area", value: "APM_001"}, {label: "Martix Demo Area", value: "APM_002"}]}
                       value={selectedCompany}
                       setValue={handleCompanyChange}
                       error={companyError}
