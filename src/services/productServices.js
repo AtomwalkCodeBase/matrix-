@@ -306,7 +306,7 @@ export async function getAllocationList(empId, mEmpId, startDate, endDate) {
 
 export async function getExpensePlannedItem(data) {
   const url = await getExpensePlannedItemList();
-  console.log("Data to be passed --", data);
+  // console.log("Data to be passed --", data);
   return authAxios(url, data)
 }
 

@@ -10,16 +10,11 @@ import RemarksInput from '../RemarkInput';
 import { colors } from '../../Styles/appStyle';
 import { formatAMPMTime, formatAPITime, getCurrentDateTimeDefaults, parseApiDate } from './utils';
 import { AppContext } from '../../../context/AppContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const ActivitySubmitCard = ({
-    visible,
-    onClose,
-    editingTask,
-    isPendingCheckout = false,
-    onSubmitActivity,        // <-- parent callback
-    onCompleteActivity       // <-- parent callback
-}) => {
+const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout = false, onSubmitActivity,  onCompleteActivity}) => {
     const { profile } = useContext(AppContext);
+      const insets = useSafeAreaInsets();
 
     const isExecutive = profile.grade_level < 100;
 
@@ -77,7 +72,7 @@ const ActivitySubmitCard = ({
     const [fileMimeType, setFileMimeType] = useState("");
     const [remarkError, setRemarkError] = useState("");
 
-        // console.log("editingTask", editingTask);
+        console.log("editingTask", JSON.stringify(editingTask));
 
     useEffect(() => {
         if (visible) {
@@ -214,7 +209,7 @@ const ActivitySubmitCard = ({
             <View style={styles.modalOverlay}>
                 <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
 
-                <View style={styles.modalContent}>
+                <View style={[styles.modalContent, {paddingBottom: insets.bottom}]}>
                     {renderHeader()}
                     {/* <View style={styles.modalHeader}>
                         <Text style={styles.modalTitle}>Activity Checkout</Text>
@@ -481,7 +476,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         paddingHorizontal: 20,
-        paddingBottom: 10,
+        // paddingBottom: 10,
         paddingTop: 20,
         maxHeight: "90%",
     },

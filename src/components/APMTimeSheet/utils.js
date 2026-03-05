@@ -66,7 +66,7 @@ export function formatAMPMTime(time) {
   return moment(time, ["HH:mm", "hh:mm A"]).format("hh:mm A");
 }
 
-const isDateInRange = (apiDateStr, startApi, endApi) => {
+export const isDateInRange = (apiDateStr, startApi, endApi) => {
     const d = parseApiDate(apiDateStr);
     const s = parseApiDate(startApi);
     const e = parseApiDate(endApi);

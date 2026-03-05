@@ -212,12 +212,12 @@ const RetainerCard = ({
       </View>
 
       {/* Project Info (if available) */}
-      {retainerProject?.project_name && (
+      {/* {retainerProject?.project_name && (
         <View style={styles.projectInfo}>
           <Ionicons name="briefcase-outline" size={14} color={colors.primary} />
           <Text style={styles.projectName}>Project: {retainerProject.project_name}</Text>
         </View>
-      )}
+      )} */}
 
       {/* Divider */}
       <View style={styles.divider} />
@@ -258,9 +258,10 @@ const RetainerCard = ({
       </View>
 
       {/* Activity Button Section */}
+    {!parentProject?.complete && parentProject?.todaysStatus === "Active" &&
       <View style={styles.activityButtonSection}>
         {renderRetainerActivityButton()}
-      </View>
+      </View>}
 
       {retainer.error && (
         <Text style={styles.errorText}>{retainer.error}</Text>

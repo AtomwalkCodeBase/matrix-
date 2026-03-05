@@ -1,5 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from 'react';
-import { View, Text, Image, StatusBar, TouchableOpacity, ScrollView, Dimensions, StyleSheet, Platform, RefreshControl, BackHandler } from 'react-native';
+import { View, Text, Image, StatusBar, TouchableOpacity, ScrollView, Dimensions, StyleSheet, Platform, BackHandler } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppContext } from '../../context/AppContext';
 import { useRouter } from "expo-router";
@@ -10,7 +10,6 @@ import { useLayoutEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialIcons, FontAwesome5, Feather, MaterialCommunityIcons, } from '@expo/vector-icons';
 import ConfirmationModal from '../components/ConfirmationModal';
-import ErrorModal from '../components/ErrorModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../Styles/appStyle';
 
@@ -28,31 +27,19 @@ const HomePage = ({ navigation }) => {
     setCurrentDate,
     setCurrentTimeStr,
     refreshKey,
-    setRefreshKey,
-    // Geolocation states from context
 
     // Attendance functions from context
     setdatatime,
 
-    initializeGeoLocationConfig,
     refreshData
   } = useContext(AppContext);
-  // const [profile, setProfile] = useState({});
   const [company, setCompany] = useState({});
   const [empId, setEmpId] = useState('');
   const [empNId, setEmpNId] = useState('');
   const [isConnected, setIsConnected] = useState(true);
   const [isManager, setIsManager] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [isBirthday, setIsBirthday] = useState(false);
   const [greeting, setGreeting] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Local modal states
-  const [localAttendanceErrorMessage, setLocalAttendanceErrorMessage] = useState({
-    message: "",
-    visible: false
-  });
 
   // Active events
   const [showExitModal, setShowExitModal] = useState(false);
@@ -105,12 +92,10 @@ const HomePage = ({ navigation }) => {
       setCurrentTimeStr(await setdatatime());
 
       // Initialize geolocation configuration
-      if (profile && companyInfo) {
-        initializeGeoLocationConfig(companyInfo, [profile], setLocalAttendanceErrorMessage);
-      }
+      // if (profile && companyInfo) {
+      //   initializeGeoLocationConfig(companyInfo, [profile]);
+      // }
 
-      // Fetch events
-      // await fetchEvents();
     };
 
     initializeData();
@@ -147,39 +132,13 @@ const HomePage = ({ navigation }) => {
     };
   }, [isConnected, profile]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (employeeData?.id) {
-        refreshData();
-      }
-    }, [employeeData, refreshKey])
-  );
-
-
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchEvents();
-    setRefreshKey((prevKey) => prevKey + 1);
-    // fetchData() is no longer needed since attendance data is handled by context
-    setRefreshing(false);
-  };
-
-  const handlePressApproveLeave = () => {
-    router.push({
-      pathname: 'ApproveLeaves',
-      params: { empNId },
-    });
-  };
-
-  const handleEventPress = (event) => {
-    router.push({
-      pathname: 'EventDetails',
-      params: {
-        eventDetails: JSON.stringify(event)
-      },
-    });
-  };
+  // useFocusEffect(
+  //   useCallback(() => {
+  //     if (employeeData?.id) {
+  //       refreshData();
+  //     }
+  //   }, [employeeData, refreshKey])
+  // );
 
 
   const menuItems = [
@@ -202,12 +161,12 @@ const HomePage = ({ navigation }) => {
     //   icon: <FontAwesome5 name="calendar-alt" size={24} color={colors.primary} />,
     //   onPress: () => router.push('LeaveScreen')
     // },
-    {
+   ...(profile.grade_level > 100 ? [{
       id: 5,
       title: 'Expense Tracker',
       icon: <FontAwesome5 name="rupee-sign" size={24} color={colors.primary} />,
       onPress: () => router.push('ExpenseTracker')
-    },
+    }] : []),
     // ...(isManager ? [{
     //   id: 6,
     //   title: 'Approve Claims',
@@ -279,9 +238,6 @@ const HomePage = ({ navigation }) => {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
-        }
       >
 
         {/* Quick Actions Section */}
@@ -317,12 +273,6 @@ const HomePage = ({ navigation }) => {
         onCancel={() => setShowExitModal(false)}
         confirmText="Exit"
         cancelText="Cancel"
-      />
-
-      <ErrorModal
-        visible={localAttendanceErrorMessage.visible}
-        message={localAttendanceErrorMessage.message}
-        onClose={() => setLocalAttendanceErrorMessage({ message: "", visible: false })}
       />
 
     </SafeAreaView>

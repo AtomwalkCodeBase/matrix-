@@ -36,6 +36,7 @@ import {
   DateForApiFormate,
   getTodayApiDateStr,
   parseApiDate,
+  isDateInRange,
 } from "../components/APMTimeSheet/utils";
 
 import { getAllocationList, postAllocationData } from "../services/productServices";
@@ -103,10 +104,11 @@ const APMTimeSheet = () => {
 
   const statusOptions = useMemo(
     () => [
-      { label: "Active", value: "active" },
-      { label: "Planned", value: "submitted" },
-      { label: "Completed", value: "completed" },
       { label: "All", value: "All" },
+      { label: "In Progress", value: "In Progress" },
+      { label: "Pending", value: "Pending" },
+      { label: "Planned", value: "Planned" },
+      { label: "Completed", value: "Completed" },
     ],
     []
   );
@@ -433,11 +435,10 @@ const APMTimeSheet = () => {
         case "today":
           const todayStr = formatToDDMMYYYY(new Date());
           const todayApiStr = getTodayApiDateStr();
-
+          
           filtered = filtered.filter(project => {
             const hasActivityToday = project.day_logs && project.day_logs[todayApiStr];
-            const isPlannedForToday = project.planned_start_date === todayApiStr ||
-              project.planned_end_date === todayApiStr;
+            const isPlannedForToday = isDateInRange(todayApiStr,project.planned_start_date,project.planned_end_date  )
 
             return hasActivityToday || project.hasPendingCheckout || isPlannedForToday;
           });

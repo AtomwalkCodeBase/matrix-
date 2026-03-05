@@ -64,6 +64,7 @@ const DropdownPicker = ({ error, label, placeHolder, data, value, setValue, enab
           }))}
           labelField="label"
           valueField="value"
+          mode="modal"
           placeholder={`Select ${placeHolder? placeHolder : label}`}
           value={value}
           onChange={(item) => setValue(item.value)}

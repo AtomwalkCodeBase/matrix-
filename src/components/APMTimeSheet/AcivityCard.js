@@ -358,6 +358,13 @@ export const AuditCard = ({
           <Ionicons name="play-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Resume Activity</Text>
         </TouchableOpacity>
+        // <TouchableOpacity
+        //   style={[styles.btn, styles.checkOutBtn]}
+        //   onPress={() => onAction({ type: 'continue', project })}
+        // >
+        //   <Ionicons name="log-out-outline" size={16} color="#fff" />
+        //   <Text style={styles.btnText}>Check Out</Text>
+        // </TouchableOpacity>
       );
     }
 
@@ -405,6 +412,10 @@ export const AuditCard = ({
   const periodStatus = project?.project_period_status || 'Planned';
   const store_location= project?.original_A?.store_name || project?.original_P?.store_name || '';
   const store_remark= project?.original_A?.store_remarks || project?.original_P?.store_remarks || '';
+  const document_required = project?.original_P?.is_file_applicable; 
+  const document_uploaded = project?.original_A?.submitted_file;
+
+  // console.log("project", JSON.stringify(project))
 
   return (
     <View style={styles.card}>
@@ -412,7 +423,7 @@ export const AuditCard = ({
       <View style={styles.header}>
         <View style={styles.headerContent}>
           <Text style={styles.customerName} numberOfLines={1}>{customerName}</Text>
-          <Text style={styles.orderKey}>{project?.project_code}</Text>
+          <Text style={styles.orderKey}>{project?.order_item_key}</Text>
         </View>
         <StatusBadge status={periodStatus} />
       </View>
@@ -421,6 +432,9 @@ export const AuditCard = ({
       <View style={styles.infoGrid}>
         <InfoItem icon="briefcase-outline" label="Audit Type" value={auditType} />
         <InfoItem icon="cube-outline" label="Items" value={noOfItems} />
+        {document_required && <InfoItem icon="document-attach-outline" label="Document Upload" value={document_uploaded ? 
+                <Ionicons name="checkmark" size={24} color={colors.success} /> : <Ionicons name="close" size={24} color={colors.red} />} />
+                }
       </View>
 
       <View style={styles.timeline}>
@@ -477,13 +491,12 @@ export const AuditCard = ({
       {/* Expanded Details */}
       {isDetailsOpen && (
         <View style={styles.detailsSection}>
-          <View style={styles.timeline}>
+         {store_remark && <View style={styles.timeline}>
             <Text style={styles.sectionTitle}>Store Remark</Text>
             <TimelineRow
-              icon="pin"
               value={store_remark}
             />
-          </View>
+          </View>}
           
           <View style={styles.progressHeader}>
             <Text style={styles.sectionTitle}>Daily Progress</Text>

@@ -27,13 +27,13 @@ const CustomDateRangeCard = ({
           <Text style={styles.headerText}>
             {startDate && endDate ? `${startDate} to ${endDate}` : 'Select custom date range'}
           </Text>
-        </View>
 
         <Ionicons
           name={isExpanded ? "chevron-up-outline" : "chevron-down-outline"}
           size={20}
           color="#666"
-        />
+          />
+          </View>
       </TouchableOpacity>
 
       {isExpanded && (

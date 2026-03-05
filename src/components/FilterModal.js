@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import DropdownPicker from "./DropdownPicker";
 import TabNavigation from "./TabNavigation";
 import { colors } from "../Styles/appStyle";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const FilterModal = ({
   visible,
@@ -18,6 +19,9 @@ const FilterModal = ({
   activeTab,
   setActiveTab,
 }) => {
+
+  const insets = useSafeAreaInsets();
+
   // Check if any filter has a selected value
   const hasSelectedFilters = filterConfigs.some(
     (filter) => filter.value !== null && filter.value !== undefined && filter.value !== ""
@@ -32,7 +36,7 @@ const FilterModal = ({
           activeOpacity={1}
           onPress={onClose}
         />
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { paddingBottom: insets.bottom }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{modalTitle}</Text>
             <TouchableOpacity onPress={onClose}>
@@ -62,7 +66,7 @@ const FilterModal = ({
                 />
               </View>
             ))}
-            <View style={styles.filterButtons}>
+            <View   style={styles.filterButtons}>
               <TouchableOpacity
                 style={[styles.clearButton, !hasSelectedFilters && styles.disabledButton]}
                 onPress={()=> {
@@ -111,11 +115,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 10,
+    // paddingBottom: 10,
     maxHeight: "90%",
   },
   scrollContent: {
-    paddingBottom: 20,
+    // paddingBottom: 20,
   },
   modalHeader: {
     flexDirection: "row",
