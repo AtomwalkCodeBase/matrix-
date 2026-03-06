@@ -182,6 +182,7 @@ export const AuditCard = ({
   hasAnyOpenSession
 }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  console.log("Project Details---",project)
 
   const checkInData = useMemo(() => {
     if (!project?.day_logs || typeof project.day_logs !== 'object') return [];

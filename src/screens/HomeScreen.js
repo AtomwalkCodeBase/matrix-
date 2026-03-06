@@ -155,12 +155,12 @@ const HomePage = ({ navigation }) => {
       icon: <MaterialCommunityIcons name="timetable" size={24} color={colors.primary} />,
       onPress: () => router.push('TimeSheet')
     },
-    // {
-    //   id: 3,
-    //   title: 'Leaves',
-    //   icon: <FontAwesome5 name="calendar-alt" size={24} color={colors.primary} />,
-    //   onPress: () => router.push('LeaveScreen')
-    // },
+    {
+      id: 3,
+      title: 'OPE Actual',
+      icon: <Feather name="dollar-sign" size={24} color={colors.primary} />,
+      onPress: () => router.push('OPEScreen')
+    },
    ...(profile.grade_level > 100 ? [{
       id: 5,
       title: 'Expense Tracker',

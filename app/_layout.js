@@ -44,6 +44,7 @@ export default function RootLayout() {
         <Stack.Screen name="ManagerTimeSheet/index" options={{ headerShown: false }} />
         <Stack.Screen name="LeaveScreen/index" options={{ headerShown: false }} />
         <Stack.Screen name="ExpenseTracker/index" options={{ headerShown: false }} />
+        <Stack.Screen name="OPEScreen/index" options={{ headerShown: false }} />
       </Stack>
     </AppProvider>
   );
