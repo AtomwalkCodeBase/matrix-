@@ -378,7 +378,7 @@ export const normalizeProjects = (apiData = []) => {
         (allA.length > 0 && allA.find(a => a.effort_unit)?.effort_unit) || null;
 
     // Determine 'complete' as per rule: true only if original_A (highest id) has status === "S"
-    const complete = !!(A && A.status === "S");
+    const complete = A?.status && A.status !== "N";
 
     // Determine project_period_status as per RULE 6
     let project_period_status = "Planned";
@@ -577,7 +577,7 @@ export const mapAllocationData = (apiData = []) => {
         const effort = group.A?.effort || 0
         const effort_unit = group.A?.effort_unit || null
 
-        const complete = !!(group.A && group.A.status === "S");
+        const complete = !!(group.A && group.A.status !== "N");
 
         const day_logs = buildDayLogsFromAEntries(
             group.A ? [group.A] : [],
@@ -1040,7 +1040,7 @@ export const mapEmployeeCustomerOrderItemData = (apiData = []) => {
         actual_end_date: A?.end_date || null,
 
         order_item_complete_status: A
-        ? A.status === "S"
+        ? A.status !== "N"
             ? "completed"
             : "in progress"
         : isPastDate(P.start_date)

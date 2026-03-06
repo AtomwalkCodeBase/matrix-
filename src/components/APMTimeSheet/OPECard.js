@@ -179,7 +179,6 @@ export const OPECard = ({
 
 // Helper function for status colors
 const getStatusColor = (status, hasOPEAmount) => {
-  console.log(status,hasOPEAmount)
   const s = (status || '').toUpperCase();
   switch(s) {
     case 'A': return { color: '#2196F3', label: hasOPEAmount ? "OPE Given" : 'OPE Pending' };

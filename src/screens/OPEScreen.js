@@ -71,7 +71,7 @@ const OPEScreen = () => {
 const statusOptions = useMemo(
   () => [
     { label: "All", value: "All" },
-    { label: "Added", value: "A" },
+    { label: "OPE Pending/ OPE Added", value: "A" },
     { label: "F&A Approved", value: "F" },
     { label: "Planned", value: "P" },
     { label: "Ready for Billing", value: "B" },
@@ -108,7 +108,7 @@ const rangeOptions = useMemo(
   [pendingFilters, statusOptions, rangeOptions]
 );
 
-const loadMonthProjects = async (employeeId, offset = 0, mode = "week") => {
+const loadMonthProjects = async (employeeId, offset = 0, mode) => {
   const range = getMonthRange({ mode: mode, offset });
 
   await fetchProjects(employeeId, range.start, range.end);
@@ -156,14 +156,14 @@ useEffect(() => {
   // Apply filters
   useEffect(() => {
     applyFiltersAndPagination(allProjects, activeFilters);
-  }, [allProjects, activeFilters]);
+  }, [allProjects, activeFilters.status]);
 
   // Fetch projects
   const fetchProjects = async (employeeId, start, end) => {
     setIsLoading(true);
     const formattedStart = formatToDDMMYYYY(start);
     const formattedEnd = formatToDDMMYYYY(end);
-    console.log(employeeId, formattedStart, formattedEnd)
+
     try {
       const res = await getAllocationList(employeeId, null, formattedStart, formattedEnd);
       const raw = Array.isArray(res?.data) ? res.data : [];
@@ -193,7 +193,7 @@ const applyFiltersAndPagination = useCallback((list, filters, page = 1) => {
 
   if (filters.status && filters.status !== "All") {
     filtered = filtered.filter(
-      (p) => p.project_period_status === filters.status
+      (p) => p.order_item_status === filters.status
     );
   }
 
@@ -319,13 +319,17 @@ const applyFiltersAndPagination = useCallback((list, filters, page = 1) => {
   };
 
 const applyFilters = async() => {
-  setActiveFilters(pendingFilters);
-  setMonthOffset(0);
-  const range = getMonthRange({
-    mode: pendingFilters.range,
-    offset: 0,
-  });
-  await fetchProjects(empId, range.start, range.end);
+  const prevRange = activeFilters.range;
+  const newRange = pendingFilters.range;
+ setActiveFilters(pendingFilters);
+  if (newRange !== prevRange) {
+    setMonthOffset(0);
+    const range = getMonthRange({
+      mode: newRange,
+      offset: 0,
+    });
+    await fetchProjects(empId, range.start, range.end);
+  }
 
   setShowFilterModal(false);
 };
@@ -352,7 +356,8 @@ const clearFilters = async() => {
         icon1Name="filter"
         icon1OnPress={openFilterModal}
         filterCount={
-          (activeFilters.status ? 1 : 0)
+          (activeFilters.status !== "All" ? 1 : 0) +
+          (activeFilters.range !== "week" ? 1 : 0)
         }
       />
 
@@ -371,7 +376,7 @@ const clearFilters = async() => {
     onPress={() => {
       const newOffset = monthOffset - 1;
       setMonthOffset(newOffset);
-      loadMonthProjects(empId, newOffset);
+      loadMonthProjects(empId, newOffset, activeFilters.range);
     }}
   >
     <Text style={styles.navButtonText}>← Previous</Text>
@@ -388,7 +393,7 @@ const clearFilters = async() => {
     onPress={() => {
       const newOffset = monthOffset + 1;
       setMonthOffset(newOffset);
-      loadMonthProjects(empId, newOffset);
+      loadMonthProjects(empId, newOffset, activeFilters.range);
     }}
   >
     <Text style={styles.navButtonText}>Next →</Text>

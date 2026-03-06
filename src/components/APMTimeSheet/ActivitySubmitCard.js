@@ -72,7 +72,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     const [fileMimeType, setFileMimeType] = useState("");
     const [remarkError, setRemarkError] = useState("");
 
-        console.log("editingTask", JSON.stringify(editingTask));
+        // console.log("editingTask", JSON.stringify(editingTask));
 
     useEffect(() => {
         if (visible) {
@@ -247,7 +247,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                 disable={Boolean(isExecutive) || contextType === "update_retainer" }
                             />
                         </View>
-                       {!isExecutive && <View style={styles.formGroup}>
+                        <View style={styles.formGroup}>
                             <AmountInput
                                 label="Number of Items Audited *"
                                 placeholder="Enter item number"
@@ -257,7 +257,6 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                 }
                             />
                         </View>
-}
                        {isRetainer && <View style={styles.formGroup}>
                             <AmountInput
                                 label="Number of Resources *"

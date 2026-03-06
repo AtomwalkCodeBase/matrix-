@@ -961,9 +961,10 @@ const APMTimeSheet = () => {
   };
 
   const applyFilters = () => {
+    const periodChanged = pendingFilters.period !== activeFilters.period;
     setActiveFilters(pendingFilters);
 
-    if (pendingFilters.period !== "custom") {
+    if (periodChanged && pendingFilters.period !== "custom") {
       const range = getDateRangeFromPeriod(pendingFilters.period);
       const monthRange = getDateRangeFromPeriod("this_month");
       setDateRange(range);
