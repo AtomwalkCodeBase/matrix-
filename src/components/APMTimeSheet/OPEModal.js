@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
+import FilePicker from '../FilePicker';
 
 const PRIMARY_COLOR = colors.primary;
 
@@ -20,6 +21,9 @@ const OPEModal = ({ visible, onClose, project, onSubmit, pickImage }) => {
   const [remarks, setRemarks] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileUri, setFileUri] = useState(null);
+  const [fileName, setFileName] = useState("");
+  const [fileMimeType, setFileMimeType] = useState("");
 
   // Reset state when modal opens with new project
   React.useEffect(() => {
@@ -54,7 +58,11 @@ const OPEModal = ({ visible, onClose, project, onSubmit, pickImage }) => {
     const success = await onSubmit({
       opeAmount,
       remarks,
-      file: selectedFile,
+      file: {
+        fileUri,
+        fileName,
+        fileMimeType,
+      },
     });
     setIsSubmitting(false);
 
@@ -63,6 +71,9 @@ const OPEModal = ({ visible, onClose, project, onSubmit, pickImage }) => {
       setOpeAmount('');
       setRemarks('');
       setSelectedFile(null);
+      setFileUri(null);
+      setFileName('');
+      setFileMimeType('');
       onClose();
     }
   };
@@ -116,7 +127,7 @@ const OPEModal = ({ visible, onClose, project, onSubmit, pickImage }) => {
             </View>
 
             {/* File Upload */}
-            <View style={styles.inputContainer}>
+            {/* <View style={styles.inputContainer}>
               <Text style={styles.label}>Supporting Document (Optional)</Text>
               <TouchableOpacity 
                 style={styles.uploadButton} 
@@ -127,10 +138,10 @@ const OPEModal = ({ visible, onClose, project, onSubmit, pickImage }) => {
                 <Text style={styles.uploadButtonText}>
                   {selectedFile ? 'Change File' : 'Upload File'}
                 </Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               {/* Selected File Preview */}
-              {selectedFile && (
+              {/* {selectedFile && (
                 <View style={styles.filePreview}>
                   <View style={styles.fileInfo}>
                     <Ionicons name="document-outline" size={20} color={PRIMARY_COLOR} />
@@ -143,7 +154,15 @@ const OPEModal = ({ visible, onClose, project, onSubmit, pickImage }) => {
                   </TouchableOpacity>
                 </View>
               )}
-            </View>
+            </View> */}
+             <FilePicker
+                            label="Supporting Document (Optional)"
+                            fileName={fileName}
+                            fileUri={fileUri}
+                            setFileName={setFileName}
+                            setFileUri={setFileUri}
+                            setFileMimeType={setFileMimeType}
+                        />
 
             {/* Remarks Input */}
             <View style={styles.inputContainer}>

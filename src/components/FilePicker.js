@@ -377,7 +377,7 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
                   <Text style={styles.optionTitle}>Capture Photo</Text>
                   <Text style={styles.optionSubtitle}>Take a new photo</Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={20} color="#ccc" />
+                <MaterialIcons name="chevron-right" size={20} color={colors.black} />
               </TouchableOpacity>
 
               <TouchableOpacity 
@@ -391,7 +391,7 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
                   <Text style={styles.optionTitle}>Choose File</Text>
                   <Text style={styles.optionSubtitle}>Select from library</Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={20} color="#ccc" />
+                <MaterialIcons name="chevron-right" size={20} color={colors.black} />
               </TouchableOpacity>
             </View>
 
@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: "#f8f6ff",
+    backgroundColor: `${colors.primaryLight}AA`,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#e8e0ff",
@@ -505,7 +505,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#f0ebff",
+    backgroundColor: `${colors.primaryLight}EE`,
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,

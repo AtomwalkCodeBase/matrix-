@@ -61,6 +61,19 @@ export const formatAPITime = (time24) => {
   return `${hours.toString().padStart(2, "0")}:${m} ${ampm}`
 }
 
+export const formatWeekLabel = (start, end) => {
+  const s = new Date(start);
+  const e = new Date(end);
+  return `${s.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${e.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`;
+  // → "26 Jan – 1 Feb"
+};
+
+export const formatMonthLabel = (start) => {
+  const d = new Date(start);
+  return d.toLocaleString('default', { month: 'long', year: 'numeric' });
+  // → "January 2026"
+};
+
 export function formatAMPMTime(time) {
   // If you pass a time like "13:45" or "01:45 PM"
   return moment(time, ["HH:mm", "hh:mm A"]).format("hh:mm A");
@@ -326,6 +339,8 @@ export const normalizeProjects = (apiData = []) => {
     const planned_end_date = P?.end_date || null;
 
     // identity fields
+    const p_id = (P?.id) || null;
+    const a_id = (A?.id) || null;
     const customer_name = (P?.customer_name) || (A?.customer_name) || null;
     const audit_type = (P?.product_name) || (A?.product_name) || null;
     const activity_id = (P?.activity_id) || (A?.activity_id) || null;
@@ -333,6 +348,10 @@ export const normalizeProjects = (apiData = []) => {
     const order_item_id = (P?.order_item_id) || (A?.order_item_id) || null; // Add this
     const project_name = (P?.project_name) || (A?.project_name) || null;
     const activity_name = (P?.activity_name) || (A?.activity_name) || null;
+    const location = (P?.store_name) || (A?.store_name) || "";
+    const is_ope_actual = (P?.is_ope_actual) || (A?.is_ope_actual) ;
+    const order_item_status = (P?.order_item_status) || (A?.order_item_status) ;
+    const ope_amt = (A?.ope_amt) ;
 
     // Build combined day_logs from ALL A entries (merging by date, latest geo wins)
     const day_logs = buildDayLogsFromAEntries(allA);
@@ -444,6 +463,8 @@ export const normalizeProjects = (apiData = []) => {
     return {
         id: projectId,
         title: project_name,
+        a_id: a_id,
+        p_id: p_id,
         customer_name,
         audit_type,
         project_name,
@@ -457,6 +478,10 @@ export const normalizeProjects = (apiData = []) => {
 
         actual_start_date: actual_start_date || null,
         actual_end_date: actual_end_date || null,
+        is_ope_actual: is_ope_actual || false,
+        order_item_status: order_item_status,
+        ope_amt: ope_amt,
+        location: location,
 
         complete: Boolean(complete),
 

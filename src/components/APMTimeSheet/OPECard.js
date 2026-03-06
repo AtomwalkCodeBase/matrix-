@@ -74,6 +74,7 @@ export const OPECard = ({
   const storeLocation = project?.original_A?.store_name || project?.original_P?.store_name || 'Not assigned';
   const plannedDates = `${formatDate(project?.planned_start_date)} - ${formatDate(project?.planned_end_date)}`;
   const periodStatus = project?.project_period_status || 'Planned';
+  const {color ,label} = getStatusColor(project.order_item_status, hasOPEAmount)
 
   return (
     <View style={styles.card}>
@@ -95,8 +96,8 @@ export const OPECard = ({
         
         {/* Show regular status badge for other cases */}
         {!isOpePending && (
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(periodStatus) }]}>
-            <Text style={styles.statusText}>{periodStatus}</Text>
+          <View style={[styles.statusBadge, { backgroundColor: color }]}>
+            <Text style={styles.statusText}>{label}</Text>
           </View>
         )}
       </View>
@@ -168,7 +169,7 @@ export const OPECard = ({
         {!showAddButton && !showUpdateButton && (
           <View style={[styles.opeButton, styles.disabledButton]}>
             <Ionicons name="checkmark-circle-outline" size={18} color="#94a3b8" />
-            <Text style={[styles.opeButtonText, styles.disabledText]}>No Action Needed</Text>
+            <Text style={[styles.opeButtonText, styles.disabledText]}>Already Approved</Text>
           </View>
         )}
       </View>
@@ -177,14 +178,17 @@ export const OPECard = ({
 };
 
 // Helper function for status colors
-const getStatusColor = (status) => {
-  const s = (status || '').toLowerCase();
+const getStatusColor = (status, hasOPEAmount) => {
+  console.log(status,hasOPEAmount)
+  const s = (status || '').toUpperCase();
   switch(s) {
-    case 'completed': return '#10b981';
-    case 'in progress': return '#f59e0b';
-    case 'pending': return '#ef4444';
-    case 'planned': return '#64748b';
-    default: return '#64748b';
+    case 'A': return { color: '#2196F3', label: hasOPEAmount ? "OPE Given" : 'OPE Pending' };
+    case 'F': return { color: '#4CAF50', label: 'F&A Approved' };
+    case 'B': return { color: '#4CAF50', label: 'Ready for Billing' };
+    case 'S': return { color: '#4CAF50', label: 'Submitted to BO' };
+    case 'H': return { color: '#ef4444', label: 'Rejected' };
+    case 'X': return { color: '#ef4444', label: 'Cancelled' };
+    default: return { color: '#64748b', label: status || 'Unknown' };
   }
 };
 
