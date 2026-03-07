@@ -126,35 +126,6 @@ const OPEModal = ({ visible, onClose, project, onSubmit, pickImage }) => {
               </View>
             </View>
 
-            {/* File Upload */}
-            {/* <View style={styles.inputContainer}>
-              <Text style={styles.label}>Supporting Document (Optional)</Text>
-              <TouchableOpacity 
-                style={styles.uploadButton} 
-                onPress={handlePickImage}
-                disabled={isSubmitting}
-              >
-                <Ionicons name="cloud-upload-outline" size={20} color={PRIMARY_COLOR} />
-                <Text style={styles.uploadButtonText}>
-                  {selectedFile ? 'Change File' : 'Upload File'}
-                </Text>
-              </TouchableOpacity> */}
-
-              {/* Selected File Preview */}
-              {/* {selectedFile && (
-                <View style={styles.filePreview}>
-                  <View style={styles.fileInfo}>
-                    <Ionicons name="document-outline" size={20} color={PRIMARY_COLOR} />
-                    <Text style={styles.fileName} numberOfLines={1}>
-                      {selectedFile.name}
-                    </Text>
-                  </View>
-                  <TouchableOpacity onPress={() => setSelectedFile(null)}>
-                    <Ionicons name="close-circle" size={20} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View> */}
              <FilePicker
                             label="Supporting Document (Optional)"
                             fileName={fileName}

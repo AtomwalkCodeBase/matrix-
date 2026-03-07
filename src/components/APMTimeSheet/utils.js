@@ -99,7 +99,7 @@ const parseGeoData = (geoString) => {
     }
 
     // Split by 'O|' to get all pieces. First piece contains the "I|" info.
-    const parts = geoString.split("O|");
+    const parts = geoString.split("^O|");
     const checkInPart = parts[0] || "";
     const checkOutPart = parts.slice(1).pop() || ""; // take last O|... part (latest checkout if many)
 
@@ -137,101 +137,152 @@ const parseGeoData = (geoString) => {
 
     return { check_in, check_out };
 };
+// const buildDayLogsFromAEntries = (aEntries = []) => {
+//     const dayLogs = {};
 
+//     if (!Array.isArray(aEntries) || aEntries.length === 0) return dayLogs;
+
+//     // Ensure we process in ascending id so later/higher id overwrites earlier
+//     const sortedA = [...aEntries].sort((x, y) => (x.id || 0) - (y.id || 0));
+
+//     sortedA.forEach(aEntry => {
+//         const tsList = Array.isArray(aEntry.ts_data_list) ? aEntry.ts_data_list : [];
+//         const aEffortForEntry = typeof aEntry.effort === "number" ? aEntry.effort : 0;
+//         const aNoOfItems = typeof aEntry.no_of_items === "number" ? aEntry.no_of_items : (aEntry.no_of_items ? Number(aEntry.no_of_items) : 0);
+//         const aRemarks = typeof aEntry.remarks === "string" ? aEntry.remarks : "";
+
+//         tsList.forEach(ts => {
+//             const date = ts?.a_date;
+//             if (!date) return;
+
+//             // Parse geo data
+//             const { check_in, check_out } = parseGeoData(ts.geo_data || "");
+
+//             // Determine effort/no_of_items for this date
+//             const belongsToThisA = isDateInRange(date, aEntry.start_date, aEntry.end_date);
+
+//             if (!dayLogs[date]) {
+//                 dayLogs[date] = {
+//                     date,
+//                     sessions: [], // Changed from checkIns/checkOuts to sessions array
+//                     remarksList: [],
+//                     effort: 0,
+//                     no_of_items: 0,
+//                 };
+//             }
+//             const current = dayLogs[date];
+
+//             // Store as session object instead of separate arrays
+//             if (check_in || check_out) {
+//                 current.sessions.push({
+//                     check_in: check_in || null,
+//                     check_out: check_out || null,
+//                     no_of_items: ts.no_of_items || 0,
+//                     geo_data: ts.geo_data || ""
+//                 });
+//             }
+
+//             // Store remarks
+//             if (ts?.remarks) current.remarksList.push(ts.remarks);
+//             else if (aRemarks) current.remarksList.push(aRemarks);
+
+//             // preserve original effort logic
+//             if (belongsToThisA) current.effort = aEffortForEntry;
+
+//             // preserve original no_of_items logic (sum all items for the date)
+//             if (belongsToThisA) {
+//                 // Sum no_of_items from all sessions for this date
+//                 const totalItemsForDate = current.sessions.reduce((sum, session) => {
+//                     return sum + (Number(session.no_of_items) || 0);
+//                 }, 0);
+//                 current.no_of_items = totalItemsForDate;
+//             }
+//         });
+//     });
+
+//     // Process each date to create the final structure
+//     Object.keys(dayLogs).forEach(date => {
+//         const log = dayLogs[date];
+
+//         // Get first check-in and last check-out if available
+//         const firstSession = log.sessions[0];
+//         const lastSession = log.sessions[log.sessions.length - 1];
+        
+//         const firstCheckIn = firstSession?.check_in;
+//         const lastCheckOut = lastSession?.check_out;
+        
+//         // Check if any session is incomplete (has check-in but no check-out)
+//         const hasIncompleteSession = log.sessions.some(session => 
+//             session.check_in && !session.check_out
+//         );
+
+//         dayLogs[date] = {
+//             date,
+//             sessions: log.sessions, // Keep all sessions
+//             first_check_in: firstCheckIn || "", // First check-in of the day
+//             last_check_out: lastCheckOut || "", // Last check-out of the day
+//             is_incomplete: hasIncompleteSession, // Flag for incomplete sessions
+//             remarks: log.remarksList.join(", ") || "",
+//             effort: log.effort,
+//             no_of_items: log.no_of_items,
+//         };
+//     });
+
+//     return dayLogs;
+// };
 const buildDayLogsFromAEntries = (aEntries = []) => {
-    const dayLogs = {};
+  const dayLogs = {};
+  const dateCounters = {}; // track section count per date
 
-    if (!Array.isArray(aEntries) || aEntries.length === 0) return dayLogs;
+  if (!Array.isArray(aEntries) || aEntries.length === 0) return dayLogs;
 
-    // Ensure we process in ascending id so later/higher id overwrites earlier
-    const sortedA = [...aEntries].sort((x, y) => (x.id || 0) - (y.id || 0));
+  const sortedA = [...aEntries].sort((x, y) => (x.id || 0) - (y.id || 0));
 
-    sortedA.forEach(aEntry => {
-        const tsList = Array.isArray(aEntry.ts_data_list) ? aEntry.ts_data_list : [];
-        const aEffortForEntry = typeof aEntry.effort === "number" ? aEntry.effort : 0;
-        const aNoOfItems = typeof aEntry.no_of_items === "number" ? aEntry.no_of_items : (aEntry.no_of_items ? Number(aEntry.no_of_items) : 0);
-        const aRemarks = typeof aEntry.remarks === "string" ? aEntry.remarks : "";
+  sortedA.forEach(aEntry => {
+    const tsList = Array.isArray(aEntry.ts_data_list) ? aEntry.ts_data_list : [];
 
-        tsList.forEach(ts => {
-            const date = ts?.a_date;
-            if (!date) return;
+    // const aEffort = typeof aEntry.effort === "number" ? aEntry.effort : 0;
 
-            // Parse geo data
-            const { check_in, check_out } = parseGeoData(ts.geo_data || "");
+    const aRemarks = typeof aEntry.remarks === "string" ? aEntry.remarks : "";
 
-            // Determine effort/no_of_items for this date
-            const belongsToThisA = isDateInRange(date, aEntry.start_date, aEntry.end_date);
+    tsList.forEach(ts => {
+      const date = ts?.a_date;
+      if (!date) return;
 
-            if (!dayLogs[date]) {
-                dayLogs[date] = {
-                    date,
-                    sessions: [], // Changed from checkIns/checkOuts to sessions array
-                    remarksList: [],
-                    effort: 0,
-                    no_of_items: 0,
-                };
-            }
-            const current = dayLogs[date];
+      // increment section counter
+      dateCounters[date] = (dateCounters[date] || 0) + 1;
+      const section = dateCounters[date];
 
-            // Store as session object instead of separate arrays
-            if (check_in || check_out) {
-                current.sessions.push({
-                    check_in: check_in || null,
-                    check_out: check_out || null,
-                    no_of_items: ts.no_of_items || 0,
-                    geo_data: ts.geo_data || ""
-                });
-            }
+      const logKey =
+        section === 1 ? date : `${date} (session ${section})`;
 
-            // Store remarks
-            if (ts?.remarks) current.remarksList.push(ts.remarks);
-            else if (aRemarks) current.remarksList.push(aRemarks);
+      const { check_in, check_out } = parseGeoData(ts.geo_data || "");
 
-            // preserve original effort logic
-            if (belongsToThisA) current.effort = aEffortForEntry;
+      const tsNoOfItems = typeof ts.no_of_items === "number" ? ts.no_of_items : Number(ts.no_of_items || 0);
+      const tsStatus = ts.status;
+      const tsEffort = ts.effort
 
-            // preserve original no_of_items logic (sum all items for the date)
-            if (belongsToThisA) {
-                // Sum no_of_items from all sessions for this date
-                const totalItemsForDate = current.sessions.reduce((sum, session) => {
-                    return sum + (Number(session.no_of_items) || 0);
-                }, 0);
-                current.no_of_items = totalItemsForDate;
-            }
-        });
+      const belongsToThisA = isDateInRange(
+        date,
+        aEntry.start_date,
+        aEntry.end_date
+      );
+
+      dayLogs[logKey] = {
+        date,
+        section: logKey,
+        check_in: check_in || "",
+        check_out: check_out || "",
+        remarks: ts?.remarks || aRemarks || "",
+        effort: tsEffort || 0,
+        no_of_items: belongsToThisA ? tsNoOfItems : 0,
+        timeSheetStatus: tsStatus ? tsStatus : "",
+      };
     });
+  });
 
-    // Process each date to create the final structure
-    Object.keys(dayLogs).forEach(date => {
-        const log = dayLogs[date];
-
-        // Get first check-in and last check-out if available
-        const firstSession = log.sessions[0];
-        const lastSession = log.sessions[log.sessions.length - 1];
-        
-        const firstCheckIn = firstSession?.check_in;
-        const lastCheckOut = lastSession?.check_out;
-        
-        // Check if any session is incomplete (has check-in but no check-out)
-        const hasIncompleteSession = log.sessions.some(session => 
-            session.check_in && !session.check_out
-        );
-
-        dayLogs[date] = {
-            date,
-            sessions: log.sessions, // Keep all sessions
-            first_check_in: firstCheckIn || "", // First check-in of the day
-            last_check_out: lastCheckOut || "", // Last check-out of the day
-            is_incomplete: hasIncompleteSession, // Flag for incomplete sessions
-            remarks: log.remarksList.join(", ") || "",
-            effort: log.effort,
-            no_of_items: log.no_of_items,
-        };
-    });
-
-    return dayLogs;
+  return dayLogs;
 };
-
 
 export const buildActivityGroupMap = (apiData = []) => {
   if (!Array.isArray(apiData) || apiData.length === 0) return [];
@@ -264,11 +315,11 @@ export const buildActivityGroupMap = (apiData = []) => {
     let matchingKey = null;
     
     // First, check if free_code matches any P's id
-    if (aItem.free_code) {
+    if (aItem.ref_p_id) {
       matchingKey = Object.keys(groups).find(key => {
         const group = groups[key];
         return group.original_P && 
-               String(group.original_P.id) === String(aItem.free_code);
+               String(group.original_P.id) === String(aItem.ref_p_id);
       });
     }
     
@@ -732,6 +783,29 @@ export const getCurrentDateTimeDefaults = () => {
     return `${day}-${month}-${year}`;
   };
 
+  export const normalizeToDDMMYYYY = (dateStr) => {
+  if (!dateStr) return "";
+
+  if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
+    return dateStr;
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split("-");
+    return `${d}-${m}-${y}`;
+  }
+
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed)) {
+    const day = String(parsed.getDate()).padStart(2, "0");
+    const month = String(parsed.getMonth() + 1).padStart(2, "0");
+    const year = parsed.getFullYear();
+    return `${day}-${month}-${year}`;
+  }
+
+  return dateStr;
+};
+
 // Add this function — either in utils.js or inside APMTimeSheet.js (above the component)
 export const getDateRangeFromPeriod = (period) => {
   const today = new Date();
@@ -1088,4 +1162,129 @@ export const mapEmployeeCustomerOrderItemData = (apiData = []) => {
       order_items: Object.values(cust.order_items)
     }))
   }));
+};
+
+export const normalizeDate = (d) => {
+  const date =
+    d instanceof Date ? d : parseApiDate(d);
+
+  if (!date) return null;
+
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+
+const getTodayActionFlags = ({ allAEntries }) => {
+  const today = normalizeDate(new Date());
+  
+  // Find A started today
+  const todayA = allAEntries.find(
+    a => normalizeDate(a.start_date) === today
+  );
+
+  // 1️⃣ No A for today → Start
+  if (!todayA) {
+    return {
+      showStartBtn: true,
+      showCompleteBtn: false
+    };
+  }
+
+  // 2️⃣ A exists & not completed → Complete
+  if (todayA.status === "N") {
+    return {
+      showStartBtn: false,
+      showCompleteBtn: true
+    };
+  }
+
+  // 3️⃣ A exists & completed → Nothing
+  return {
+    showStartBtn: false,
+    showCompleteBtn: false
+  };
+};
+
+const toApiDateFromString = (dateStr) => {
+  const d = new Date(dateStr);
+  return isNaN(d) ? null : formatToApiDate(d);
+};
+
+
+const buildDayLogsFromAEntriesForRetainer = (allAEntries = []) => {
+  return allAEntries.reduce((acc, entry) => {
+    if (!entry.start_date) return acc;
+
+    const dayKey = toApiDateFromString(entry.start_date);
+
+    if (!acc[dayKey]) {
+      acc[dayKey] = {
+        date: dayKey,
+        section: dayKey,
+        remarks: entry.remarks || "",
+        effort: 0,
+        no_of_items: 0,
+        resourceList: entry.resource_list,
+      };
+    }
+
+    acc[dayKey].effort += Number(entry.effort || 0);
+    acc[dayKey].no_of_items += Number(entry.no_of_items || 0);
+
+    return acc;
+  }, {});
+};
+
+export const formatRetainerActivities = (apiData = []) => {
+  const grouped = buildActivityGroupMap(apiData);
+
+  return grouped.map(group => {
+    const { original_P, original_A, allAEntries, key } = group;
+
+    const ui = getTodayActionFlags({ allAEntries });
+    const day_logs = buildDayLogsFromAEntriesForRetainer(allAEntries);
+
+    return {
+      key,
+
+      p_id: original_P?.id ?? null,
+      a_id: original_A?.id ?? null,
+
+      employee_name: original_P?.employee_name ?? "",
+      emp_id: original_P?.emp_id ?? "",
+      customer_name: original_P?.customer_name ?? "",
+      product_name: original_P?.product_name ?? "",
+      project_name: original_P?.project_name ?? "",
+      activity_name: original_P?.activity_name ?? "",
+      order_item_id: original_P?.order_item_id ?? "",
+      order_item_key: original_P?.order_item_key ?? "",
+
+      planned_start_date: original_P?.start_date || null,
+      planned_end_date: original_P?.end_date || null,
+      planned_start_time: original_P?.start_time || null,
+      planned_end_time: original_P?.end_time || null,
+
+      actual_start_date: original_A?.start_date || null,
+      actual_end_date: original_A?.end_date || null,
+
+      is_file_applicable: original_P?.is_file_applicable ?? false,
+      audit_type: original_P?.audit_type ?? "",
+      store_name: original_P?.store_name ?? "",
+      store_remarks: original_P?.store_remarks ?? "",
+
+      complete: original_A?.status && original_A.status !== "N" ? "In Progress" : "Completed",
+
+      original_P,
+      original_A,
+      allAEntries,
+
+      day_logs,
+
+      ui
+    };
+  });
 };

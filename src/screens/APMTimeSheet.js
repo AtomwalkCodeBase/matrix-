@@ -37,6 +37,7 @@ import {
   getTodayApiDateStr,
   parseApiDate,
   isDateInRange,
+  formatRetainerActivities,
 } from "../components/APMTimeSheet/utils";
 
 import { getAllocationList, postAllocationData } from "../services/productServices";
@@ -203,6 +204,8 @@ const APMTimeSheet = () => {
       const raw = Array.isArray(res?.data) ? res.data : [];
       const normalized = normalizeProjects(raw);
 
+      // console.log("normalized", JSON.stringify(normalized))
+
       setAllProjects(normalized);
       // Reset retainer data when projects are reloaded
       setRetainerData({});
@@ -283,8 +286,8 @@ const APMTimeSheet = () => {
             };
           }
 
-          // Normalize retainer data using the same logic as primary projects
-          const normalizedRetainerProjects = normalizeProjects(rawRetainerData);
+          // Normalize retainer data using the new specialized function
+          const normalizedRetainerProjects = formatRetainerActivities(rawRetainerData);
           // Find the matching retainer project
           let matchingRetainerProject = null;
 
@@ -811,11 +814,12 @@ const APMTimeSheet = () => {
         }
       });
 
-      // for (let [key, value] of formData.entries()) {
-      //   console.log(key, value);
-      // }
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
 
-      const res = await postAllocationData(formData);
+      // const res = await postAllocationData(formData);
+      const res = {status: 200}
 
       if (res?.status === 200) {
         return true;
@@ -858,7 +862,7 @@ const APMTimeSheet = () => {
   const handleActivityAction = ({ type, project, retainer = false }) => {
     if (type === "start") {
       if (!retainer) {
-        const hasOpenSession = allProjects.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
+        const hasOpenSession = allProjects?.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
         if (hasOpenSession) {
           setErrorMessage("Finish Pending");
           setShowErrorModal(true);
@@ -911,11 +915,13 @@ const APMTimeSheet = () => {
     }
   };
 
-  const handleSubmitFromModal = (formData) =>
-    handleActivitySubmit({
+  const handleSubmitFromModal = (formData) => {
+    const { extraFields = {}, ...dataWithoutExtraFields } = formData;
+    return handleActivitySubmit({
       project: selectedProject,
       mode: "UPDATE",
-      data: formData,
+      data: dataWithoutExtraFields,
+      extraFields,
     }).then(async (success) => {
       if (success) {
         await onRefresh();
@@ -931,14 +937,16 @@ const APMTimeSheet = () => {
       }
       setIsFormModalOpen(false);
     });
+  };
 
   // Update handleMarkCompleteFromModal for retainers
-  const handleMarkCompleteFromModal = (formData) =>
-    handleActivitySubmit({
+  const handleMarkCompleteFromModal = (formData) => {
+    const { extraFields = {}, ...dataWithoutExtraFields } = formData;
+    return handleActivitySubmit({
       project: selectedProject,
       mode: "UPDATE",
-      data: formData,
-      extraFields: { is_completed: 1 },
+      data: dataWithoutExtraFields,
+      extraFields: { ...extraFields, is_completed: 1 },
     }).then(async (success) => {
       if (success) {
         await onRefresh();
@@ -953,6 +961,7 @@ const APMTimeSheet = () => {
       }
       setIsFormModalOpen(false);
     });
+  };
 
   // Filter controls
   const openFilterModal = () => {

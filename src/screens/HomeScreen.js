@@ -142,13 +142,13 @@ const HomePage = ({ navigation }) => {
 
 
   const menuItems = [
-     ...(isManager ? [{
-      id: 1,
-      title: 'Project DashBoard',
-      // icon: <FontAwesome5 name="user-clock" size={24} color="#a970ff" />,
-      icon: <MaterialCommunityIcons name="view-dashboard-outline" size={24} color={colors.primary} />,
-      onPress: () =>  router.push({pathname: 'ManagerTimeSheet'})
-    }] : []),
+    //  ...(isManager ? [{
+    //   id: 1,
+    //   title: 'Project DashBoard',
+    //   // icon: <FontAwesome5 name="user-clock" size={24} color="#a970ff" />,
+    //   icon: <MaterialCommunityIcons name="view-dashboard-outline" size={24} color={colors.primary} />,
+    //   onPress: () =>  router.push({pathname: 'ManagerTimeSheet'})
+    // }] : []),
     {
       id: 2,
       title: 'Timesheet',

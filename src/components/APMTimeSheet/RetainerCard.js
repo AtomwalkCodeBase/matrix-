@@ -85,7 +85,7 @@ const RetainerCard = ({
     }
 
     // Check if retainer activity is completed
-    const isCompleted = retainerProject?.original_A?.status === "S";
+    const isCompleted = retainerProject?.original_A?.status !== "N";
     const hasSession = hasOpenSession();
     const todaysStatus = retainerProject.todaysStatus || "Planned";
     const hasPendingCheckout = retainerProject.hasPendingCheckout === true;
@@ -131,7 +131,8 @@ const RetainerCard = ({
     // }
 
     // 3. If retainer has an open session or today's status is Active
-    if (hasSession || todaysStatus === "Active") {
+    // if (hasSession || todaysStatus === "Active") {
+    if (hasSession || retainerProject?.original_A) {
       return (
         <TouchableOpacity
           style={[styles.btn, styles.completeBtn]}
