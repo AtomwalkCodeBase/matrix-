@@ -713,11 +713,11 @@ const APMTimeSheet = () => {
         formData.append("call_mode", "FORCE_COMPLETE");
 
         try {
-          for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
-          // const res = await postAllocationData(formData);
-          const res ={status : 200}
+      //     for (let [key, value] of formData.entries()) {
+      //   console.log(key, value);
+      // }
+          const res = await postAllocationData(formData);
+          // const res ={status : 200}
 
           if (res?.status === 200) {
             return true;
@@ -779,11 +779,11 @@ const APMTimeSheet = () => {
         if (isAddMode) {
           // Use retainer's a_id as p_id or get from original_P
           pId = project.retainerData.a_id || project.original_P?.id;
-          console.log('Retainer p_id:', pId);
+          // console.log('Retainer p_id:', pId);
         } else {
           // For UPDATE mode, use original_A.id
           aId = project.original_A?.id || project.retainerData.a_id;
-          console.log('Retainer a_id:', aId);
+          // console.log('Retainer a_id:', aId);
         }
       } else {
         // Primary project logic
@@ -859,22 +859,13 @@ const APMTimeSheet = () => {
     formData.append("a_id", String(aId));
     formData.append("geo_type", "O");
 
-    formData.append(
-      "no_of_items",
-      String(Number(data.noOfItems || 0))
-    );
+    formData.append("no_of_items",String(Number(data.noOfItems || 0)));
 
-    formData.append(
-      "no_of_resource",
-      String(Number(data.noOfResource || 0))
-    );
+    formData.append("no_of_resource",String(Number(data.noOfResource || 0)));
 
   }else {
 
-        formData.append(
-          "no_of_items",
-          String(Number(data.noOfItems || 0))
-        );
+        formData.append("no_of_items",String(Number(data.noOfItems || 0)));
         formData.append("call_mode", "UPDATE");
         formData.append("a_id", String(aId));
 
@@ -898,12 +889,12 @@ const APMTimeSheet = () => {
         }
       });
 
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
+      // for (let [key, value] of formData.entries()) {
+      //   console.log(key, value);
+      // }
 
-      // const res = await postAllocationData(formData);
-      const res = {status: 200}
+      const res = await postAllocationData(formData);
+      // const res = {status: 200}
 
       if (res?.status === 200) {
         return true;

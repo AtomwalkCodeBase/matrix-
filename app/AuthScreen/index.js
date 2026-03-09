@@ -40,7 +40,7 @@ const LoginScreen = () => {
   const [keyboardStatus, setKeyboardStatus] = useState(false);
   const [dbList, setDbList] = useState([]);
   const isLoginDisabled = !mobileNumberOrEmpId || !pin;
-const [selectedCompany, setSelectedCompany] = useState({ label: "Demo Waste Management", value: "APM_002" });
+const [selectedCompany, setSelectedCompany] = useState({ label: "Matrix Business Services India Pvt. Ltd.", value: "APM_001" });
   const [bioStatus, setBioStatus] = useState(false);
 
   const appVersion = Constants.expoConfig?.version || '0.0.1';
@@ -145,7 +145,7 @@ const [selectedCompany, setSelectedCompany] = useState({ label: "Demo Waste Mana
   const handleCompanyChange = async (item) => {
     if (!item) return;
 setSelectedCompany(item);
-console.log(item)
+// console.log(item)
   setCompanyError('');
   };
 
@@ -220,7 +220,7 @@ console.log(item)
       // }
 
       // const dbName = selected.name.replace(/^SD_/, '');
-      const dbName = "APM_002";
+      const dbName = "APM_001";
 
       // Call the login function with just the dbName
       await login(mobileNumberOrEmpId, pin, dbName);
@@ -283,7 +283,7 @@ console.log(item)
                   {/* {dbList.length > 0 && ( */}
                     <CompanyDropdown
                       label="Company"
-                      data={[{label: "Matrix Live Area", value: "APM_001"}, {label: "Martix Demo Area", value: "APM_002"}]}
+                      data={[{label: "Matrix Business Services India Pvt. Ltd.", value: "APM_001"}, {label: "Project Allocation Demo Area", value: "APM_002"}]}
                       value={selectedCompany}
                       setValue={handleCompanyChange}
                       error={companyError}

@@ -223,6 +223,8 @@ export const AuditCard = ({
     });
   }, [project?.day_logs]);
 
+  // console.log("checkInData", checkInData)
+
   const { plannedDays, loggedDates, progressPercentage } = useMemo(() => {
     const planned = getDatesBetween(project?.planned_start_date, project?.planned_end_date);
     const logged = checkInData
@@ -507,22 +509,22 @@ export const AuditCard = ({
           </View>
 
           {/* Daily Logs */}
-          {checkInData.length > 0 ? (
+          {checkInData?.length > 0 ? (
             <>
             <ScrollView style={styles.dailyLogScroll} nestedScrollEnabled>
               <View style={styles.dailyLog}>
-                {checkInData.map((entry, idx) => (
+                {checkInData?.map((entry, idx) => (
                   <DailyLogEntry key={idx} entry={entry} />
                 ))}
               </View>
             </ScrollView>
-              <TouchableOpacity
+              {project.project_period_status !== "Completed" &&<TouchableOpacity
                 style={[styles.btn, styles.successBtn, {marginTop: 10}]}
                 onPress={() => onAction({ type: 'force_complete', project })}
               >
                 <FontAwesome6 name="check-circle" size={16} color={colors.white} />
                 <Text style={styles.btnText}>Mark as Complete</Text>
-              </TouchableOpacity>
+              </TouchableOpacity>}
               </>
           ) : (
             <View style={styles.emptyState}>
@@ -571,7 +573,7 @@ const DailyLogEntry = ({ entry }) => (
         <View style={styles.logTimeContent}>
           <Text style={styles.logTimeLabel}>Check Out</Text>
           {entry.check_out ? (
-            <Text style={styles.logTimeText}>{entry.check_out}</Text>
+            <Text style={styles.logTimeText}>{entry.check_out.time}</Text>
           ) : entry.is_incomplete ? (
             <Text style={[styles.logTimeText, styles.inProgressText]}>In Progress</Text>
           ) : (

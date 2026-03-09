@@ -8,7 +8,7 @@ import NetInfo from '@react-native-community/netinfo';
 import moment from 'moment';
 import { useLayoutEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import { MaterialIcons, FontAwesome5, Feather, MaterialCommunityIcons, } from '@expo/vector-icons';
+import { MaterialIcons, FontAwesome5, Feather, MaterialCommunityIcons, AntDesign, } from '@expo/vector-icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../Styles/appStyle';
@@ -142,13 +142,6 @@ const HomePage = ({ navigation }) => {
 
 
   const menuItems = [
-    //  ...(isManager ? [{
-    //   id: 1,
-    //   title: 'Project DashBoard',
-    //   // icon: <FontAwesome5 name="user-clock" size={24} color="#a970ff" />,
-    //   icon: <MaterialCommunityIcons name="view-dashboard-outline" size={24} color={colors.primary} />,
-    //   onPress: () =>  router.push({pathname: 'ManagerTimeSheet'})
-    // }] : []),
     {
       id: 2,
       title: 'Timesheet',
@@ -158,33 +151,15 @@ const HomePage = ({ navigation }) => {
     {
       id: 3,
       title: 'OPE Actual',
-      icon: <Feather name="dollar-sign" size={24} color={colors.primary} />,
+      icon: <FontAwesome5 name="rupee-sign" size={24} color={colors.primary} />,
       onPress: () => router.push('OPEScreen')
     },
    ...(profile.grade_level > 100 ? [{
       id: 5,
       title: 'Expense Tracker',
-      icon: <FontAwesome5 name="rupee-sign" size={24} color={colors.primary} />,
+      icon: <MaterialCommunityIcons name="cash-multiple" size={24} color={colors.primary} />,
       onPress: () => router.push('ExpenseTracker')
     }] : []),
-    // ...(isManager ? [{
-    //   id: 6,
-    //   title: 'Approve Claims',
-    //   icon: <FontAwesome5 name="money-bill-wave-alt" size={24} color={colors.primary} />,
-    //   onPress: () => router.push('ApproveClaim')
-    // }] : []),
-    // {
-    //   id: 7,
-    //   title: 'Holiday',
-    //   icon: <FontAwesome5 name="umbrella-beach" size={24} color={colors.primary} />,
-    //   onPress: () => router.push('HolidayList')
-    // },
-    // {
-    //   id: 8,
-    //   title: 'Travel Request',
-    //   icon: <MaterialCommunityIcons name="airplane" size={24} color={colors.primary} />,
-    //   onPress: () => router.push({ pathname: 'TravelScreen', params: { empId },})
-    // },
   ];
 
   return (
