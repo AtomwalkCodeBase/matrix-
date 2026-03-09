@@ -24,6 +24,9 @@ export const OPECard = ({
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Check if activity is pending (a_id is null)
+  const isActivityPending = !project.a_id && !project.original_A?.id;
+  
   // Get values from project
   const opeAmount = project?.original_A?.ope_amt || project?.original_P?.ope_amt || "0.00";
   const hasOPEAmount = opeAmount && opeAmount !== "0.00";
@@ -41,12 +44,12 @@ export const OPECard = ({
                       project?.original_A?.is_ope_actual === true ||
                       project?.is_ope_actual === true;
 
-  // Determine button state
-  const showAddButton = isOrderActive && isOpeActual && !hasOPEAmount;
-  const showUpdateButton = isOrderActive && isOpeActual && hasOPEAmount;
+  // Determine button state - Only show buttons if activity is NOT pending
+  const showAddButton = !isActivityPending && isOrderActive && isOpeActual && !hasOPEAmount;
+  const showUpdateButton = !isActivityPending && isOrderActive && isOpeActual && hasOPEAmount;
   
   // Special case: Activity completed but OPE pending (status "S" but ope_amt is "0.00")
-  const isOpePending = isOrderActive && isActivityCompleted && !hasOPEAmount;
+  const isOpePending = !isActivityPending && isOrderActive && isActivityCompleted && !hasOPEAmount;
 
   const handleOPEAction = () => {
     if (hasOPEAmount) {
@@ -63,9 +66,9 @@ export const OPECard = ({
     }
   };
 
-  const toggleExpand = () => {
-    setIsExpanded(!isExpanded);
-  };
+  // const toggleExpand = () => {
+  //   setIsExpanded(!isExpanded);
+  // };
 
   // Basic project info
   const customerName = project?.customer_name || 'Unknown Customer';
@@ -87,23 +90,40 @@ export const OPECard = ({
           <Text style={styles.orderKey}>{orderKey}</Text>
         </View>
         
+        {/* Show Activity Pending badge when a_id is null */}
+        {isActivityPending && (
+          <View style={[styles.statusBadge, styles.pendingBadge]}>
+            <Text style={styles.pendingBadgeText}>Activity pending</Text>
+          </View>
+        )}
+
         {/* Show special badge for OPE Pending */}
-        {isOpePending && (
+        {!isActivityPending && isOpePending && (
           <View style={[styles.statusBadge, { backgroundColor: '#f59e0b' }]}>
             <Text style={styles.statusText}>OPE Pending</Text>
           </View>
         )}
         
         {/* Show regular status badge for other cases */}
-        {!isOpePending && (
+        {!isActivityPending && !isOpePending && (
           <View style={[styles.statusBadge, { backgroundColor: color }]}>
             <Text style={styles.statusText}>{label}</Text>
           </View>
         )}
       </View>
 
+      {/* Show Activity Pending message if applicable */}
+      {isActivityPending && (
+        <View style={styles.pendingContainer}>
+          <Ionicons name="time-outline" size={18} color="#6b7280" />
+          <Text style={styles.pendingContainerText}>
+            Activity not started yet - OPE can be added after activity begins
+          </Text>
+        </View>
+      )}
+
       {/* Show OPE Pending message if applicable */}
-      {isOpePending && (
+      {!isActivityPending && isOpePending && (
         <View style={styles.opePendingContainer}>
           <Ionicons name="alert-circle-outline" size={18} color="#f59e0b" />
           <Text style={styles.opePendingText}>
@@ -132,8 +152,8 @@ export const OPECard = ({
         <Text style={styles.datesText}>{plannedDates}</Text>
       </View>
 
-      {/* OPE Amount Display (if exists) */}
-      {hasOPEAmount && (
+      {/* OPE Amount Display (if exists) - Only show if activity is not pending */}
+      {!isActivityPending && hasOPEAmount && (
         <View style={styles.opeContainer}>
           <Ionicons name="cash-outline" size={16} color="#10b981" />
           <Text style={styles.opeLabel}>OPE Amount:</Text>
@@ -141,38 +161,40 @@ export const OPECard = ({
         </View>
       )}
 
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        {/* Show Add button for: Order Active, OPE Actual, No amount */}
-        {showAddButton && (
-          <TouchableOpacity
-            style={[styles.opeButton, styles.addButton]}
-            onPress={handleOPEAction}
-          >
-            <Ionicons name="add-circle-outline" size={18} color="#fff" />
-            <Text style={styles.opeButtonText}>Add OPE Amount</Text>
-          </TouchableOpacity>
-        )}
+      {/* Action Buttons - Only show if activity is NOT pending */}
+      {!isActivityPending && (
+        <View style={styles.buttonContainer}>
+          {/* Show Add button for: Order Active, OPE Actual, No amount */}
+          {showAddButton && (
+            <TouchableOpacity
+              style={[styles.opeButton, styles.addButton]}
+              onPress={handleOPEAction}
+            >
+              <Ionicons name="add-circle-outline" size={18} color="#fff" />
+              <Text style={styles.opeButtonText}>Add OPE Amount</Text>
+            </TouchableOpacity>
+          )}
 
-        {/* Show Update button for: Order Active, OPE Actual, Has amount */}
-        {showUpdateButton && (
-          <TouchableOpacity
-            style={[styles.opeButton, styles.updateButton]}
-            onPress={handleOPEAction}
-          >
-            <Ionicons name="create-outline" size={18} color="#fff" />
-            <Text style={styles.opeButtonText}>Update OPE Amount</Text>
-          </TouchableOpacity>
-        )}
+          {/* Show Update button for: Order Active, OPE Actual, Has amount */}
+          {showUpdateButton && (
+            <TouchableOpacity
+              style={[styles.opeButton, styles.updateButton]}
+              onPress={handleOPEAction}
+            >
+              <Ionicons name="create-outline" size={18} color="#fff" />
+              <Text style={styles.opeButtonText}>Update OPE Amount</Text>
+            </TouchableOpacity>
+          )}
 
-        {/* If no action needed, show disabled state */}
-        {!showAddButton && !showUpdateButton && (
-          <View style={[styles.opeButton, styles.disabledButton]}>
-            <Ionicons name="checkmark-circle-outline" size={18} color="#94a3b8" />
-            <Text style={[styles.opeButtonText, styles.disabledText]}>Already Approved</Text>
-          </View>
-        )}
-      </View>
+          {/* If no action needed, show disabled state */}
+          {!showAddButton && !showUpdateButton && (
+            <View style={[styles.opeButton, styles.disabledButton]}>
+              <Ionicons name="checkmark-circle-outline" size={18} color="#94a3b8" />
+              <Text style={[styles.opeButtonText, styles.disabledText]}>Already Approved</Text>
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 };
@@ -230,10 +252,35 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 20,
   },
+  pendingBadge: {
+    backgroundColor: '#f74904',
+    borderWidth: 1,
+    borderColor: '#6c0000',
+  },
+  pendingBadgeText: {
+    color: '#fbfbfb',
+    fontSize: 11,
+    fontWeight: '600',
+  },
   statusText: {
     color: '#ffffff',
     fontSize: 11,
     fontWeight: '600',
+  },
+  pendingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  pendingContainerText: {
+    fontSize: 13,
+    color: '#4b5563',
+    fontWeight: '500',
+    flex: 1,
   },
   opePendingContainer: {
     flexDirection: 'row',
