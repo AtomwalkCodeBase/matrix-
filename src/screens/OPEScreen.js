@@ -240,68 +240,99 @@ const applyFiltersAndPagination = useCallback((list, filters, page = 1) => {
   };
 
   // Submit OPE Claim
-  const handleOPESubmit = async ({ opeAmount, remarks, file }) => {
-    if (!selectedProject) return false;
+const handleOPESubmit = async ({ opeAmount, remarks, file }) => {
+  if (!selectedProject) return false;
 
-    setIsLoading(true);
-    try {
+  setIsLoading(true);
+  
+  // Close the OPE modal immediately when submit is pressed
+  setShowOPEModal(false);
+  
+  try {
+    // Get activity ID
+    const aId = selectedProject?.original_A?.id || selectedProject?.original_P?.id;
+    if (!aId) {
+      setErrorMessage("Unable to identify activity");
+      setShowErrorModal(true);
+      setIsLoading(false);
+      return false;
+    }
 
-      // Get activity ID
-      const aId = selectedProject?.original_A?.id || selectedProject?.original_P?.id;
-      if (!aId) {
-        setErrorMessage("Unable to identify activity");
-        setShowErrorModal(true);
-        setIsLoading(false);
-        return false;
-      }
+    const formData = new FormData();
+    
+    // Add all required fields
+    formData.append("call_mode", "CLAIM_UPDATE");
+    formData.append("emp_id", empId);
+    formData.append("a_id", String(aId));
+    formData.append("ope_amt", String(opeAmount));
+    formData.append("claim_remarks", remarks || "");
 
-      const formData = new FormData();
+    // Add file if selected
+    if (file && file.fileUri) {
+      const fileExtension = file.fileName?.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = file.fileMimeType || getMimeType(fileExtension);
       
-      // Add all required fields in the exact format you specified
-      formData.append("call_mode", "CLAIM_UPDATE");
-      formData.append("emp_id", empId);
-      formData.append("a_id", String(aId));
-      formData.append("ope_amt", String(opeAmount));
-      formData.append("claim_remarks", remarks || "");
+      formData.append("claim_file", {
+        uri: file.fileUri,
+        type: mimeType,
+        name: file.fileName || `claim_${Date.now()}.${fileExtension}`,
+      });
+    }
 
-      // Add file if selected
-      if (file) {
-        formData.append("claim_file", {
-          uri: file.fileUri,
-          type: file.fileMimeType || 'image/jpeg',
-          name: file.fileName || `claim_${Date.now()}.jpg`,
-        });
-      }
+    // Make API call
+    const res = await postAllocationData(formData);
 
-      // Log form data for debugging
-      for (let pair of formData._parts) {
-        console.log(pair[0], pair[1]);
-      }
-
-      // const res = await postAllocationData(formData);
-
-      const res = {status: 400}
-
-      if (res?.status === 200) {
-        setShowSuccessModal(true)
-        await onRefresh();
-        return true;
-      } else {
-        const errorMsg = res?.data?.error || res?.data?.message || "Failed to submit claim";
-        setErrorMessage(errorMsg);
-        setShowErrorModal(true);
-        return false;
-      }
-
-    } catch (error) {
-      console.error("Error submitting OPE claim:", error);
-      setErrorMessage(error?.response?.data?.error || error?.message || "Failed to submit claim");
+    if (res?.status === 200) {
+      // Clear selected project immediately
+      setSelectedProject(null);
+      // Show success modal
+      setShowSuccessModal(true);
+      // Refresh the list
+      await onRefresh();
+      return true;
+    } else {
+      const errorMsg = res?.data?.error || res?.data?.message || "Failed to submit claim";
+      setErrorMessage(errorMsg);
       setShowErrorModal(true);
       return false;
-    } finally {
-      setIsLoading(false);
     }
+
+  } catch (error) {
+    console.error("Error submitting OPE claim:", error);
+    
+    if (error.response) {
+      console.error("Error response data:", error.response.data);
+      setErrorMessage(error.response.data?.error || error.response.data?.message || "Server error");
+    } else if (error.request) {
+      console.error("Error request:", error.request);
+      setErrorMessage("No response from server. Please check your network connection.");
+    } else {
+      console.error("Error message:", error.message);
+      setErrorMessage(error.message);
+    }
+    
+    setShowErrorModal(true);
+    return false;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+// Helper function to determine mime type
+const getMimeType = (extension) => {
+  const mimeTypes = {
+    'jpg': 'image/jpeg',
+    'jpeg': 'image/jpeg',
+    'png': 'image/png',
+    'gif': 'image/gif',
+    'pdf': 'application/pdf',
+    'doc': 'application/msword',
+    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'xls': 'application/vnd.ms-excel',
+    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
+  return mimeTypes[extension] || 'application/octet-stream';
+};
 
   // Handle card action
   const handleActivityAction = ({ type, project }) => {
