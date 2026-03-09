@@ -7,7 +7,7 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
 import RetainerCard from './RetainerCard';
 
@@ -508,6 +508,7 @@ export const AuditCard = ({
 
           {/* Daily Logs */}
           {checkInData.length > 0 ? (
+            <>
             <ScrollView style={styles.dailyLogScroll} nestedScrollEnabled>
               <View style={styles.dailyLog}>
                 {checkInData.map((entry, idx) => (
@@ -515,6 +516,14 @@ export const AuditCard = ({
                 ))}
               </View>
             </ScrollView>
+              <TouchableOpacity
+                style={[styles.btn, styles.successBtn, {marginTop: 10}]}
+                onPress={() => onAction({ type: 'force_complete', project })}
+              >
+                <FontAwesome6 name="check-circle" size={16} color={colors.white} />
+                <Text style={styles.btnText}>Mark as Complete</Text>
+              </TouchableOpacity>
+              </>
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="calendar-outline" size={24} color="#cbd5e1" />
@@ -852,6 +861,9 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     backgroundColor: PRIMARY_COLOR,
+  },
+  successBtn: {
+    backgroundColor: colors.success,
   },
   checkOutBtn: {
     backgroundColor: '#ef4444',

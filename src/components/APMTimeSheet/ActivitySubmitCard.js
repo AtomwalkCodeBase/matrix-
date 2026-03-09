@@ -8,7 +8,7 @@ import TimePicker from '../TimePicker';
 import FilePicker from '../FilePicker';
 import RemarksInput from '../RemarkInput';
 import { colors } from '../../Styles/appStyle';
-import { formatAMPMTime, formatAPITime, getCurrentDateTimeDefaults, normalizeToDDMMYYYY, parseApiDate } from './utils';
+import { formatAMPMTime, formatAPITime, formatToApiDate, getCurrentDateTimeDefaults, normalizeToDDMMYYYY, parseApiDate } from './utils';
 import { AppContext } from '../../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorModal from '../ErrorModal';
@@ -26,7 +26,9 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
     const contextType = editingTask?.modalContext?.type;
     const isRetainerUpdate = editingTask?.modalContext?.type === "update_retainer";
-
+    const hasExistingResources = retainerInputs.length > 0;
+    
+    // console.log("isRetainerUpdate", contextType)
     // const { todayISO, dayLogKey: todayDayLogKey, apiDate: todayApiDate, currentTime } = getCurrentDateTimeDefaults()
 
     // console.log("todayISO", todayISO)
@@ -43,7 +45,6 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         return now.toTimeString().slice(0, 5);
     };
 
-    // console.log("isRetainer", isRetainer)
 
     const parseTimeToDate = (timeStr) => {
         if (!timeStr || typeof timeStr !== 'string') return null;
@@ -98,27 +99,23 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             }
 
             // Check if resource_list exists and is an array
-            const existingResourceList = isRetainer?.fullData?.original_A?.resource_list || [];
-            const hasResources = Array.isArray(existingResourceList) && existingResourceList.length > 0;
+           const existingResourceList =isRetainer?.fullData?.original_A?.resource_list || [];
 
-            const formatResourceNames = (resList) => {
-                if (!Array.isArray(resList)) return [];
-                return resList.map(res => typeof res === 'string' ? res : (res?.name || ""));
-            };
-
-            const initialResources = hasResources ? formatResourceNames(existingResourceList) : [];
+        //    console.log("existingResourceList", isRetainer)
+        //    const existingResourceList =['ram', 'hari'];
+            const formattedResources = existingResourceList.map(res =>typeof res === "string" ? res : res?.name || "");
 
             setFormData(prev => ({
                 ...prev,
                 date: dateToUse,
                 endTime: isPendingCheckout ? getCurrentTime() : parseTimeToDate(getCurrentTime()),
                 noOfItems: isRetainer ? String(isRetainer?.no_of_items) : "0",
-                noOfResource: hasResources ? String(initialResources.length) : "0",
+                noOfResource: String(formattedResources.length)
             }));
             setFileUri(null);
             setFileName("");
             setFileMimeType("");
-            setRetainerInputs(initialResources);
+            setRetainerInputs(formattedResources);
         }
     }, [visible]);
 
@@ -166,6 +163,27 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     //   setShowErrorModal(true)
     //   return;
     // }
+
+const handleOpenResourceModal = () => {
+
+  const count = Number(formData.noOfResource);
+
+  setRetainerInputs(prev => {
+
+    let updated = [...prev];
+
+    if (count > updated.length) {
+      updated = [...updated, ...Array(count - updated.length).fill("")];
+    }
+    else if (count < updated.length) {
+      updated = updated.slice(0, count);
+    }
+
+    return updated;
+  });
+
+  setResourceModalVisible(true);
+};
 
     const handleRetainerNameChange = (index, value) => {
         setRetainerInputs(prev => {
@@ -222,6 +240,8 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
         const selectedDate = formatDateToDDMMYYYY(formData.date);
         const openDate = normalizeToDDMMYYYY(getOpenCheckInDate());
+        // console.log("selectedDate", selectedDate)
+        // console.log("openDate", formatToApiDate(openDate))
 
         if (!openDate) return payload;
 
@@ -336,8 +356,6 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         //   console.log("Complete Activity Payload:", payload)
 
         onCompleteActivity(payload);
-
-
         onClose();
     };
 
@@ -399,7 +417,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                     setCDate={(date) => setFormData(prev => ({ ...prev, date }))}
                                     maximumDate={new Date()}
                                     // disable={Boolean(isExecutive) || contextType === "update_retainer" || !contextType === "checkout_yesterday"}
-                                    disable={contextType === "continue" && (isExecutive || isRetainerUpdate)}
+                                    disable={isExecutive || isRetainerUpdate}
                                 />
                             </View>
 
@@ -410,7 +428,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                     setCDate={(value) =>
                                         setFormData(prev => ({ ...prev, endTime: value }))
                                     }
-                                // disable={Boolean(isExecutive) || contextType === "update_retainer" }
+                                disable={Boolean(isExecutive) || contextType === "update_retainer" }
                                 />
                             </View>
                             <View style={styles.formGroup}>
@@ -428,52 +446,25 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                     label="Number of Resources *"
                                     placeholder="Enter no of resource"
                                     claimAmount={formData.noOfResource}
-                                    setClaimAmount={(value) => {
-                                        setFormData(prev => ({ ...prev, noOfResource: value }));
-
-                                        const count = Number(value);
-
-                                        if (count > 0) {
-                                            setRetainerInputs(prev => {
-                                                const currentList = [...prev];
-                                                   if (count > currentList.length) {
-                                                    // Add new empty slots
-                                                    return [...currentList, ...Array(count - currentList.length).fill("")];
-                                                }
-
-                                                // Do NOT remove existing values, just keep them
-                                                return currentList;
-                                            });
-                                            setResourceModalVisible(true);
-                                        } else {
-                                            setRetainerInputs([]);
-                                        }
-
-                                    }}
+                                    setClaimAmount={(value) => {setFormData(prev => ({ ...prev, noOfResource: value }));}}
+                                    // setClaimAmount={handleResourceCountChange}
                                 />
+                                <TouchableOpacity
+                                style={[styles.button,styles.applyButton, {marginTop: 14}]}
+                                onPress={handleOpenResourceModal}
+                                >
+                                <Text style={[styles.applyButtonText, { textAlign: "center" }]}>
+                                    {hasExistingResources ? "Update Resource Names" : "Add Resource Names"}
+                                </Text>
+                                </TouchableOpacity>
 
-                                {/* {editingTask?.fullData?.allAEntries && 
-                                 editingTask.fullData.allAEntries.length > 0 && 
-                                 editingTask.fullData.allAEntries[editingTask.fullData.allAEntries.length - 1]?.resource_list && 
-                                 editingTask.fullData.allAEntries[editingTask.fullData.allAEntries.length - 1].resource_list.length > 0 && (
-                                    <View style={{ marginTop: 10 }}>
-                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#555', marginBottom: 5 }}>
-                                            Resources available:
-                                        </Text>
-                                        {editingTask.fullData.allAEntries[editingTask.fullData.allAEntries.length - 1].resource_list.map((res, idx) => (
-                                            <Text key={idx} style={{ fontSize: 13, color: '#666', marginLeft: 5 }}>
-                                                • {res.name || (typeof res === 'string' ? res : JSON.stringify(res))}
-                                            </Text>
-                                        ))}
-                                    </View>
-                                )} */}
                             </View>
                             }
 
-                            {isRetainer && retainerInputs.filter(name => name.trim()).length > 0 && (
+                            {retainerInputs.length > 0 && (
                                 <View style={styles.resourceNamesDisplay}>
                                     <Text style={styles.resourceNamesLabel}>Entered Resource Names:</Text>
-                                    {retainerInputs.slice(0, Number(formData.noOfResource)).map((name, index) => (
+                                    {retainerInputs.map((name, index) => (
                                         name.trim() && (
                                             <View key={index} style={styles.resourceNameRow}>
                                                 <Text style={styles.resourceNameNumber}>{index + 1}.</Text>
@@ -521,31 +512,6 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
                             {/* BUTTONS */}
                             <View style={styles.buttonRow}>
-
-                                {/* MARK AS COMPLETE (always secondary unless today) */}
-                                {/* <TouchableOpacity
-                                style={[
-                                    styles.button,
-                                    isTodayPlannedEnd ? styles.primaryButton : styles.secondaryButton,
-                                    !isValid && styles.disabledButton
-                                ]}
-                                disabled={!isValid}
-                                onPress={handleMarkComplete}
-                            >
-                                <Text style={styles.buttonText}>Mark as Complete</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[
-                                    styles.button,
-                                    !isTodayPlannedEnd ? styles.primaryButton : styles.secondaryButton,
-                                    !isValid && styles.disabledButton
-                                ]}
-                                disabled={!isValid}
-                                onPress={handleSubmit}
-                            >
-                                <Text style={styles.buttonText}>Submit</Text>
-                            </TouchableOpacity> */}
 
                                 {isPendingCheckout ? (
                                     <>
@@ -686,7 +652,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
                         <ScrollView>
 
-                            {retainerInputs.slice(0, Number(formData.noOfResource)).map((name, index) => (
+                            {retainerInputs.map((name, index) => (
                                 <View key={index} style={styles.resourceInputGroup}>
 
                                     <Text style={styles.resourceInputLabel}>

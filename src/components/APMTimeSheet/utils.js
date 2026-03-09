@@ -783,7 +783,7 @@ export const getCurrentDateTimeDefaults = () => {
     return `${day}-${month}-${year}`;
   };
 
-  export const normalizeToDDMMYYYY = (dateStr) => {
+  export const  normalizeToDDMMYYYY = (dateStr) => {
   if (!dateStr) return "";
 
   if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
@@ -793,6 +793,19 @@ export const getCurrentDateTimeDefaults = () => {
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     const [y, m, d] = dateStr.split("-");
     return `${d}-${m}-${y}`;
+  }
+
+  const match = dateStr.match(/^(\d{2})-([A-Za-z]{3})-(\d{4})$/);
+  if (match) {
+    const [, day, mon, year] = match;
+    const monthIndex = MONTH_SHORT_NAMES.findIndex(
+      m => m.toLowerCase() === mon.toLowerCase()
+    );
+
+    if (monthIndex !== -1) {
+      const month = String(monthIndex + 1).padStart(2, "0");
+      return `${day}-${month}-${year}`;
+    }
   }
 
   const parsed = new Date(dateStr);
@@ -825,6 +838,17 @@ export const getDateRangeFromPeriod = (period) => {
       const endOfWeek = new Date(startOfWeek);
       endOfWeek.setDate(startOfWeek.getDate() + 6);
       return { startDate: format(startOfWeek), endDate: format(endOfWeek) };
+    }
+
+    case 'previous_week':
+    case 'last_week': {
+      const startOfPrevWeek = new Date(today);
+      const day = today.getDay(); // 0 = Sunday
+      // Go back to this week's Sunday, then -7 days
+      startOfPrevWeek.setDate(today.getDate() - day - 7);
+      const endOfPrevWeek = new Date(startOfPrevWeek);
+      endOfPrevWeek.setDate(startOfPrevWeek.getDate() + 6);
+      return { startDate: format(startOfPrevWeek), endDate: format(endOfPrevWeek) };
     }
 
     case 'this_month': {

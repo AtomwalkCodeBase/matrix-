@@ -96,6 +96,7 @@ const APMTimeSheet = () => {
   const periodOptions = useMemo(
     () => [
       { label: "Today", value: "today" },
+      { label: "Previous Week", value: "previous_week" },
       { label: "This Week", value: "this_week" },
       { label: "This Month", value: "this_month" },
       { label: "Custom Date", value: "custom" },
@@ -257,21 +258,23 @@ const APMTimeSheet = () => {
       const retainerPromises = filteredRetainers.map(async (retainer) => {
         try {
           // Call API with retainer's emp_id
-          const res = await getAllocationList(retainer.emp_id, null, dateRange.startDate, dateRange.endDate);
+          const monthRange = getDateRangeFromPeriod("this_month");
+          const res = await getAllocationList(retainer.emp_id, null, monthRange.startDate, monthRange.endDate);
 
           const rawRetainerData = Array.isArray(res?.data) ? res.data : [];
 
           if (rawRetainerData.length === 0) {
             // Create a minimal fullData structure
             const minimalFullData = {
-              original_P: {
-                id: retainer.a_id,
-                emp_id: retainer.emp_id,
-                employee_name: retainer.employee_name,
-                no_of_items: retainer.no_of_items || 0,
-                start_date: retainer.start_date,
-                end_date: retainer.end_date
-              },
+              // original_P: {
+              //   id: retainer.a_id,
+              //   emp_id: retainer.emp_id,
+              //   employee_name: retainer.employee_name,
+              //   no_of_items: retainer.no_of_items || 0,
+              //   start_date: retainer.start_date,
+              //   end_date: retainer.end_date
+              // },
+              original_P: retainer,
               project_period_status: 'Planned',
               todaysStatus: 'Planned',
               hasPendingCheckout: false,
@@ -301,7 +304,7 @@ const APMTimeSheet = () => {
           // If no match found, take the first one or create a minimal one
           if (!matchingRetainerProject) {
             if (normalizedRetainerProjects.length > 0) {
-              matchingRetainerProject = normalizedRetainerProjects[0];
+              matchingRetainerProject = normalizedRetainerProjects;
             } else {
               // Create minimal data
               matchingRetainerProject = {
@@ -475,6 +478,37 @@ const APMTimeSheet = () => {
             return hasActivityInWeek || isPlannedForWeek || project.hasPendingCheckout;
           });
           break;
+
+          case "previous_week":
+      case "last_week":
+        const prevWeekRange = getDateRangeFromPeriod("previous_week");   // ← uses the function you already updated
+        const prevWeekStart = parseDateString(prevWeekRange.startDate);
+        const prevWeekEnd = parseDateString(prevWeekRange.endDate);
+
+        filtered = filtered.filter(project => {
+          const hasActivityInPrevWeek = Object.keys(project.day_logs || {}).some(dateStr => {
+            const activityDate = parseApiDate(dateStr);
+            if (!activityDate || !prevWeekStart || !prevWeekEnd) return false;
+
+            const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+            const prevStartOnly = new Date(prevWeekStart.getFullYear(), prevWeekStart.getMonth(), prevWeekStart.getDate());
+            const prevEndOnly   = new Date(prevWeekEnd.getFullYear(),   prevWeekEnd.getMonth(),   prevWeekEnd.getDate());
+
+            return activityDateOnly >= prevStartOnly && activityDateOnly <= prevEndOnly;
+          });
+
+          const plannedStart = parseApiDate(project.planned_start_date);
+          const plannedEnd = parseApiDate(project.planned_end_date);
+
+          const isPlannedForPrevWeek = 
+            (plannedStart && prevWeekStart && prevWeekEnd &&
+              plannedStart >= prevWeekStart && plannedStart <= prevWeekEnd) ||
+            (plannedEnd && prevWeekStart && prevWeekEnd &&
+              plannedEnd >= prevWeekStart && plannedEnd <= prevWeekEnd);
+
+          return hasActivityInPrevWeek || isPlannedForPrevWeek || project.hasPendingCheckout;
+        });
+        break;
 
         case "this_month":
           const monthRange = getDateRangeFromPeriod("this_month");
@@ -655,6 +689,56 @@ const APMTimeSheet = () => {
       if (!loc) {
         setIsLoading(false);
         return false;
+      }
+
+      if (mode === "FORCE_COMPLETE") {
+        const formData = new FormData();
+
+        const resolvedEmpId =
+          project?.original_P?.emp_id ||
+          project?.original_A?.emp_id ||
+          "";
+
+        const aId = project?.original_A?.id;
+
+        if (!resolvedEmpId || !aId) {
+          setErrorMessage("Unable to identify activity");
+          setShowErrorModal(true);
+          setIsLoading(false);
+          return false;
+        }
+
+        formData.append("emp_id", resolvedEmpId);
+        formData.append("a_id", String(aId));
+        formData.append("call_mode", "FORCE_COMPLETE");
+
+        try {
+          for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
+          // const res = await postAllocationData(formData);
+          const res ={status : 200}
+
+          if (res?.status === 200) {
+            return true;
+          }
+
+          setErrorMessage("Failed to force complete activity");
+          setShowErrorModal(true);
+          return false;
+
+        } catch (error) {
+          const msg = extractApiErrorMessage(
+            error,
+            "Unable to force complete activity"
+          );
+          setErrorMessage(msg);
+          setShowErrorModal(true);
+          return false;
+
+        } finally {
+          setIsLoading(false);
+        }
       }
 
       const { apiDate: defaultApiDate, currentTime } = getCurrentDateTimeDefaults();
@@ -905,6 +989,23 @@ const APMTimeSheet = () => {
           await onRefresh();
           setConfirmPopup((p) => ({ ...p, isOpen: false }));
         },
+      });
+      return;
+    }
+
+    if (type === "force_complete") {
+      setConfirmPopup({
+        isOpen: true,
+        title: "Force Complete",
+        message: "Are you sure you want to complete this activity?",
+        onConfirm: async () => {
+          await handleActivitySubmit({
+            project,
+            mode: "FORCE_COMPLETE"
+          });
+          await onRefresh();
+          setConfirmPopup((p) => ({ ...p, isOpen: false }));
+        }
       });
       return;
     }
