@@ -684,14 +684,7 @@ const APMTimeSheet = () => {
 
     setIsLoading(true);
 
-    try {
-      const loc = await getCurrentLocation();
-      if (!loc) {
-        setIsLoading(false);
-        return false;
-      }
-
-      if (mode === "FORCE_COMPLETE") {
+          if (mode === "FORCE_COMPLETE") {
         const formData = new FormData();
 
         const resolvedEmpId =
@@ -711,6 +704,17 @@ const APMTimeSheet = () => {
         formData.append("emp_id", resolvedEmpId);
         formData.append("a_id", String(aId));
         formData.append("call_mode", "FORCE_COMPLETE");
+        if (data.file) {
+          formData.append("submitted_file", data.file);
+        }
+        if (data.remarks) {
+        formData.append("remarks",data.remarks);}
+
+        Object.entries(extraFields).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            formData.append(key, value);
+          }
+        });
 
         try {
       //     for (let [key, value] of formData.entries()) {
@@ -739,6 +743,14 @@ const APMTimeSheet = () => {
         } finally {
           setIsLoading(false);
         }
+      }
+
+
+    try {
+      const loc = await getCurrentLocation();
+      if (!loc) {
+        setIsLoading(false);
+        return false;
       }
 
       const { apiDate: defaultApiDate, currentTime } = getCurrentDateTimeDefaults();
@@ -984,24 +996,24 @@ const APMTimeSheet = () => {
       return;
     }
 
-    if (type === "force_complete") {
-      setConfirmPopup({
-        isOpen: true,
-        title: "Force Complete",
-        message: "Are you sure you want to complete this activity?",
-        onConfirm: async () => {
-          await handleActivitySubmit({
-            project,
-            mode: "FORCE_COMPLETE"
-          });
-          await onRefresh();
-          setConfirmPopup((p) => ({ ...p, isOpen: false }));
-        }
-      });
-      return;
-    }
+    // if (type === "force_complete") {
+    //   setConfirmPopup({
+    //     isOpen: true,
+    //     title: "Force Complete",
+    //     message: "Are you sure you want to complete this activity?",
+    //     onConfirm: async () => {
+    //       await handleActivitySubmit({
+    //         project,
+    //         mode: "FORCE_COMPLETE"
+    //       });
+    //       await onRefresh();
+    //       setConfirmPopup((p) => ({ ...p, isOpen: false }));
+    //     }
+    //   });
+    //   return;
+    // }
 
-    if (["continue", "complete", "checkout_yesterday", "update_retainer"].includes(type)) {
+    if (["continue", "complete", "checkout_yesterday", "update_retainer", "force_complete"].includes(type)) {
       setSelectedProject({ ...project, modalContext: { type }, retainer });
       setIsFormModalOpen(true);
     }
@@ -1011,7 +1023,7 @@ const APMTimeSheet = () => {
     const { extraFields = {}, ...dataWithoutExtraFields } = formData;
     return handleActivitySubmit({
       project: selectedProject,
-      mode: "UPDATE",
+      mode: formData.mode === "FORCE_COMPLETE" ? "FORCE_COMPLETE" :"UPDATE",
       data: dataWithoutExtraFields,
       extraFields,
     }).then(async (success) => {

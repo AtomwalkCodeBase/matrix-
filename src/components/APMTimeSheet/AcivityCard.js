@@ -418,7 +418,7 @@ export const AuditCard = ({
   const document_required = project?.original_P?.is_file_applicable; 
   const document_uploaded = project?.original_A?.submitted_file;
 
-  // console.log("project", JSON.stringify(project))
+  // console.log("project", project.project_period_status !== "Completed" && !project?.hasPendingCheckout)
 
   return (
     <View style={styles.card}>
@@ -518,7 +518,7 @@ export const AuditCard = ({
                 ))}
               </View>
             </ScrollView>
-              {project.project_period_status !== "Completed" &&<TouchableOpacity
+              {(project.project_period_status !== "Completed" && !project?.hasPendingCheckout) &&<TouchableOpacity
                 style={[styles.btn, styles.successBtn, {marginTop: 10}]}
                 onPress={() => onAction({ type: 'force_complete', project })}
               >

@@ -110,7 +110,8 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                 date: dateToUse,
                 endTime: isPendingCheckout ? getCurrentTime() : parseTimeToDate(getCurrentTime()),
                 noOfItems: isRetainer ? String(isRetainer?.no_of_items) : "0",
-                noOfResource: String(formattedResources.length)
+                noOfResource: String(formattedResources.length),
+                remarks: "",
             }));
             setFileUri(null);
             setFileName("");
@@ -320,6 +321,30 @@ const handleOpenResourceModal = () => {
         onClose();
     };
 
+    const handleForceComplete = () => {
+             const file =
+            fileUri
+                ? {
+                    uri: fileUri,
+                    name: fileName || "upload.jpg",
+                    type: fileMimeType || "image/jpeg",
+                }
+                : null;
+            let payload = {
+                ...formData,
+                file,
+                mode: "FORCE_COMPLETE",
+            };
+
+            payload = buildPayload(payload);
+            // console.log("DATA_CORRECT Payload:", payload);
+            onSubmitActivity(payload);
+
+        onClose();
+    };
+
+    
+
     const handleMarkComplete = () => {
         if (!isValid) return;
         const expected = Number(formData.noOfResource || 0);
@@ -377,7 +402,7 @@ const handleOpenResourceModal = () => {
         return (
             <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
-                    {isPendingCheckout ? "Pending Checkout" : "Activity Checkout"}
+                    {contextType === "force_complete" ? "Mark Complete" : isPendingCheckout ? "Pending Checkout" : "Activity Checkout"}
                 </Text>
                 <TouchableOpacity onPress={onClose}>
                     <Ionicons name="close" size={24} color="#666" />
@@ -416,8 +441,8 @@ const handleOpenResourceModal = () => {
                                     cDate={formData.date}
                                     setCDate={(date) => setFormData(prev => ({ ...prev, date }))}
                                     maximumDate={new Date()}
-                                    // disable={Boolean(isExecutive) || contextType === "update_retainer" || !contextType === "checkout_yesterday"}
-                                    disable={isExecutive || isRetainerUpdate}
+                                    // disable={isExecutive || isRetainerUpdate || contextType === "checkout_yesterday"}
+                                    disable={!(contextType === "checkout_yesterday") && (isExecutive || isRetainerUpdate)}
                                 />
                             </View>
 
@@ -428,10 +453,10 @@ const handleOpenResourceModal = () => {
                                     setCDate={(value) =>
                                         setFormData(prev => ({ ...prev, endTime: value }))
                                     }
-                                disable={Boolean(isExecutive) || contextType === "update_retainer" }
+                                disable={!(contextType === "checkout_yesterday") && (isExecutive || isRetainerUpdate)}
                                 />
                             </View>
-                            <View style={styles.formGroup}>
+                            {contextType !== "force_complete" && <View style={styles.formGroup}>
                                 <AmountInput
                                     label="Number of Items Audited *"
                                     placeholder="Enter item number"
@@ -440,7 +465,7 @@ const handleOpenResourceModal = () => {
                                         setFormData(prev => ({ ...prev, noOfItems: value }))
                                     }
                                 />
-                            </View>
+                            </View>}
                             {isRetainer && <View style={styles.formGroup}>
                                 <AmountInput
                                     label="Number of Resources *"
@@ -513,7 +538,20 @@ const handleOpenResourceModal = () => {
                             {/* BUTTONS */}
                             <View style={styles.buttonRow}>
 
-                                {isPendingCheckout ? (
+                                {contextType === "force_complete" ? 
+                                 <TouchableOpacity
+                                            style={[
+                                                styles.button,
+                                                styles.applyButton,
+                                                !isValid && styles.disabledButton
+                                            ]}
+                                            disabled={!isValid}
+                                            onPress={handleForceComplete}
+                                        >
+                                            <Text style={styles.applyButtonText}>Mark as Complete</Text>
+                                        </TouchableOpacity>
+                                
+                                : isPendingCheckout ? (
                                     <>
                                         <TouchableOpacity
                                             style={[

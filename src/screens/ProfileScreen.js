@@ -116,13 +116,6 @@ const ProfileScreen = () => {
             {/* Action Buttons in Top Right */}
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity
-                style={[styles.actionButtonSmall, styles.qrButton]}
-                onPress={() => router.push('IdCard')}>
-                {/* < size={24} color="#a970ff" /> */}
-                <MaterialIcons name="contact-page" size={20} color={colors.primary} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
                 style={[styles.actionButtonSmall, styles.editButton]}
                 onPress={handlePressPassword}>
                 <MaterialIcons name="lock" size={20} color="#3498db" />
@@ -143,47 +136,26 @@ const ProfileScreen = () => {
               <InfoRow
                 icon="badge"
                 label="Employee ID"
-                value={profile?.emp_id || 'EMP-007'}
+                value={profile?.emp_id || 'EMP ID Not Found'}
               />
               <InfoRow
                 icon="business"
                 label="Department"
                 value={profile?.department_name || 'BLR OFFICE'}
               />
-              {profile?.date_of_join &&
-                <InfoRow
-                  icon="date-range"
-                  label="Date of Joining"
-                  value={formatDate(profile?.date_of_join)}
-                />}
 
             </View>
 
             {/* Contact Information Section */}
-            <View style={styles.section}>
+           {profile?.mobile_number && <View style={styles.section}>
               <Text style={styles.sectionHeader}>CONTACT INFORMATION</Text>
-
               <InfoRow
-                icon="mail"
-                label="Email"
-                value={profile?.email_id || 'mail@gmail.com'}
-              />
-              {profile?.mobile_number && <InfoRow
                 icon="phone"
                 label="Mobile"
                 value={profile?.mobile_number}
-              />}
-            </View>
-
-            {/* Leave Information */}
-            <View style={styles.section}>
-              <Text style={styles.sectionHeader}>LEAVE INFORMATION</Text>
-              <InfoRow
-                icon="event-available"
-                label="Total Leaves"
-                value={profile?.max_no_leave || 17}
               />
-            </View>
+            </View>}
+       
             {/* Bio Matric switch */}
 
             <View style={styles.section}>
