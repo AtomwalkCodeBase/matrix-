@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Animated, ScrollView, KeyboardAvoidingView, Platform} from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, Animated, ScrollView, KeyboardAvoidingView, Platform, BackHandler } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from "expo-router";
 import { MaterialIcons } from '@expo/vector-icons';
@@ -20,21 +20,52 @@ const ResetPasswordScreen = () => {
   const [isFocusedConfirm, setIsFocusedConfirm] = useState(false);
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // const [isMandatoryReset, setIsMandatoryReset] = useState(false);
+  const [isMandatoryReset, setIsMandatoryReset] = useState(false);
 
   const shakeAnim = new Animated.Value(0);
   const router = useRouter();
 
+  // Check if this is a mandatory reset (user has default PIN 9999)
+  useEffect(() => {
+    const checkDefaultPin = async () => {
+      try {
+        const userPin = await AsyncStorage.getItem('userPin');
+        if (userPin === '9999') {
+          setIsMandatoryReset(true);
+        }
+      } catch (error) {
+        console.error('Error checking default PIN:', error);
+      }
+    };
+    checkDefaultPin();
+  }, []);
+
+  // Handle hardware back button on Android for mandatory reset
+  useEffect(() => {
+    if (isMandatoryReset) {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        Alert.alert(
+          'PIN Update Required',
+          'You must update your default PIN to continue using the app.',
+          [{ text: 'OK' }]
+        );
+        return true; // Prevent default back behavior
+      });
+
+      return () => backHandler.remove();
+    }
+  }, [isMandatoryReset]);
+
   const handleCancel = async () => {
-    // if (isMandatoryReset) {
-    //   Alert.alert(
-    //     'PIN Update Required',
-    //     'You must update your default PIN to continue using the app.',
-    //     [{ text: 'OK' }]
-    //   );
-    // } else {
-    router.back();
-    // }
+    if (isMandatoryReset) {
+      Alert.alert(
+        'PIN Update Required',
+        'You must update your default PIN to continue using the app.',
+        [{ text: 'OK' }]
+      );
+    } else {
+      router.back();
+    }
   };
 
   const triggerShake = () => {
@@ -90,14 +121,20 @@ const ResetPasswordScreen = () => {
         return;
       }
 
+      // Add validation for default PIN '9999'
+      if (newPin === '9999') {
+        setErrorMessage('Cannot set PIN to default value (9999). Please choose a different PIN.');
+        triggerShake();
+        setIsLoading(false);
+        return;
+      }
+
       const response = await setUserPinView(oldPin, newPin, employeeId);
 
       if (response && response.status) {
         await AsyncStorage.setItem('userPin', newPin);
         setIsLoading(false);
         setIsSuccessModalVisible(true);
-        // setIsMandatoryReset(false); // Reset mandatory flag after successful update
-        // router.push({ pathname: 'home' });
       } else {
         const errorMsg = response?.message || 'Failed to update PIN. Please try again.';
         setErrorMessage(errorMsg);
@@ -124,7 +161,8 @@ const ResetPasswordScreen = () => {
     <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
       <HeaderComponent
         headerTitle="Update Your PIN"
-        onBackPress={()=>router.back()}
+        onBackPress={handleCancel}
+        showBackButton={!isMandatoryReset} // This assumes your HeaderComponent accepts this prop
       /> 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -142,7 +180,9 @@ const ResetPasswordScreen = () => {
                 Update Your PIN
               </Text>
               <Text style={styles.subtitle}>
-                Change the secure PIN for your account
+                {isMandatoryReset 
+                  ? "You must update your default PIN to continue using the app."
+                  : "Change the secure PIN for your account"}
               </Text>
             </View>
 
@@ -236,7 +276,8 @@ const ResetPasswordScreen = () => {
                 <MaterialIcons name="arrow-forward" size={20} color={colors.white} />
               </TouchableOpacity>
               
-              
+              {/* Only show cancel button if not mandatory reset */}
+              {!isMandatoryReset && (
                 <TouchableOpacity 
                   style={styles.cancelButton}
                   onPress={handleCancel}
@@ -244,7 +285,7 @@ const ResetPasswordScreen = () => {
                 >
                   <Text style={styles.cancelText}>Cancel</Text>
                 </TouchableOpacity>
-              
+              )}
             </View>
 
             <View style={styles.securityNote}>
@@ -271,7 +312,11 @@ const ResetPasswordScreen = () => {
         visible={isSuccessModalVisible}
         onClose={() => {
           setIsSuccessModalVisible(false);
-          router.back()
+          if (isMandatoryReset) {
+            router.replace('home'); // Use replace for mandatory reset
+          } else {
+            router.back();
+          }
         }}
         message="Your PIN has been updated successfully."
       />

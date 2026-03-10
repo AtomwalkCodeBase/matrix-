@@ -3,6 +3,7 @@ import React, { useContext } from 'react'
 import { AppContext } from '../../context/AppContext';
 import HomeScreen from '../../src/screens/HomeScreen';
 import FingerPopup from '../../src/screens/FingerPopup';
+import PinPopup from '../../src/screens/PinPopup';
 const home = () => {
   const { state } = useContext(AppContext);
 
@@ -10,6 +11,7 @@ const home = () => {
     <View style={{flex: 1}}>
       <HomeScreen/>
       <FingerPopup/>
+      <PinPopup/>
     </View>
   )
 }
