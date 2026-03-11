@@ -22,7 +22,7 @@ const ExpenseScreen = () => {
   const [selectedOrderItemId, setSelectedOrderItemId] = useState(null);
   const [dateRange, setDateRange] = useState(() => getMonthRange({ type: "current" }));
   const [activeTab, setActiveTab] = useState('planned');
-  const [modalItem, setModalItem] = useState(null);
+  const [modalItem, setModalItem] = useState({});
   const [expenseItems, setExpenseItems] = useState([]);
    const [isLoading, setIsLoading] = useState(false);
    const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -64,6 +64,10 @@ useEffect(() => {
 
       setPlannedItems(plannedRes.data || []);
       setActualItems(actualRes.data || []);
+      
+
+      // console.log(plannedRes.data)
+      // console.log(actualRes.data)
     } catch (err) {
       setErrorMessage('Failed to fetch expense item data. try again later!!!')
     setShowErrorModal(true)
@@ -145,6 +149,8 @@ const flatCustomerOptions = allCustomer.flatMap(c =>
 );
 
  const handleSubmit = async (formData) => {
+  // console.log("button clickec", formData)
+  setModalItem(null); 
 
   setIsLoading(true);
 
@@ -152,7 +158,7 @@ const flatCustomerOptions = allCustomer.flatMap(c =>
       const payload = {
         "exp_data": {
           "order_item_id": formData.item.order_item_id,
-          "call_mode": activeTab === "plannedItem" ? "ADD" : "UPDATE",
+          "call_mode": formData.mode,
           "exp_allocation_list": [
             {
               "project_id": formData?.item?.project_id,
@@ -167,22 +173,27 @@ const flatCustomerOptions = allCustomer.flatMap(c =>
         }
       };
       // console.log('Form submitted:', payload);
-      const res =  postExpensePlannedItem(payload);
+      const res =  await postExpensePlannedItem(payload);
+      // const res = {status: 200}
       if (res?.status === 200) {
-        setSuccessMessage(activeTab === "planned" ?  `${formData?.item?.item_name} Successfully added in actual` : `${formData?.item?.item_name} Successfully updated`)
-       await fetchPlannedAndActual(orderItemId);
+         setShowErrorModal(false);
+        setSuccessMessage(formData.mode === "ADD" ?  `${formData?.item?.item_name} Successfully added in actual` : `${formData?.item?.item_name} Successfully updated`)
+        setShowSuccessModal(true);
+        await fetchPlannedAndActual(formData.item.order_item_id);
       return true
     }
     
   } catch (error) {
+    setModalItem(null);
     setErrorMessage("Something went wrong. Please try again later!!!")
     setShowErrorModal(true)
-    setModalItem(null);
   }finally{
     setIsLoading(false)
   }
   //  console.log('Submitted:', formData);
  };
+
+ const actualItemIds = new Set((actualItems || []).map(item => item.item_id));
 
 
   return (
@@ -238,15 +249,19 @@ const flatCustomerOptions = allCustomer.flatMap(c =>
           <Text style={styles.sectionTitle}>Planned Items</Text>
 
           {plannedItems.length > 0 ? (
-            plannedItems.map((item) => (
-              <ItemRow
-                key={`planned-${item.id}`}
-                item={item}
-                onFillPress={() => setModalItem(item)}
-                actionButtonShow={true}
-                activeTab="planned"
-              />
-            ))
+            plannedItems.map((item) => {
+              const alreadyAdded = actualItemIds.has(item.item_id);
+
+              return (
+                <ItemRow
+                  key={`planned-${item.id}`}
+                  item={item}
+                  mode="ADD"
+                  onFillPress={() => setModalItem({ ...item, mode: "ADD" })}
+                  actionButtonShow={!alreadyAdded}
+                />
+              );
+            })
           ) : (
             <Text style={styles.emptyText}>
               No planned items available
@@ -261,9 +276,9 @@ const flatCustomerOptions = allCustomer.flatMap(c =>
               <ItemRow
                 key={`actual-${item.id}`}
                 item={item}
-                onFillPress={() => setModalItem(item)}
+                mode="UPDATE"
+                onFillPress={() => setModalItem({ ...item, mode: "UPDATE" })}
                 actionButtonShow={true}
-                activeTab="actual"
               />
             ))
           ) : (
@@ -299,7 +314,7 @@ const flatCustomerOptions = allCustomer.flatMap(c =>
         message={successMessage}
         onClose={() => {
           setShowSuccessModal(false);
-          setActiveTab(activeTab);
+          // setActiveTab(activeTab);
         }}
       />
 
@@ -314,7 +329,9 @@ const flatCustomerOptions = allCustomer.flatMap(c =>
 
 export default ExpenseScreen
 
-export const ItemRow = ({ item, onFillPress, actionButtonShow = false, activeTab }) => {
+export const ItemRow = ({ item, onFillPress, actionButtonShow = false, activeTab, mode }) => {
+
+  const isAdd = mode === "ADD";
   
   return(
 
@@ -335,13 +352,13 @@ export const ItemRow = ({ item, onFillPress, actionButtonShow = false, activeTab
       <View style={styles.metaDivider} />
       <View style={styles.metaItem}>
         <Text style={styles.metaLabel}>Days</Text>
-        <Text style={styles.metaValue}>{item.allocation_days}</Text>
+        <Text style={styles.metaValue}>{item.allocation_days || 0}</Text>
       </View>
     </View>
 
    { actionButtonShow && <TouchableOpacity style={styles.fillBtn} onPress={onFillPress}>
-     {activeTab === "planned" ?  <Entypo name="plus"  size={16} color={colors.white} /> : <FontAwesome6 name="pen-to-square" size={16} color={colors.white} />}
-      <Text style={styles.fillBtnText}>{activeTab === "planned" ? "Add Actual Expense" : "Update Expense"}</Text>
+     {isAdd ?  <Entypo name="plus"  size={16} color={colors.white} /> : <FontAwesome6 name="pen-to-square" size={16} color={colors.white} />}
+      <Text style={styles.fillBtnText}>{isAdd ? "Add Actual Expense" : "Update Expense"}</Text>
     </TouchableOpacity>}
   </View>
 )};
@@ -350,7 +367,7 @@ export const ExpenseModal = ({ visible, item, onClose, onSubmit }) => {
   const [formData, setFormData] = useState({ quantity: '', days: '', date: new Date(), remark: '' });
 
   useEffect(() => {
-    if (item) setFormData({ quantity: String(item.quantity), days: String(item.allocation_days), date: item.date ? new Date(item.date) : new Date(), remark: item.remarks });
+    if (item) setFormData({ quantity: String(item.quantity), days: String(item.allocation_days || 0), date: item.date ? new Date(item.date) : new Date(), remark: item.remarks });
   }, [item]);
 
   const handleChange = (field, value) => {
@@ -420,7 +437,7 @@ export const ExpenseModal = ({ visible, item, onClose, onSubmit }) => {
               <Ionicons name="close-outline" size={16} color={colors.text} />
               <Text style={[styles.btnText, styles.btnCancelText]}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, styles.btnSubmit]} onPress={() => onSubmit({...formData,item})}>
+            <TouchableOpacity style={[styles.btn, styles.btnSubmit]} onPress={() => onSubmit({...formData,item, mode: item.mode})}>
               <Ionicons name="checkmark-outline" size={16} color={colors.white} />
               <Text style={styles.btnText}>Submit</Text>
             </TouchableOpacity>
