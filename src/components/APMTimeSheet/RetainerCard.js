@@ -85,12 +85,13 @@ const RetainerCard = ({
     }
 
     // Check if retainer activity is completed
-    const isCompleted = retainerProject?.original_A?.status !== "N";
+  const isCompleted = retainerProject?.original_A?.status && retainerProject?.original_A?.status !== "N";
     const hasSession = hasOpenSession();
     const todaysStatus = retainerProject.todaysStatus || "Planned";
     const hasPendingCheckout = retainerProject.hasPendingCheckout === true;
 
-    // console.log("retainerProject", parentProject)
+    // console.log("retainerProject", retainerProject)
+    // console.log("isCompleted", retainerProject?.original_A)
 
     // 1. If activity is completed
     if (isCompleted) {

@@ -234,10 +234,11 @@ const handleOpenResourceModal = () => {
             payload.endTime = `${displayHours}:${minutes} ${ampm}`;
         }
 
-        if (resourceList) {
+        if (resourceList || payload.noOfResource) {
             payload.extraFields = {
                 ...(payload.extraFields || {}),
-                resource_list: resourceList
+                resource_list: resourceList,
+                no_of_resource: payload.noOfResource
             };
         }
         if (contextType !== "checkout_yesterday") return payload;
