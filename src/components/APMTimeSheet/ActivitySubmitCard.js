@@ -71,7 +71,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
     const plannedEndDate = editingTask?.planned_end_date;
     const isTodayPlannedEnd = plannedEndDate <= todayApiPlanned;
-    console.log(isTodayPlannedEnd ? "*" : "u")
+    // console.log(isTodayPlannedEnd ? "*" : "u")
     // console.log(editingTask.planned_end_date)
     // console.log(todayApiPlanned)
 
