@@ -70,7 +70,10 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     const todayApiPlanned = `${dd}-${mon}-${yyyy}`;
 
     const plannedEndDate = editingTask?.planned_end_date;
-    const isTodayPlannedEnd = plannedEndDate === todayApiPlanned;
+    const isTodayPlannedEnd = plannedEndDate <= todayApiPlanned;
+    console.log(isTodayPlannedEnd ? "*" : "u")
+    // console.log(editingTask.planned_end_date)
+    // console.log(todayApiPlanned)
 
     const [formData, setFormData] = useState({
         date: getToday(),
@@ -520,7 +523,7 @@ const handleOpenResourceModal = () => {
                             {contextType !== "update_retainer" &&
                                 <View style={styles.formGroup}>
                                     <RemarksInput
-                                        label="Remarks"
+                                        labelFiled={`Remarks${isTodayPlannedEnd ? "*" : ""}`}
                                         remark={formData.remarks}
                                         setRemark={(v) =>
                                             setFormData(prev => ({ ...prev, remarks: v }))
