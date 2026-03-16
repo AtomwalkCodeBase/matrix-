@@ -90,10 +90,6 @@ export const getfiletotext = async () => {
   const db_name = await getDbName();
   return `${endpoint}/get_file_to_text/${db_name}/`;
 };
-export const processAppointee = async () => {
-  const db_name = await getDbName();
-  return `${newendpoint}/process_employee_job/${db_name}/`;
-};
 export const getEmployeeRequestList = async () => {
   const db_name = await getDbName();
   return `${newendpoint}/get_employee_request/${db_name}/`;

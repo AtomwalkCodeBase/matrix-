@@ -1,4 +1,4 @@
-import { addEmpLeave, getEmpLeavedata, addClaim, getEmpClaimdata, getExpenseItemList, getProjectList, getEmpAttendanceData, getEmpHolidayData, empCheckData, processClaim, getClaimApproverList, getfiletotext, processAppointee, getEmployeeRequestList, getEmployeeRequestCategory, processEmployeeRequest, getEventResponse, processEventRes, getEventtList, setUserPinURL, forgetEmpPinURL, getEmpShiftData, getTrainingModuleData, getEmpTrainingListData, processEmpTraining, getTimeSheetList, getactivityList, getProjectLists, addTimesheet, profileDtlURL, validateApproveLimit, getEmployeeTravelList, getTravelMode, postTravelRequest, getAllocation, processAllocation, getExpensePlannedItemList, processExpensePlannedItemList } from "../services/ConstantServies";
+import { addEmpLeave, getEmpLeavedata, addClaim, getEmpClaimdata, getExpenseItemList, getProjectList, getEmpAttendanceData, getEmpHolidayData, empCheckData, processClaim, getClaimApproverList, getfiletotext, getEmployeeRequestList, getEmployeeRequestCategory, processEmployeeRequest, getEventResponse, processEventRes, getEventtList, setUserPinURL, forgetEmpPinURL, getEmpShiftData, getTrainingModuleData, getEmpTrainingListData, processEmpTraining, getTimeSheetList, getactivityList, getProjectLists, addTimesheet, profileDtlURL, validateApproveLimit, getEmployeeTravelList, getTravelMode, postTravelRequest, getAllocation, processAllocation, getExpensePlannedItemList, processExpensePlannedItemList } from "../services/ConstantServies";
 import { authAxios, authAxiosFilePost, authAxiosPost, publicAxiosRequest } from "./HttpMethod";
 
 export async function getEmpLeave(leave_type, emp_id) {
@@ -114,15 +114,6 @@ export async function postEmpLeave(leave_type) {
     data = Uri
     const url = await getfiletotext();
     return authAxiosFilePost(url, data);
-  }
-
-  export async function postAppointee(res) {
-    let data = {};
-    if (res) {
-      data['emp_data'] = res;
-    }
-    const url = await processAppointee();
-    return authAxiosPost(url, data);  
   }
 
   export async function getEmployeeRequest() { 
@@ -299,14 +290,11 @@ export async function getAllocationList(empId, mEmpId, startDate, endDate) {
     data.emp_id = empId;
   }
   const url = await getAllocation();
-  console.log("Data to be passed --", data);
-  
   return authAxios(url, data);
 }
 
 export async function getExpensePlannedItem(data) {
   const url = await getExpensePlannedItemList();
-  // console.log("Data to be passed --", data);
   return authAxios(url, data)
 }
 

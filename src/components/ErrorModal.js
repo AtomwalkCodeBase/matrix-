@@ -104,13 +104,6 @@ const ButtonText = styled.Text`
   font-family: ${Platform.OS === 'ios' ? 'SF Pro Text' : 'sans-serif-medium'};
 `;
 
-const ErrorCode = styled(Animated.Text)`
-  font-size: 12px;
-  color: #999;
-  margin-top: 16px;
-  font-family: ${Platform.OS === 'ios' ? 'SF Mono' : 'monospace'};
-`;
-
 const ErrorModal = ({ visible, label = "Error", message, onClose, onRetry }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
