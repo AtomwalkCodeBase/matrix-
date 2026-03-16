@@ -96,18 +96,18 @@ const RetainerCard = ({
     // 1. If activity is completed
     if (isCompleted) {
       return (
-         <View style={{gap: 10}}>
-        <View style={[styles.btn, styles.disabledBtn]}>
-          <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Activity Completed</Text>
-        </View>
-       {!parentProject.complete && <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn]}
-        onPress={() => onAction({ type: 'update_retainer', project: retainerProject, retainer })}
-      >
-        <FontAwesome6 name="pen-to-square" size={16} color="#fff" />
-        <Text style={styles.btnText}>Update Activity</Text>
-      </TouchableOpacity>}
+        <View style={{ gap: 10 }}>
+          <View style={[styles.btn, styles.disabledBtn]}>
+            <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+            <Text style={styles.btnText}>Activity Completed</Text>
+          </View>
+          {!parentProject.complete && <TouchableOpacity
+            style={[styles.btn, styles.primaryBtn]}
+            onPress={() => onAction({ type: 'update_retainer', project: retainerProject, retainer })}
+          >
+            <FontAwesome6 name="pen-to-square" size={16} color="#fff" />
+            <Text style={styles.btnText}>Update Activity</Text>
+          </TouchableOpacity>}
         </View>
       );
     }
@@ -138,13 +138,6 @@ const RetainerCard = ({
         <TouchableOpacity
           style={[styles.btn, styles.completeBtn]}
           onPress={() => onAction({ type: 'continue', project: retainerProject, retainer })}
-          // onPress={() => onAction && onAction({ 
-          //   type: 'continue', 
-          //   retainer: {
-          //     ...retainer,
-          //     fullData: retainerProject
-          //   }
-          // })}
         >
           <Ionicons name="log-out-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Complete Activity</Text>
@@ -260,10 +253,10 @@ const RetainerCard = ({
       </View>
 
       {/* Activity Button Section */}
-    {!parentProject?.complete && parentProject?.todaysStatus === "Active" &&
-      <View style={styles.activityButtonSection}>
-        {renderRetainerActivityButton()}
-      </View>}
+      {!parentProject?.complete &&
+        <View style={styles.activityButtonSection}>
+          {renderRetainerActivityButton()}
+        </View>}
 
       {retainer.error && (
         <Text style={styles.errorText}>{retainer.error}</Text>

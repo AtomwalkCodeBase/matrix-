@@ -16,6 +16,7 @@ import ErrorModal from '../ErrorModal';
 const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout = false, onSubmitActivity, onCompleteActivity }) => {
     const [resourceModalVisible, setResourceModalVisible] = useState(false);
     const [retainerInputs, setRetainerInputs] = useState([]);
+    const [tempRetainerInputs, setTempRetainerInputs] = useState([]);
     const { profile } = useContext(AppContext);
     const insets = useSafeAreaInsets();
     const [showErrorModal, setShowErrorModal] = useState(false)
@@ -26,19 +27,9 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
     const contextType = editingTask?.modalContext?.type;
     const isRetainerUpdate = editingTask?.modalContext?.type === "update_retainer";
-    const hasExistingResources = retainerInputs.length > 0;
-    
-    // console.log("isRetainerUpdate", contextType)
-    // const { todayISO, dayLogKey: todayDayLogKey, apiDate: todayApiDate, currentTime } = getCurrentDateTimeDefaults()
-
-    // console.log("todayISO", todayISO)
-    // console.log("todayDayLogKey", todayDayLogKey)
-    // console.log("todayApiDate", todayApiDate)
-    // console.log("currentTime", currentTime)
-
+    const hasExistingResources = retainerInputs.filter(v => v.name?.trim() && v.items?.toString().trim()).length > 0;
 
     const getToday = () => new Date();
-
 
     const getCurrentTime = () => {
         const now = new Date();
@@ -71,9 +62,6 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
     const plannedEndDate = editingTask?.planned_end_date;
     const isTodayPlannedEnd = plannedEndDate <= todayApiPlanned;
-    // console.log(isTodayPlannedEnd ? "*" : "u")
-    // console.log(editingTask.planned_end_date)
-    // console.log(todayApiPlanned)
 
     const [formData, setFormData] = useState({
         date: getToday(),
@@ -102,11 +90,15 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             }
 
             // Check if resource_list exists and is an array
-           const existingResourceList =isRetainer?.fullData?.original_A?.resource_list || [];
-
-        //    console.log("existingResourceList", isRetainer)
-        //    const existingResourceList =['ram', 'hari'];
-            const formattedResources = existingResourceList.map(res =>typeof res === "string" ? res : res?.name || "");
+            const existingResourceList = isRetainer?.fullData?.original_A?.resource_list || [];
+            //    const existingResourceList =['ram^20', 'hari^40'];
+            const formattedResources = existingResourceList.map(res => {
+                const [name, items] = res.split("^");
+                return {
+                    name: name || "",
+                    items: items || ""
+                };
+            });
 
             setFormData(prev => ({
                 ...prev,
@@ -128,6 +120,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     // --------------------------
     const isValid = useMemo(() => {
         const { date, endTime, remarks } = formData;
+        const hasSubmittedFile = !!(editingTask?.original_A?.submitted_file);
 
         if (!date || !endTime) return false;
 
@@ -135,13 +128,13 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
             if (!remarks) return false;
 
-            if (editingTask?.original_P?.is_file_applicable && !fileUri) {
+            if (editingTask?.original_P?.is_file_applicable && !hasSubmittedFile && !fileUri) {
                 return false;
             }
         }
 
         return true;
-    }, [formData, isTodayPlannedEnd, editingTask?.original_P?.is_file_applicable, fileUri]);
+    }, [formData, isTodayPlannedEnd, editingTask?.original_P?.is_file_applicable, fileUri, editingTask]);
 
     // console.log("editingTask", formData);
 
@@ -156,52 +149,37 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         return openEntry?.date || null; // e.g. "26-Feb-2026"
     };
 
-    // const openCheckInDate = getOpenCheckInDate();
-    // const todayApiFormatted = normalizeToDDMMYYYY(todayISO);
-    // const normalizedOpenDate = normalizeToDDMMYYYY(openCheckInDate);
+    const handleOpenResourceModal = () => {
 
-    // if (
-    //   (contextType === "continue" || contextType === "complete") &&
-    //   normalizedOpenDate && normalizedOpenDate !== todayApiFormatted ) {
-    //   setErrorMessage("Session started on a previous day. Please reload the screen.")
-    //   setShowErrorModal(true)
-    //   return;
-    // }
+        const count = Number(formData.noOfResource);
 
-const handleOpenResourceModal = () => {
-
-  const count = Number(formData.noOfResource);
-
-  setRetainerInputs(prev => {
-
-    let updated = [...prev];
-
-    if (count > updated.length) {
-      updated = [...updated, ...Array(count - updated.length).fill("")];
-    }
-    else if (count < updated.length) {
-      updated = updated.slice(0, count);
-    }
-
-    return updated;
-  });
-
-  setResourceModalVisible(true);
-};
-
-    const handleRetainerNameChange = (index, value) => {
         setRetainerInputs(prev => {
+
+            let updated = [...prev];
+
+            if (count > updated.length) {
+                updated = [...updated, ...Array(count - updated.length).fill({ name: "", items: "" })];
+            }
+            else if (count < updated.length) {
+                updated = updated.slice(0, count);
+            }
+
+            setTempRetainerInputs(updated);
+            return updated;
+        });
+
+        setResourceModalVisible(true);
+    };
+
+    const handleRetainerChange = (index, field, value) => {
+        setTempRetainerInputs(prev => {
             const updated = [...prev];
-            updated[index] = value;
+            updated[index] = { ...updated[index], [field]: value };
             return updated;
         });
     };
 
-    const getJoinedResources = () =>
-        retainerInputs
-            .map(v => v.trim())
-            .filter(Boolean)
-            .join("|");
+    const getJoinedResources = () => retainerInputs.filter(v => v.name && v.items).map(v => `${v.name}^${v.items}`).join("|");
 
     const formatDateToDDMMYYYY = (date) => {
         if (!date) return null;
@@ -272,12 +250,12 @@ const handleOpenResourceModal = () => {
     // --------------------------
     const handleSubmit = () => {
         const expected = Number(formData.noOfResource || 0);
-        const entered = retainerInputs.filter(v => v.trim()).length;
+        const entered = retainerInputs.filter(v => v.name?.trim() && v.items?.toString().trim()).length;
 
         if (expected && expected !== entered) {
 
             setErrorMessage(
-                `Number of resources (${expected}) must match entered resource names (${entered})`
+                `Number of resources (${expected}) entered (${entered}).\nPlease Check the name(s) or entered ${editingTask?.original_P?.product_unit ? `${editingTask?.original_P?.product_unit} Audited value` : "Number of Items Audited value"}`
             );
 
             setShowErrorModal(true);
@@ -317,16 +295,16 @@ const handleOpenResourceModal = () => {
             };
             payload = buildPayload(payload);
 
-            //   console.log("Activity Payload:", payload)
+            console.log("Activity Payload:", payload)
 
-            onSubmitActivity(payload);
+            // onSubmitActivity(payload);
         }
 
         onClose();
     };
 
     const handleForceComplete = () => {
-             const file =
+        const file =
             fileUri
                 ? {
                     uri: fileUri,
@@ -334,30 +312,30 @@ const handleOpenResourceModal = () => {
                     type: fileMimeType || "image/jpeg",
                 }
                 : null;
-            let payload = {
-                ...formData,
-                file,
-                mode: "FORCE_COMPLETE",
-            };
+        let payload = {
+            ...formData,
+            file,
+            mode: "FORCE_COMPLETE",
+        };
 
-            payload = buildPayload(payload);
-            // console.log("DATA_CORRECT Payload:", payload);
-            onSubmitActivity(payload);
+        payload = buildPayload(payload);
+        // console.log("DATA_CORRECT Payload:", payload);
+        onSubmitActivity(payload);
 
         onClose();
     };
 
-    
+
 
     const handleMarkComplete = () => {
         if (!isValid) return;
         const expected = Number(formData.noOfResource || 0);
-        const entered = retainerInputs.filter(v => v.trim()).length;
+        const entered = retainerInputs.filter(v => v.name?.trim() && v.items?.toString().trim()).length;
 
         if (expected && expected !== entered) {
 
             setErrorMessage(
-                `Number of resources (${expected}) must match entered resource names (${entered})`
+                `Number of resources (${expected}) entered (${entered}).\nPlease Check the name(s) or entered ${editingTask?.original_P?.product_unit ? `${editingTask?.original_P?.product_unit} Audited value` : "Number of Items Audited value"}`
             );
 
             setShowErrorModal(true);
@@ -383,7 +361,6 @@ const handleOpenResourceModal = () => {
         payload = buildPayload(payload);
 
         //   console.log("Complete Activity Payload:", payload)
-
         onCompleteActivity(payload);
         onClose();
     };
@@ -457,12 +434,12 @@ const handleOpenResourceModal = () => {
                                     setCDate={(value) =>
                                         setFormData(prev => ({ ...prev, endTime: value }))
                                     }
-                                disable={!(contextType === "checkout_yesterday") && (isExecutive || isRetainerUpdate)}
+                                    disable={!(contextType === "checkout_yesterday") && (isExecutive || isRetainerUpdate)}
                                 />
                             </View>
                             {contextType !== "force_complete" && <View style={styles.formGroup}>
                                 <AmountInput
-                                    label="Number of Items Audited *"
+                                    label={editingTask?.original_P?.product_unit ? `${editingTask?.original_P?.product_unit} Audited *` : "Number of Items Audited *"}
                                     placeholder="Enter item number"
                                     claimAmount={formData.noOfItems}
                                     setClaimAmount={(value) =>
@@ -475,29 +452,36 @@ const handleOpenResourceModal = () => {
                                     label="Number of Resources *"
                                     placeholder="Enter no of resource"
                                     claimAmount={formData.noOfResource}
-                                    setClaimAmount={(value) => {setFormData(prev => ({ ...prev, noOfResource: value }));}}
-                                    // setClaimAmount={handleResourceCountChange}
+                                    setClaimAmount={(value) => { setFormData(prev => ({ ...prev, noOfResource: value })); }}
+                                // setClaimAmount={handleResourceCountChange}
                                 />
+
                                 <TouchableOpacity
-                                style={[styles.button,styles.applyButton, {marginTop: 14}]}
-                                onPress={handleOpenResourceModal}
+                                    style={[
+                                        styles.button,
+                                        styles.applyButton,
+                                        { marginTop: 14 },
+                                        (!formData.noOfResource || formData.noOfResource === "0") && styles.disabledButton
+                                    ]}
+                                    disabled={!formData.noOfResource || formData.noOfResource === "0"}
+                                    onPress={handleOpenResourceModal}
                                 >
-                                <Text style={[styles.applyButtonText, { textAlign: "center" }]}>
-                                    {hasExistingResources ? "Update Resource Names" : "Add Resource Names"}
-                                </Text>
+                                    <Text style={[styles.applyButtonText, { textAlign: "center" }]}>
+                                        {hasExistingResources ? "Update Resource Names" : "Add Resource Names"}
+                                    </Text>
                                 </TouchableOpacity>
 
                             </View>
                             }
 
-                            {retainerInputs.length > 0 && (
+                            {hasExistingResources && (
                                 <View style={styles.resourceNamesDisplay}>
                                     <Text style={styles.resourceNamesLabel}>Entered Resource Names:</Text>
-                                    {retainerInputs.map((name, index) => (
-                                        name.trim() && (
+                                    {retainerInputs.map((item, index) => (
+                                        item.name?.trim() && (
                                             <View key={index} style={styles.resourceNameRow}>
                                                 <Text style={styles.resourceNameNumber}>{index + 1}.</Text>
-                                                <Text style={styles.resourceNameText}>{name}</Text>
+                                                <Text style={styles.resourceNameText}>{item.name} ({item.items} items)</Text>
                                             </View>
                                         )
                                     ))}
@@ -515,7 +499,7 @@ const handleOpenResourceModal = () => {
                             )}
 
 
-                            {editingTask?.original_P?.is_file_applicable && (
+                            {editingTask?.original_P?.is_file_applicable && !(editingTask?.original_A?.submitted_file) && (
                                 <Text style={{ color: "red", fontSize: 12, marginTop: 5 }}>
                                     File upload is mandatory for this activity.
                                 </Text>
@@ -542,91 +526,32 @@ const handleOpenResourceModal = () => {
                             {/* BUTTONS */}
                             <View style={styles.buttonRow}>
 
-                                {contextType === "force_complete" ? 
-                                 <TouchableOpacity
-                                            style={[
-                                                styles.button,
-                                                styles.applyButton,
-                                                !isValid && styles.disabledButton
-                                            ]}
-                                            disabled={!isValid}
-                                            onPress={handleForceComplete}
-                                        >
-                                            <Text style={styles.applyButtonText}>Mark as Complete</Text>
-                                        </TouchableOpacity>
-                                
-                                : isPendingCheckout ? (
-                                    <>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.button,
-                                                styles.applyButton,
-                                                !isValid && styles.disabledButton,
-                                                { paddingHorizontal: 10 },
-                                            ]}
-                                            disabled={!isValid}
-                                            onPress={handleSubmit}
-                                        >
-                                            <Text style={[styles.applyButtonText, { textAlign: "center" }]}>Checkout For Yesterday</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={[
-                                                styles.button,
-                                                styles.applyButton,
-                                                !isValid && styles.disabledButton
-                                            ]}
-                                            disabled={!isValid}
-                                            onPress={handleMarkComplete}
-                                        >
-                                            <Text style={[styles.applyButtonText, { textAlign: "center" }]}>Completed</Text>
-                                        </TouchableOpacity>
-                                    </>
+                                {contextType === "force_complete" ?
+                                    <TouchableOpacity
+                                        style={[
+                                            styles.button,
+                                            styles.applyButton,
+                                            !isValid && styles.disabledButton
+                                        ]}
+                                        disabled={!isValid}
+                                        onPress={handleForceComplete}
+                                    >
+                                        <Text style={styles.applyButtonText}>Mark as Complete</Text>
+                                    </TouchableOpacity>
 
-                                ) : editingTask?.retainer ?
-                                    <>
-                                        {contextType !== "update_retainer" && <TouchableOpacity
-                                            style={[
-                                                styles.button,
-                                                styles.applyButton,
-                                                !isValid && styles.disabledButton
-                                            ]}
-                                            disabled={!isValid}
-                                            onPress={handleMarkComplete}
-                                        >
-                                            <Text style={styles.applyButtonText}>Mark as Complete</Text>
-                                        </TouchableOpacity>}
-
-                                        {contextType === "update_retainer" && <TouchableOpacity
-                                            style={[
-                                                styles.button,
-                                                styles.applyButton,
-                                            ]}
-                                            // disabled={!isValid}
-                                            onPress={handleSubmit}
-                                        >
-                                            <Text style={styles.applyButtonText}>Update</Text>
-                                        </TouchableOpacity>}
-                                    </>
-                                    : isTodayPlannedEnd ? (
+                                    : isPendingCheckout ? (
                                         <>
                                             <TouchableOpacity
                                                 style={[
                                                     styles.button,
-                                                    styles.clearButton,
-                                                    !isValid && styles.disabledButton
+                                                    styles.applyButton,
+                                                    !isValid && styles.disabledButton,
+                                                    { paddingHorizontal: 10 },
                                                 ]}
                                                 disabled={!isValid}
-                                                onPress={() => {
-                                                    if (isTodayPlannedEnd && !formData.remarks) {
-                                                        setRemarkError("Remarks are mandatory when pausing an activity.");
-                                                        return;
-                                                    }
-                                                    setRemarkError("");
-                                                    handleSubmit();
-                                                }}
-
+                                                onPress={handleSubmit}
                                             >
-                                                <Text style={styles.clearButtonText}>Pause Activity</Text>
+                                                <Text style={[styles.applyButtonText, { textAlign: "center" }]}>Checkout For Yesterday</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 style={[
@@ -637,43 +562,102 @@ const handleOpenResourceModal = () => {
                                                 disabled={!isValid}
                                                 onPress={handleMarkComplete}
                                             >
-                                                <Text style={styles.applyButtonText}>Completed</Text>
+                                                <Text style={[styles.applyButtonText, { textAlign: "center" }]}>Completed</Text>
                                             </TouchableOpacity>
                                         </>
-                                    ) : (
+
+                                    ) : editingTask?.retainer ?
                                         <>
-                                            <TouchableOpacity
-                                                style={[
-                                                    styles.button,
-                                                    styles.clearButton,
-                                                    !isValid && styles.disabledButton
-                                                ]}
-                                                disabled={!isValid}
-                                                onPress={handleMarkComplete}
-                                            >
-                                                <Text style={styles.clearButtonText}>Completed</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
+                                            {contextType !== "update_retainer" && <TouchableOpacity
                                                 style={[
                                                     styles.button,
                                                     styles.applyButton,
                                                     !isValid && styles.disabledButton
                                                 ]}
                                                 disabled={!isValid}
-                                                onPress={() => {
-                                                    if (isTodayPlannedEnd && !formData.remarks) {
-                                                        setRemarkError("Remarks are required.");
-                                                        return;
-                                                    }
-                                                    setRemarkError("");
-                                                    handleSubmit();
-                                                }}
-
+                                                onPress={handleMarkComplete}
                                             >
-                                                <Text style={styles.applyButtonText}>Pause Activity</Text>
-                                            </TouchableOpacity>
+                                                <Text style={styles.applyButtonText}>Mark as Complete</Text>
+                                            </TouchableOpacity>}
+
+                                            {contextType === "update_retainer" && <TouchableOpacity
+                                                style={[
+                                                    styles.button,
+                                                    styles.applyButton,
+                                                ]}
+                                                // disabled={!isValid}
+                                                onPress={handleSubmit}
+                                            >
+                                                <Text style={styles.applyButtonText}>Update</Text>
+                                            </TouchableOpacity>}
                                         </>
-                                    )}
+                                        : isTodayPlannedEnd ? (
+                                            <>
+                                                <TouchableOpacity
+                                                    style={[
+                                                        styles.button,
+                                                        styles.clearButton,
+                                                        !isValid && styles.disabledButton
+                                                    ]}
+                                                    disabled={!isValid}
+                                                    onPress={() => {
+                                                        if (isTodayPlannedEnd && !formData.remarks) {
+                                                            setRemarkError("Remarks are mandatory when pausing an activity.");
+                                                            return;
+                                                        }
+                                                        setRemarkError("");
+                                                        handleSubmit();
+                                                    }}
+
+                                                >
+                                                    <Text style={styles.clearButtonText}>Pause Activity</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[
+                                                        styles.button,
+                                                        styles.applyButton,
+                                                        !isValid && styles.disabledButton
+                                                    ]}
+                                                    disabled={!isValid}
+                                                    onPress={handleMarkComplete}
+                                                >
+                                                    <Text style={styles.applyButtonText}>Completed</Text>
+                                                </TouchableOpacity>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <TouchableOpacity
+                                                    style={[
+                                                        styles.button,
+                                                        styles.clearButton,
+                                                        !isValid && styles.disabledButton
+                                                    ]}
+                                                    disabled={!isValid}
+                                                    onPress={handleMarkComplete}
+                                                >
+                                                    <Text style={styles.clearButtonText}>Completed</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={[
+                                                        styles.button,
+                                                        styles.applyButton,
+                                                        !isValid && styles.disabledButton
+                                                    ]}
+                                                    disabled={!isValid}
+                                                    onPress={() => {
+                                                        if (isTodayPlannedEnd && !formData.remarks) {
+                                                            setRemarkError("Remarks are required.");
+                                                            return;
+                                                        }
+                                                        setRemarkError("");
+                                                        handleSubmit();
+                                                    }}
+
+                                                >
+                                                    <Text style={styles.applyButtonText}>Pause Activity</Text>
+                                                </TouchableOpacity>
+                                            </>
+                                        )}
 
 
                             </View>
@@ -694,7 +678,7 @@ const handleOpenResourceModal = () => {
 
                         <ScrollView>
 
-                            {retainerInputs.map((name, index) => (
+                            {tempRetainerInputs.map((item, index) => (
                                 <View key={index} style={styles.resourceInputGroup}>
 
                                     <Text style={styles.resourceInputLabel}>
@@ -703,9 +687,15 @@ const handleOpenResourceModal = () => {
 
                                     <TextInput
                                         style={styles.resourceInput}
-                                        value={name}
-                                        onChangeText={(v) => handleRetainerNameChange(index, v)}
+                                        value={item.name}
+                                        onChangeText={(v) => handleRetainerChange(index, "name", v)}
                                         placeholder="Enter name"
+                                    />
+                                    <AmountInput
+                                        label={editingTask?.original_P?.product_unit ? `${editingTask?.original_P?.product_unit} Audited *` : "Number of Items Audited *"}
+                                        placeholder="Enter item number"
+                                        claimAmount={item.items}
+                                        setClaimAmount={(value) => handleRetainerChange(index, "items", value)}
                                     />
 
                                 </View>
@@ -724,7 +714,10 @@ const handleOpenResourceModal = () => {
 
                             <TouchableOpacity
                                 style={styles.resourceSaveButton}
-                                onPress={() => setResourceModalVisible(false)}
+                                onPress={() => {
+                                    setRetainerInputs(tempRetainerInputs);
+                                    setResourceModalVisible(false);
+                                }}
                             >
                                 <Text style={styles.resourceSaveText}>Save</Text>
                             </TouchableOpacity>
@@ -907,7 +900,7 @@ const styles = StyleSheet.create({
     },
 
     resourceInputLabel: {
-        fontSize: 14,
+        fontSize: 16,
         fontWeight: "600",
         color: "#444",
         marginBottom: 6,

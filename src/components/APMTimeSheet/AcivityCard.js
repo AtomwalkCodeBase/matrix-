@@ -10,6 +10,7 @@ import {
 import { FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
 import RetainerCard from './RetainerCard';
+import { formatAMPMTime } from './utils';
 
 const PRIMARY_COLOR = colors.primary;
 
@@ -91,10 +92,10 @@ const RetainerSection = ({
   hasOpenSessionGlobally
 }) => {
   const retainers = project?.original_P?.retainer_list || [];
-  
+
   // Filter out retainers with a_type: "A"
   const validRetainers = retainers.filter(retainer => retainer.a_type !== "A");
-  
+
   if (validRetainers.length === 0) return null;
 
   const projectRetainerData = retainerData[project.id] || {};
@@ -132,7 +133,7 @@ const RetainerSection = ({
           {projectRetainerData.retainers.map((retainer, index) => {
             // Additional safety check - filter out any a_type: "A" that might have slipped through
             if (retainer.a_type === "A") return null;
-            
+
             // Debug each retainer
             // console.log(`🎯 Retainer ${index}:`, {
             //   name: retainer.employee_name,
@@ -152,18 +153,18 @@ const RetainerSection = ({
               />
             );
           })}
-          
+
           {projectRetainerData.error && (
             <Text style={styles.sectionError}>{projectRetainerData.error}</Text>
           )}
-          
+
           {/* Show message if no valid retainers after filtering */}
-          {projectRetainerData.retainers && 
-           projectRetainerData.retainers.filter(r => r.a_type !== "A").length === 0 && (
-            <Text style={styles.noRetainersText}>
-              No active retainers available
-            </Text>
-          )}
+          {projectRetainerData.retainers &&
+            projectRetainerData.retainers.filter(r => r.a_type !== "A").length === 0 && (
+              <Text style={styles.noRetainersText}>
+                No active retainers available
+              </Text>
+            )}
         </View>
       )}
     </View>
@@ -186,9 +187,9 @@ export const AuditCard = ({
 
   const checkInData = useMemo(() => {
     if (!project?.day_logs || typeof project.day_logs !== 'object') return [];
-    
+
     const allLogs = [];
-    
+
     Object.values(project.day_logs).forEach(log => {
       if (log.sessions && Array.isArray(log.sessions)) {
         log.sessions.forEach((session, index) => {
@@ -215,7 +216,7 @@ export const AuditCard = ({
         });
       }
     });
-    
+
     return allLogs.sort((a, b) => {
       const dateCompare = new Date(parseAPIDate(a.date)) - new Date(parseAPIDate(b.date));
       if (dateCompare !== 0) return dateCompare;
@@ -239,7 +240,7 @@ export const AuditCard = ({
   const { hasOpenSession, isCompleted } = useMemo(() => {
     const lastEntry = checkInData[checkInData.length - 1];
     const hasOpenFromDayLogs = checkInData.length > 0 && !lastEntry?.check_out;
-    
+
     let hasOpenFromTsData = false;
     if (project?.original_A?.ts_data_list?.length) {
       const entries = project.original_A.ts_data_list;
@@ -247,10 +248,10 @@ export const AuditCard = ({
       const geoData = lastTsEntry?.geo_data || '';
       hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
     }
-    
+
     const hasOpen = hasOpenFromDayLogs || hasOpenFromTsData;
     const completed = project?.original_A?.status === "S";
-    
+
     return { hasOpenSession: hasOpen, isCompleted: completed };
   }, [checkInData, project]);
 
@@ -287,11 +288,11 @@ export const AuditCard = ({
   };
   const lastEntryStatus = useMemo(() => {
     if (!project?.original_A?.ts_data_list?.length) return 'not_started';
-    
+
     const entries = project.original_A.ts_data_list;
     const lastEntry = entries[entries.length - 1];
     const geoData = lastEntry?.geo_data || '';
-    
+
     if (geoData.includes('I|') && geoData.includes('O|')) {
       return 'checked_out';
     } else if (geoData.includes('I|') && !geoData.includes('O|')) {
@@ -413,9 +414,9 @@ export const AuditCard = ({
   const auditType = project?.original_P?.product_name || project?.audit_type || 'N/A';
   const noOfItems = project?.original_P?.no_of_items || 0;
   const periodStatus = project?.project_period_status || 'Planned';
-  const store_location= project?.original_A?.store_name || project?.original_P?.store_name || '';
-  const store_remark= project?.original_A?.store_remarks || project?.original_P?.store_remarks || '';
-  const document_required = project?.original_P?.is_file_applicable; 
+  const store_location = project?.original_A?.store_name || project?.original_P?.store_name || '';
+  const store_remark = project?.original_A?.store_remarks || project?.original_P?.store_remarks || '';
+  const document_required = project?.original_P?.is_file_applicable;
   const document_uploaded = project?.original_A?.submitted_file;
 
   // console.log("project", project.project_period_status !== "Completed" && !project?.hasPendingCheckout)
@@ -435,9 +436,9 @@ export const AuditCard = ({
       <View style={styles.infoGrid}>
         <InfoItem icon="briefcase-outline" label="Audit Type" value={auditType} />
         <InfoItem icon="cube-outline" label="Items" value={noOfItems} />
-        {document_required && <InfoItem icon="document-attach-outline" label="Document Upload" value={document_uploaded ? 
-                <Ionicons name="checkmark" size={24} color={colors.success} /> : <Ionicons name="close" size={24} color={colors.red} />} />
-                }
+        {document_required && <InfoItem icon="document-attach-outline" label="Document Upload" value={document_uploaded ?
+          <Ionicons name="checkmark" size={24} color={colors.success} /> : <Ionicons name="close" size={24} color={colors.red} />} />
+        }
       </View>
 
       <View style={styles.timeline}>
@@ -455,6 +456,11 @@ export const AuditCard = ({
           icon="calendar-outline"
           label="Planned Date"
           value={`${formatDate(project?.planned_start_date)} to ${formatDate(project?.planned_end_date)}`}
+        />
+        <TimelineRow
+          icon="calendar-outline"
+          label="Planned Time"
+          value={`${formatAMPMTime(project?.original_P?.start_time)} to ${formatAMPMTime(project?.original_P?.end_time)}`}
         />
         {project.actual_start_date && <TimelineRow
           icon="calendar-outline"
@@ -494,13 +500,13 @@ export const AuditCard = ({
       {/* Expanded Details */}
       {isDetailsOpen && (
         <View style={styles.detailsSection}>
-         {store_remark && <View style={styles.timeline}>
+          {store_remark && <View style={styles.timeline}>
             <Text style={styles.sectionTitle}>Store Remark</Text>
             <TimelineRow
               value={store_remark}
             />
           </View>}
-          
+
           <View style={styles.progressHeader}>
             <Text style={styles.sectionTitle}>Daily Progress</Text>
             {/* <Text style={styles.calendarProgress}>
@@ -511,21 +517,21 @@ export const AuditCard = ({
           {/* Daily Logs */}
           {checkInData?.length > 0 ? (
             <>
-            <ScrollView style={styles.dailyLogScroll} nestedScrollEnabled>
-              <View style={styles.dailyLog}>
-                {checkInData?.map((entry, idx) => (
-                  <DailyLogEntry key={idx} entry={entry} />
-                ))}
-              </View>
-            </ScrollView>
-              {(project.project_period_status !== "Completed" && !project?.hasPendingCheckout) &&<TouchableOpacity
-                style={[styles.btn, styles.successBtn, {marginTop: 10}]}
+              <ScrollView style={styles.dailyLogScroll} nestedScrollEnabled>
+                <View style={styles.dailyLog}>
+                  {checkInData?.map((entry, idx) => (
+                    <DailyLogEntry key={idx} entry={entry} />
+                  ))}
+                </View>
+              </ScrollView>
+              {(project.project_period_status !== "Completed" && !project?.hasPendingCheckout) && <TouchableOpacity
+                style={[styles.btn, styles.successBtn, { marginTop: 10 }]}
                 onPress={() => onAction({ type: 'force_complete', project })}
               >
                 <FontAwesome6 name="check-circle" size={16} color={colors.white} />
                 <Text style={styles.btnText}>Mark as Complete</Text>
               </TouchableOpacity>}
-              </>
+            </>
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="calendar-outline" size={24} color="#cbd5e1" />
@@ -545,7 +551,7 @@ const DailyLogEntry = ({ entry }) => (
       <View style={styles.logDate}>
         <Ionicons name="calendar" size={12} color={PRIMARY_COLOR} />
         <Text style={styles.logDateText}>
-          {formatDate(entry.date)} 
+          {formatDate(entry.date)}
           {entry.session_number > 1 && ` (Session ${entry.session_number})`}
         </Text>
       </View>
