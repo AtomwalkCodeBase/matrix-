@@ -295,9 +295,9 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             };
             payload = buildPayload(payload);
 
-            console.log("Activity Payload:", payload)
+            // console.log("Activity Payload:", payload)
 
-            // onSubmitActivity(payload);
+            onSubmitActivity(payload);
         }
 
         onClose();

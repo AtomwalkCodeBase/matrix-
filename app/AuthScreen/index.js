@@ -36,11 +36,8 @@ const LoginScreen = () => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [userPin, setUserPin] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [companyError, setCompanyError] = useState('');
   const [keyboardStatus, setKeyboardStatus] = useState(false);
-  const [dbList, setDbList] = useState([]);
   const isLoginDisabled = !mobileNumberOrEmpId || !pin;
-const [selectedCompany, setSelectedCompany] = useState({ label: "Matrix Business Services India Pvt. Ltd.", value: "APM_001" });
   const [bioStatus, setBioStatus] = useState(false);
 
   const appVersion = Constants.expoConfig?.version || '0.0.1';
@@ -74,8 +71,7 @@ const [selectedCompany, setSelectedCompany] = useState({ label: "Matrix Business
         const storedPin = await AsyncStorage.getItem('userPin');
         setUserPin(storedPin);
 
-        // Fetch DB name
-        fetchDbName();
+    
       } catch (error) {
         console.error('Error initializing app:', error);
       }
@@ -103,59 +99,7 @@ const [selectedCompany, setSelectedCompany] = useState({ label: "Matrix Business
 
 
 
-  const fetchDbName = async () => {
-    setLoading(true); // Add loading state at start
-    try {
-      const DBData = await getDBListInfo();
-      setDbList(DBData.data || []);
-
-      // Load both current and previous dbNames
-      const savedDBName = await AsyncStorage.getItem('dbName');
-
-      const matchingCompany = DBData.data.find(company => {
-        const companyDbName = company.name.replace(/^SD_/, '');
-        return companyDbName === savedDBName;
-      });
-
-      if (matchingCompany) {
-        setSelectedCompany({
-          label: matchingCompany.ref_cust_name,
-          value: matchingCompany.ref_cust_name
-        });
-      } else if (DBData.data?.length === 1) {
-        const firstCompany = DBData.data[0];
-        const defaultDbName = firstCompany.name.replace(/^SD_/, '');
-
-        setSelectedCompany({
-          label: firstCompany.ref_cust_name,
-          value: firstCompany.ref_cust_name
-        });
-        await AsyncStorage.multiSet([
-          ['dbName', defaultDbName],
-          ['previousDbName', defaultDbName]
-        ]);
-      }
-    } catch (error) {
-      console.error('DB List loading error:', error);
-    } finally {
-      setLoading(false); // Ensure loading is set to false when done
-    }
-  };
-
-  const handleCompanyChange = async (item) => {
-    if (!item) return;
-setSelectedCompany(item);
-// console.log(item)
-  setCompanyError('');
-  };
-
-
   const validateInput = () => {
-    if (!selectedCompany) {
-      setCompanyError('Please select your company');
-      setLoading(false);
-      return false;
-    }
     if (!mobileNumberOrEmpId) {
       setErrorMessage('Mobile number or Employee ID is required');
       setLoading(false);
@@ -199,7 +143,7 @@ setSelectedCompany(item);
     const logCurrentDbName = async () => {
     };
     logCurrentDbName();
-  }, [selectedCompany]);
+  }, []);
 
   const handlePress = async () => {
     setLoading(true);
@@ -279,17 +223,7 @@ setSelectedCompany(item);
               <Card>
                 <Title>Login</Title>
 
-                <InputContainer>
-                  {/* {dbList.length > 0 && ( */}
-                    <CompanyDropdown
-                      label="Company"
-                      data={[{label: "Matrix Business Services India Pvt. Ltd.", value: "APM_001"}, {label: "Project Allocation Demo Area", value: "APM_002"}]}
-                      value={selectedCompany}
-                      setValue={handleCompanyChange}
-                      error={companyError}
-                      disabled={true}
-                    />
-                  {/* )} */}
+                <InputContainer>               
 
 
                   <InputLabel>Enter your Mobile number or Emp ID</InputLabel>

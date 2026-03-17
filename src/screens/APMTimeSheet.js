@@ -205,8 +205,6 @@ const APMTimeSheet = () => {
       const raw = Array.isArray(res?.data) ? res.data : [];
       const normalized = normalizeProjects(raw);
 
-      // console.log("normalized", JSON.stringify(normalized))
-
       setAllProjects(normalized);
       // Reset retainer data when projects are reloaded
       setRetainerData({});

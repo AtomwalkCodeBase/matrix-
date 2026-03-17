@@ -6,11 +6,7 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Logos from '../../assets/images/Atom_walk_logo.jpg';
 import { useRouter } from 'expo-router';
-import { forgetEmpPinURL } from '../../src/services/ConstantServies';
-import { getDBListInfo } from '../../src/services/authServices';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { publicAxiosRequest } from '../../src/services/HttpMethod';
-import CompanyDropdown from '../../src/components/ComanyDropDown';
 import Loader from '../../src/components/old_components/Loader';
 import { forgetUserPinView } from '../../src/services/productServices';
 import SuccessModal from '../../src/components/SuccessModal';
@@ -26,65 +22,16 @@ const scaleHeight = (size) => (height / 812) * size;
 const ResetPinScreen = () => {
   const router = useRouter();
   const [mobileNumberOrEmpId, setMobileNumberOrEmpId] = useState('');
-  const [dbName, setDBName] = useState('');
   const [loading, setLoading] = useState(false);
   const [companyError, setCompanyError] = useState('');
   const [dbList, setDbList] = useState([]);
-  const [selectedCompany, setSelectedCompany] = useState(null);
+  // const [selectedCompany, setSelectedCompany] = useState(null);
   const [isSuccessModalVisible, setIsSuccessModalVisible] = useState(false);
 const [successMessage, setSuccessMessage] = useState('');
 
 const {completLogout} = useContext(AppContext);
 
-  useEffect(() => {
-    fetchDbList();
-  }, []);
-
-  const fetchDbList = async () => {
-  setLoading(true); // Show loader when starting the fetch
-  
-  try {
-    const DBData = await getDBListInfo();
-    setDbList(DBData.data || []);
-    
-    if (DBData.data?.length === 1) {
-      const firstCompany = DBData.data[0];
-      const defaultDbName = firstCompany.name.replace(/^SD_/, '');
-      
-      setSelectedCompany({
-        label: firstCompany.ref_cust_name,
-        value: firstCompany.ref_cust_name
-      });
-      setDBName(defaultDbName);
-    }
-  } catch (error) {
-    console.error('DB List loading error:', error);
-    Alert.alert('Error', 'Failed to load company list. Please try again.');
-  } finally {
-    setLoading(false); // Hide loader when done (success or error)
-  }
-};
-
-  const handleCompanyChange = async (item) => {
-    if (!item) return;
-
-    setSelectedCompany(item);
-    const selected = dbList.find(c => c.ref_cust_name === item.value);
-    
-    if (selected) {
-      const newDbName = selected.name.replace(/^SD_/, ''); 
-      setDBName(newDbName);
-      await AsyncStorage.setItem('dbName', newDbName);
-    }
-    
-    setCompanyError('');
-  };
-
   const validateInput = () => {
-    if (!selectedCompany) {
-      setCompanyError('Please select your company');
-      return false;
-    }
     if (!mobileNumberOrEmpId) {
       Alert.alert('Error', 'Please enter your Employee ID or Mobile Number');
       return false;
@@ -97,6 +44,8 @@ const {completLogout} = useContext(AppContext);
  const handleSubmit = async () => {
   if (!validateInput()) return;
 
+  const DB_NAME = "APM_001";
+
   setLoading(true);
   Keyboard.dismiss(); // Hide keyboard when submitting
 
@@ -104,8 +53,8 @@ const {completLogout} = useContext(AppContext);
     const isMobileNumber = /^\d{10}$/.test(mobileNumberOrEmpId);
     
     const payload = isMobileNumber 
-      ? { mobile_number: mobileNumberOrEmpId, dbName: dbName }
-      : { emp_id: mobileNumberOrEmpId, dbName: dbName };
+      ? { mobile_number: mobileNumberOrEmpId, dbName: DB_NAME }
+      : { emp_id: mobileNumberOrEmpId, dbName: DB_NAME };
 
     const response = await forgetUserPinView(payload);
     
@@ -168,20 +117,7 @@ const {completLogout} = useContext(AppContext);
           </Header>
           
           <Content>
-            <Card>
-              {dbList.length > 0 && (
-                <CompanyDropdown
-                  label="Select Your Company"
-                  data={dbList.map(company => ({
-                    label: company.ref_cust_name,
-                    value: company.ref_cust_name
-                  }))}
-                  value={selectedCompany}
-                  setValue={handleCompanyChange}
-                  error={companyError}
-                />
-              )}
-              
+            <Card>              
               <InputLabel>Enter your Mobile number or Emp ID</InputLabel>
               <InputWrapper>
                 <MaterialIcons name="person" size={20} color="#6c757d" />
@@ -197,7 +133,7 @@ const {completLogout} = useContext(AppContext);
 
               <SubmitButton 
                 onPress={handleSubmit}
-                disabled={!mobileNumberOrEmpId || !selectedCompany}
+                disabled={!mobileNumberOrEmpId}
               >
                 {loading ? (
                   <ActivityIndicator color="#fff" />
