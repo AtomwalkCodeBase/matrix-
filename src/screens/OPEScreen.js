@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   monthText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#212529',
     textAlign: 'center',

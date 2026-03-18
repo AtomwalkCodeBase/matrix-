@@ -413,13 +413,13 @@ export const ExpenseModal = ({ visible, item, onClose, onSubmit }) => {
             // disabled={isViewMode}
           />
 
-            <DatePicker
+            {/* <DatePicker
             cDate={formData.date}
             label="Expense Date"
             setCDate={(date) => handleChange("date", date)}
             // error={errors.expenseDate}
             // disabled={isViewMode}
-          />
+          /> */}
 
            <RemarksInput
             remark={formData.remark}
