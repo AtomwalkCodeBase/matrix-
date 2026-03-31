@@ -1060,6 +1060,10 @@ const APMTimeSheet = () => {
       setErrorMessage("Pincode must be exactly 6 digits");
       return;
     }
+    if (pincode === "000000") {
+      setErrorMessage("Pincode cannot be all zeros");
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -1071,7 +1075,7 @@ const APMTimeSheet = () => {
       const activityDate = defaultApiDate;
 
       if (!aId) {
-        setErrorMessage("Activity not started yet, cannot add pincode.");
+        setErrorMessage("Please start the activity to add pin code.");
         setShowErrorModal(true);
         setIsLoading(false);
         return;
