@@ -12,6 +12,7 @@ import { formatAMPMTime, formatAPITime, formatToApiDate, getCurrentDateTimeDefau
 import { AppContext } from '../../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorModal from '../ErrorModal';
+import CompanyDropdown from '../ComanyDropDown';
 
 const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout = false, onSubmitActivity, onCompleteActivity }) => {
     const [resourceModalVisible, setResourceModalVisible] = useState(false);
@@ -93,10 +94,11 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             const existingResourceList = isRetainer?.fullData?.original_A?.resource_list || [];
             //    const existingResourceList =['ram^20', 'hari^40'];
             const formattedResources = existingResourceList.map(res => {
-                const [name, items] = res.split("^");
+                const [name, items, resourceType] = res.split("^");
                 return {
                     name: name || "",
-                    items: items || ""
+                    items: items || "",
+                    resourceType: resourceType || ""
                 };
             });
 
@@ -126,7 +128,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
         if (isTodayPlannedEnd) {
 
-            if (!remarks) return false;
+            // if (!remarks) return false;
 
             if (editingTask?.original_P?.is_file_applicable && !hasSubmittedFile && !fileUri) {
                 return false;
@@ -158,7 +160,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             let updated = [...prev];
 
             if (count > updated.length) {
-                updated = [...updated, ...Array(count - updated.length).fill({ name: "", items: "" })];
+                updated = [...updated, ...Array(count - updated.length).fill({ name: "", items: "", resourceType: "" })];
             }
             else if (count < updated.length) {
                 updated = updated.slice(0, count);
@@ -179,7 +181,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         });
     };
 
-    const getJoinedResources = () => retainerInputs.filter(v => v.name && v.items).map(v => `${v.name}^${v.items}`).join("|");
+    const getJoinedResources = () => retainerInputs.filter(v => v.name && v.items && v.resourceType).map(v => `${v.name}^${v.items}^${v.resourceType}`).join("|");
 
     const formatDateToDDMMYYYY = (date) => {
         if (!date) return null;
@@ -213,10 +215,20 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         }
 
         if (resourceList || payload.noOfResource) {
+            let tl_count = 0;
+            let ex_count = 0;
+            retainerInputs.forEach(item => {
+                if (item.name?.trim() && item.items?.toString().trim()) {
+                    if (item.resourceType === "TL") tl_count++;
+                    if (item.resourceType === "EX") ex_count++;
+                }
+            });
+
             payload.extraFields = {
                 ...(payload.extraFields || {}),
                 resource_list: resourceList,
-                no_of_resource: payload.noOfResource
+                tl_count: String(tl_count),
+                ex_count: String(ex_count)
             };
         }
         if (contextType !== "checkout_yesterday") return payload;
@@ -245,28 +257,55 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         };
     };
 
-    // --------------------------
-    // BUTTON HANDLERS
-    // --------------------------
-    const handleSubmit = () => {
+    const validateResources = () => {
         const expected = Number(formData.noOfResource || 0);
-        const entered = retainerInputs.filter(v => v.name?.trim() && v.items?.toString().trim()).length;
+
+        for (let i = 0; i < retainerInputs.length; i++) {
+            const item = retainerInputs[i];
+
+            if (!item.name?.trim()) {
+                return { isValid: false, message: `Please enter name for Resource ${i + 1}` };
+            }
+
+            if (!item.items?.toString().trim()) {
+                return {
+                    isValid: false,
+                    message: `Please enter ${editingTask?.original_P?.product_unit ? `${editingTask?.original_P?.product_unit} Audited` : "Number of Items Audited"} for Resource ${i + 1}`,
+                };
+            }
+
+            if (!item.resourceType?.toString().trim()) {
+                return {
+                    isValid: false,
+                    message: `Please select Resource Type (TL/EX) for Resource ${i + 1}`,
+                };
+            }
+        }
+        const entered = retainerInputs.filter(
+            (v) => v.name?.trim() && v.items?.toString().trim() && v.resourceType?.toString().trim()).length;
 
         if (expected && expected !== entered) {
+            return {
+                isValid: false,
+                message: `Number of resources (${expected}) entered (${entered}).\nPlease check the name(s) or entered ${editingTask?.original_P?.product_unit
+                    ? `${editingTask?.original_P?.product_unit} Audited value`
+                    : "Number of Items Audited value"
+                    }`,
+            };
+        }
 
-            setErrorMessage(
-                `Number of resources (${expected}) entered (${entered}).\nPlease Check the name(s) or entered ${editingTask?.original_P?.product_unit ? `${editingTask?.original_P?.product_unit} Audited value` : "Number of Items Audited value"}`
-            );
+        return { isValid: true };
+    };
 
+    const handleSubmit = () => {
+        const validation = validateResources();
+        if (!validation.isValid) {
+            setErrorMessage(validation.message);
             setShowErrorModal(true);
             return;
         }
+
         if (contextType === "update_retainer") {
-            //      onSubmitActivity({
-            //     ...formData,
-            //     mode: "DATA_CORRECT",
-            //     //  endTime: toAmPm(formData.endTime),
-            // });
             let payload = {
                 ...formData,
                 mode: "DATA_CORRECT",
@@ -325,19 +364,12 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         onClose();
     };
 
-
-
     const handleMarkComplete = () => {
         if (!isValid) return;
-        const expected = Number(formData.noOfResource || 0);
-        const entered = retainerInputs.filter(v => v.name?.trim() && v.items?.toString().trim()).length;
 
-        if (expected && expected !== entered) {
-
-            setErrorMessage(
-                `Number of resources (${expected}) entered (${entered}).\nPlease Check the name(s) or entered ${editingTask?.original_P?.product_unit ? `${editingTask?.original_P?.product_unit} Audited value` : "Number of Items Audited value"}`
-            );
-
+        const validation = validateResources();
+        if (!validation.isValid) {
+            setErrorMessage(validation.message);
             setShowErrorModal(true);
             return;
         }
@@ -481,7 +513,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                         item.name?.trim() && (
                                             <View key={index} style={styles.resourceNameRow}>
                                                 <Text style={styles.resourceNameNumber}>{index + 1}.</Text>
-                                                <Text style={styles.resourceNameText}>{item.name} ({item.items} items)</Text>
+                                                <Text style={styles.resourceNameText}>{item.name} ({item.items} items)({item.resourceType})</Text>
                                             </View>
                                         )
                                     ))}
@@ -508,7 +540,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                             {contextType !== "update_retainer" &&
                                 <View style={styles.formGroup}>
                                     <RemarksInput
-                                        labelFiled={`Remarks${isTodayPlannedEnd ? "*" : ""}`}
+                                        labelFiled="Remarks"
                                         remark={formData.remarks}
                                         setRemark={(v) =>
                                             setFormData(prev => ({ ...prev, remarks: v }))
@@ -697,6 +729,12 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                         claimAmount={item.items}
                                         setClaimAmount={(value) => handleRetainerChange(index, "items", value)}
                                     />
+                                    <CompanyDropdown
+                                        label="Resource Type"
+                                        data={[{ label: "Team Lead", value: "TL" }, { label: "Executive", value: "EX" }]}
+                                        value={item.resourceType}
+                                        setValue={(value) => handleRetainerChange(index, "resourceType", value?.value)}
+                                    />
 
                                 </View>
                             ))}
@@ -768,7 +806,7 @@ const styles = StyleSheet.create({
         color: "#333",
     },
     formGroup: {
-        marginVertical: 10,
+        marginVertical: 1,
     },
     warningText: {
         color: "red",

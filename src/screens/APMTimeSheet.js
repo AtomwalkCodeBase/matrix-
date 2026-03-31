@@ -46,6 +46,7 @@ import { AuditCard } from "../components/APMTimeSheet/AcivityCard";
 import RetainerCard from "../components/APMTimeSheet/RetainerCard";
 import { colors } from "../Styles/appStyle";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import RemarkModals from "../components/RemarkModals";
 
 const PROJECTS_PER_PAGE = 10;
 
@@ -80,6 +81,9 @@ const APMTimeSheet = () => {
 
   const [selectedProject, setSelectedProject] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isPincodeModalOpen, setIsPincodeModalOpen] = useState(false);
+  const [pincodeProject, setPincodeProject] = useState(null);
+  const [pincode, setPincode] = useState("");
 
   const [confirmPopup, setConfirmPopup] = useState({
     isOpen: false,
@@ -871,9 +875,7 @@ const APMTimeSheet = () => {
 
     formData.append("no_of_items",String(Number(data.noOfItems || 0)));
 
-    formData.append("no_of_resource",String(Number(data.noOfResource || 0)));
-
-  }else {
+        } else {
 
         formData.append("no_of_items",String(Number(data.noOfItems || 0)));
         formData.append("call_mode", "UPDATE");
@@ -904,7 +906,7 @@ const APMTimeSheet = () => {
       // }
 
       const res = await postAllocationData(formData);
-      // const res = {status: 200}
+      // const res = { status: 200 }
 
       if (res?.status === 200) {
         return true;
@@ -922,10 +924,10 @@ const APMTimeSheet = () => {
       return false;
 
     } catch (error) {
-      console.error(
-        "Error in handleActivitySubmit",
-        error?.response?.data || error?.message || error
-      );
+      // console.error(
+      //   "Error in handleActivitySubmit",
+      //   error?.response?.data || error?.message || error
+      // );
 
       const errorMessage = extractApiErrorMessage(
         error,
@@ -944,7 +946,7 @@ const APMTimeSheet = () => {
   };
 
   // Action handlers
-  const handleActivityAction = ({ type, project, retainer = false }) => {
+  const handleActivityAction = ({ type, project, retainer = false, isMaxAuditEndDatePass }) => {
     if (type === "start") {
       if (!retainer) {
         const hasOpenSession = allProjects?.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
@@ -958,7 +960,7 @@ const APMTimeSheet = () => {
       setConfirmPopup({
         isOpen: true,
         title: "Start Activity",
-        message: "Start this activity now?",
+        message: `${isMaxAuditEndDatePass ? `Max audit end date is Passed .${'\n\n'}Still Do you want to start the activity` : "Start this activity now?"}`,
         onConfirm: async () => {
           await handleActivitySubmit({ project, mode: "ADD" });
           await onRefresh();
@@ -980,7 +982,7 @@ const APMTimeSheet = () => {
       setConfirmPopup({
         isOpen: true,
         title: "Resume Activity",
-        message: "Resume this activity?",
+        message: `${isMaxAuditEndDatePass ? `Max audit end date is Passed .${'\n\n'}Still Do you want to Resume the activity` : "Resume this activity?"}`,
         onConfirm: async () => {
           await handleActivitySubmit({
             project,
@@ -993,23 +995,6 @@ const APMTimeSheet = () => {
       });
       return;
     }
-
-    // if (type === "force_complete") {
-    //   setConfirmPopup({
-    //     isOpen: true,
-    //     title: "Force Complete",
-    //     message: "Are you sure you want to complete this activity?",
-    //     onConfirm: async () => {
-    //       await handleActivitySubmit({
-    //         project,
-    //         mode: "FORCE_COMPLETE"
-    //       });
-    //       await onRefresh();
-    //       setConfirmPopup((p) => ({ ...p, isOpen: false }));
-    //     }
-    //   });
-    //   return;
-    // }
 
     if (["continue", "complete", "checkout_yesterday", "update_retainer", "force_complete"].includes(type)) {
       setSelectedProject({ ...project, modalContext: { type }, retainer });
@@ -1063,6 +1048,67 @@ const APMTimeSheet = () => {
       }
       setIsFormModalOpen(false);
     });
+  };
+
+  const handlePincodeSubmit = async () => {
+    if (!pincode) {
+      setErrorMessage("Please enter pincode");
+      return;
+    }
+
+    if (!/^\d{6}$/.test(pincode)) {
+      setErrorMessage("Pincode must be exactly 6 digits");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const formData = new FormData();
+
+      const aId = pincodeProject?.original_A?.id;
+      const resolvedEmpId = pincodeProject?.original_P?.emp_id || pincodeProject?.original_A?.emp_id || empId;
+      const { apiDate: defaultApiDate } = getCurrentDateTimeDefaults();
+      const activityDate = defaultApiDate;
+
+      if (!aId) {
+        setErrorMessage("Activity not started yet, cannot add pincode.");
+        setShowErrorModal(true);
+        setIsLoading(false);
+        return;
+      }
+
+      formData.append("emp_id", resolvedEmpId);
+      formData.append("a_id", String(aId));
+      formData.append("activity_date", DateForApiFormate(activityDate));
+      formData.append("call_mode", "DATA_CORRECT");
+      formData.append("geo_type", "O");
+      formData.append("pin_code", pincode);
+
+      // for (let [key, value] of formData.entries()) {
+      //   console.log(key, value);
+      // }
+
+      const res = await postAllocationData(formData);
+
+      // const res = { status: 200 }
+
+      if (res?.status === 200) {
+        setIsPincodeModalOpen(false);
+        setPincode("");
+        setPincodeProject(null);
+        await onRefresh();
+      } else {
+        const apiMsg = res?.data?.error || res?.data?.message || "Failed to update pincode.";
+        setErrorMessage(apiMsg);
+        setShowErrorModal(true);
+      }
+    } catch (error) {
+      const errorMessage = extractApiErrorMessage(error, "An error occurred while updating pincode.");
+      setErrorMessage(errorMessage);
+      setShowErrorModal(true);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Filter controls
@@ -1221,6 +1267,10 @@ const APMTimeSheet = () => {
                         retainerData={retainerData}
                         onToggleRetainers={toggleRetainers}
                         hasAnyOpenSession={hasAnyOpenSession}
+                        showPincodeModal={(proj) => {
+                          setPincodeProject(proj);
+                          setIsPincodeModalOpen(true);
+                        }}
                       />
                     </React.Fragment>
                   );
@@ -1260,6 +1310,23 @@ const APMTimeSheet = () => {
         onSubmitActivity={handleSubmitFromModal}
         onCompleteActivity={handleMarkCompleteFromModal}
       />
+
+      {isPincodeModalOpen && <RemarkModals
+        visible={isPincodeModalOpen}
+        onClose={() => {
+          setIsPincodeModalOpen(false);
+          setPincodeProject(null);
+          setPincode("");
+          setErrorMessage("")
+        }}
+        onSubmit={handlePincodeSubmit}
+        title="Pin code"
+        placeholder="Enter pin code"
+        type="number"
+        remark={pincode}
+        setRemark={setPincode}
+        errorMessage={errorMessage}
+      />}
     </SafeAreaView>
   );
 };

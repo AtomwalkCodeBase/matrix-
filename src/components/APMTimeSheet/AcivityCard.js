@@ -7,10 +7,10 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { FontAwesome6, Ionicons } from '@expo/vector-icons';
+import { AntDesign, FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
 import RetainerCard from './RetainerCard';
-import { formatAMPMTime } from './utils';
+import { formatAMPMTime, getTodayApiDateStr } from './utils';
 
 const PRIMARY_COLOR = colors.primary;
 
@@ -179,11 +179,12 @@ export const AuditCard = ({
   hasOpenSessionGlobally, 
   retainerData,
   onToggleRetainers,
-  onRetainerAction,  // This should be passed from APMTimeSheet
-  hasAnyOpenSession
+
+  showPincodeModal
 }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   // console.log("Project Details---",project)
+  const todayStr = getTodayApiDateStr();
 
   const checkInData = useMemo(() => {
     if (!project?.day_logs || typeof project.day_logs !== 'object') return [];
@@ -224,18 +225,6 @@ export const AuditCard = ({
     });
   }, [project?.day_logs]);
 
-  // console.log("checkInData", checkInData)
-
-  const { plannedDays, loggedDates, progressPercentage } = useMemo(() => {
-    const planned = getDatesBetween(project?.planned_start_date, project?.planned_end_date);
-    const logged = checkInData
-      .map(d => parseAPIDate(d.date)?.toISOString().split('T')[0])
-      .filter(Boolean);
-
-    const progress = planned.length > 0 ? (logged.length / planned.length) * 100 : 0;
-
-    return { plannedDays: planned, loggedDates: logged, progressPercentage: progress };
-  }, [project?.planned_start_date, project?.planned_end_date, checkInData]);
 
   const { hasOpenSession, isCompleted } = useMemo(() => {
     const lastEntry = checkInData[checkInData.length - 1];
@@ -259,33 +248,7 @@ export const AuditCard = ({
     setIsDetailsOpen(!isDetailsOpen);
   };
 
-  // Debug: Log what props we received
-  // console.log("🔄 AuditCard rendering for project:", project.project_code, {
-  //   hasOnRetainerAction: !!onRetainerAction,
-  //   hasRetainerData: !!retainerData,
-  //   retainerKeys: Object.keys(retainerData || {}),
-  //   hasOpenSessionGlobally,
-  //   retainerCount: project?.original_P?.retainer_list?.length || 0
-  // });
 
-  const handleRetainerActionWrapper = (actionData) => {
-    // console.log("📞 AuditCard received retainer action:", {
-    //   type: actionData.type,
-    //   retainerName: actionData.retainer?.employee_name,
-    //   retainerId: actionData.retainer?.emp_id
-    // });
-
-    if (onRetainerAction) {
-      onRetainerAction(actionData);
-    } else {
-      console.error("❌ onRetainerAction is undefined in AuditCard");
-      Alert.alert(
-        "Debug Info",
-        `onRetainerAction prop is not provided to AuditCard.\n\nAction Type: ${actionData.type}\nRetainer: ${actionData.retainer?.employee_name}`,
-        [{ text: "OK" }]
-      );
-    }
-  };
   const lastEntryStatus = useMemo(() => {
     if (!project?.original_A?.ts_data_list?.length) return 'not_started';
 
@@ -357,7 +320,7 @@ export const AuditCard = ({
       return (
         <TouchableOpacity
           style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction({ type: 'resume', project })}
+          onPress={() => onAction({ type: 'resume', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
         >
           <Ionicons name="play-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Resume Activity</Text>
@@ -377,7 +340,7 @@ export const AuditCard = ({
       return (
         <TouchableOpacity
           style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction({ type: 'start', project })}
+          onPress={() => onAction({ type: 'start', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
         >
           <Ionicons name="log-in-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Start Activity</Text>
@@ -419,7 +382,12 @@ export const AuditCard = ({
   const document_required = project?.original_P?.is_file_applicable;
   const document_uploaded = project?.original_A?.submitted_file;
 
-  // console.log("project", project.project_period_status !== "Completed" && !project?.hasPendingCheckout)
+  // console.log("project",project)
+  const isAuditEndDatePass = project?.original_P?.max_audit_end_date < todayStr;
+  const isNonNegotiable = project?.original_P?.is_non_negotiable_date;
+  const shouldHidePrimaryButton = isNonNegotiable && isAuditEndDatePass;
+
+  const showAuditExceededMessage = isAuditEndDatePass;
 
   return (
     <View style={styles.card}>
@@ -441,12 +409,37 @@ export const AuditCard = ({
         }
       </View>
 
-      <View style={styles.timeline}>
-        <Text style={styles.sectionTitle}>Store Location</Text>
-        <TimelineRow
-          icon="home"
-          value={store_location}
-        />
+      <View style={styles.cardContainer}>
+        {/* LEFT SIDE */}
+        <View style={styles.leftSection}>
+          <View style={styles.headerRow}>
+             <Ionicons name="home" size={12} color="#64748b" />
+            <Text style={styles.label}>Store Location</Text>
+          </View>
+          <Text style={styles.value}>{store_location || "--"}</Text>
+        </View>
+
+        {/* DIVIDER */}
+        <View style={styles.divider} />
+
+        {/* RIGHT SIDE */}
+        <View style={styles.rightSection}>
+          <View style={styles.headerRow}>
+            <Ionicons name="pin" size={12} color="#64748b" />
+            <Text style={styles.label}>PinCode</Text>
+          </View>
+            {!project?.original_P?.pin_code ? (
+              <TouchableOpacity
+                style={[styles.btn, styles.primaryBtn]}
+                onPress={() => showPincodeModal(project)}
+              >
+                <AntDesign name="plus" size={14} color="#fff" />
+                <Text style={styles.btnText}>Add</Text>
+              </TouchableOpacity>
+            ): <Text style={styles.value}>
+              {project.original_P.pin_code}
+            </Text>}
+          </View>
       </View>
 
       {/* Timeline */}
@@ -469,6 +462,10 @@ export const AuditCard = ({
         />}
       </View>
 
+      {showAuditExceededMessage && <View>
+        <Text style={{color: colors.red, marginBottom: "15"}}>Audit max end date has been exceeded</Text>
+      </View>}
+
       {/* Retainer Section - Always visible if there are retainers */}
       <RetainerSection
         project={project}
@@ -481,7 +478,7 @@ export const AuditCard = ({
 
       {/* Action Buttons */}
       <View style={styles.actions}>
-        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
+        {!shouldHidePrimaryButton && (periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
         <TouchableOpacity
           style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
           onPress={handleToggleDetails}
@@ -959,5 +956,50 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748b',
     fontWeight: '600',
-  }
+  },
+    cardContainer: {
+    flexDirection: "row",
+    backgroundColor: '#f8fafc',
+    borderRadius: 10,
+    padding: 16,
+    alignItems: "center",
+  },
+
+  leftSection: {
+    flex: 7,
+    justifyContent: "center",
+  },
+
+  rightSection: {
+    flex: 3,
+    justifyContent: "center",
+  },
+
+  divider: {
+    width: 1,
+    height: "100%",
+    backgroundColor: '#64748b',
+    marginHorizontal: 10,
+  },
+
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap:5
+  },
+
+  label: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 4,
+    marginBottom: 2,
+    fontWeight: 500,
+  },
+
+  value: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginLeft: 14
+  },
 });

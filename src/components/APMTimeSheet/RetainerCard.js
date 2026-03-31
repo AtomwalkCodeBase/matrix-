@@ -25,6 +25,19 @@ const RetainerCard = ({
   
   // Determine status based on available data
   const getStatus = () => {
+    if (!retainerProject?.original_A) {
+      return 'PLANNED';
+    }
+    const status = retainerProject.original_A?.status;
+  
+    if (status === 'N') {
+      return 'IN PROGRESS';
+    }
+    
+    if (status !== "N") {
+      return 'COMPLETED';
+    }
+
     if (retainerProject?.project_period_status) {
       return retainerProject.project_period_status;
     }
@@ -37,6 +50,9 @@ const RetainerCard = ({
     if (retainerProject?.status === 'A') {
       return 'ACTIVE';
     }
+    if (retainerProject?.status === 'A') {
+      return 'ACTIVE';
+    }
     return 'ASSIGNED';
   };
 
@@ -44,7 +60,7 @@ const RetainerCard = ({
     const s = (status || '').toLowerCase();
     if (s.includes('completed')) return '#10b981';
     if (s.includes('in progress') || s.includes('active')) return '#f59e0b';
-    if (s.includes('submitted')) return '#3b82f6';
+    if (s.includes('planned')) return '#3b82f6';
     if (s.includes('assigned') || s.includes('planned')) return '#64748b';
     return '#94a3b8';
   };
@@ -106,7 +122,7 @@ const RetainerCard = ({
             onPress={() => onAction({ type: 'update_retainer', project: retainerProject, retainer })}
           >
             <FontAwesome6 name="pen-to-square" size={16} color="#fff" />
-            <Text style={styles.btnText}>Update Activity</Text>
+            <Text style={styles.btnText}>Update</Text>
           </TouchableOpacity>}
         </View>
       );
@@ -224,7 +240,7 @@ const RetainerCard = ({
             <Ionicons name="people-outline" size={16} color={colors.primary} />
             <Text style={styles.label}>Resources:</Text>
           </View>
-          <Text style={styles.value}>{retainer.no_resource || 0}</Text>
+          <Text style={styles.value}>TL: {retainer.tl_count || 0}, EX: {retainer.ex_count || 0}</Text>
         </View>
         
         <View style={styles.infoRow}>

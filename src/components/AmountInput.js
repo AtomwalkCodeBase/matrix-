@@ -3,6 +3,10 @@ import { Text } from 'react-native';
 import styled from 'styled-components/native';
 import {colors} from '../Styles/appStyle';
 
+const FieldContainer = styled.View`
+  margin-bottom: 10px;
+  margin-top: 5px;
+`;
 const Input = styled.TextInput`
   border: 1px solid #ccc;
   padding: 10px;
@@ -19,8 +23,8 @@ const Label = styled.Text`
 
 const AmountInput = ({ error, label,placeholder ,claimAmount, setClaimAmount }) => {
   return (
-    <>
-      <Label>{label}</Label>
+    <FieldContainer>
+     {label && <Label>{label}</Label>}
       <Input
         placeholder={placeholder || "Claim Amount"}
         keyboardType="numeric"
@@ -32,7 +36,7 @@ const AmountInput = ({ error, label,placeholder ,claimAmount, setClaimAmount }) 
           {error}
         </Text>
       )}
-    </>
+    </FieldContainer>
   );
 };
 
