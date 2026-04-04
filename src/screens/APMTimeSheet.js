@@ -686,7 +686,7 @@ const APMTimeSheet = () => {
 
     setIsLoading(true);
 
-          if (mode === "FORCE_COMPLETE") {
+          if (mode === "FORCE_COMPLETE" || mode === "REVERSE_COMPLETE") {
         const formData = new FormData();
 
         const resolvedEmpId =
@@ -705,7 +705,10 @@ const APMTimeSheet = () => {
 
         formData.append("emp_id", resolvedEmpId);
         formData.append("a_id", String(aId));
-        formData.append("call_mode", "FORCE_COMPLETE");
+        formData.append("call_mode", mode === "REVERSE_COMPLETE" ? "REVERSE_COMPLETE" :"FORCE_COMPLETE");
+        if(mode === "REVERSE_COMPLETE"){
+          formData.append("geo_type", "O")
+        }
         if (data.file) {
           formData.append("submitted_file", data.file);
         }
@@ -729,7 +732,7 @@ const APMTimeSheet = () => {
             return true;
           }
 
-          setErrorMessage("Failed to force complete activity");
+          setErrorMessage(mode === "REVERSE_COMPLETE" ? "Failed change status update. Try Again sometime." : "Failed to complete this activity.Please try again sometime. ");
           setShowErrorModal(true);
           return false;
 
@@ -996,6 +999,25 @@ const APMTimeSheet = () => {
       return;
     }
 
+    if (type === "reverse") {
+      setConfirmPopup({
+        isOpen: true,
+        title: "Reverse Audit status",
+        message: "Are you sure you want to Reverse audit status",
+        onConfirm: async () => {
+          await handleActivitySubmit({
+            project,
+            mode: "REVERSE_COMPLETE",
+            data: { startTime: getCurrentDateTimeDefaults().currentTime },
+          });
+          await onRefresh();
+          setConfirmPopup((p) => ({ ...p, isOpen: false }));
+        },
+      });
+      return;
+    }
+
+
     if (["continue", "complete", "checkout_yesterday", "update_retainer", "force_complete"].includes(type)) {
       setSelectedProject({ ...project, modalContext: { type }, retainer });
       setIsFormModalOpen(true);
@@ -1189,7 +1211,7 @@ const APMTimeSheet = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={["left", "right", "bottom"]}>
       <HeaderComponent
-        headerTitle="Projects TimeSheet"
+        headerTitle="My Audits"
         onBackPress={() => navigate.goBack()}
         icon1Name="filter"
         icon1OnPress={openFilterModal}

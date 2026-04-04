@@ -128,25 +128,6 @@ const RetainerCard = ({
       );
     }
 
-    // 2. If retainer has pending checkout from previous day
-    // if (hasPendingCheckout) {
-    //   return (
-    //     <TouchableOpacity
-    //       style={[styles.btn, styles.primaryBtn]}
-    //       onPress={() => onAction && onAction({ 
-    //         type: 'checkout_yesterday', 
-    //         retainer: {
-    //           ...retainer,
-    //           fullData: retainerProject
-    //         }
-    //       })}
-    //     >
-    //       <Ionicons name="time-outline" size={16} color="#fff" />
-    //       <Text style={styles.btnText}>Checkout Yesterday</Text>
-    //     </TouchableOpacity>
-    //   );
-    // }
-
     // 3. If retainer has an open session or today's status is Active
     // if (hasSession || todaysStatus === "Active") {
     if (hasSession || retainerProject?.original_A) {
@@ -161,16 +142,6 @@ const RetainerCard = ({
       );
     }
 
-    // 4. If there's any open session globally and retainer doesn't have one
-    // if (hasOpenSessionGlobally && !hasSession) {
-    //   return (
-    //     <View style={[styles.btn, styles.disabledBtn]}>
-    //       <Ionicons name="lock-closed-outline" size={16} color="#fff" />
-    //       <Text style={styles.btnText}>Finish Pending</Text>
-    //     </View>
-    //   );
-    // }
-
     // 5. If retainer hasn't started activity yet (no original_A)
     if (!retainerProject?.original_A) {
       return (
@@ -183,23 +154,6 @@ const RetainerCard = ({
         </TouchableOpacity>
       );
     }
-
-    // 6. Default to Resume (if has original_A but not active today)
-    // return (
-    //   <TouchableOpacity
-    //     style={[styles.btn, styles.primaryBtn]}
-    //     onPress={() => onAction && onAction({ 
-    //       type: 'resume', 
-    //       retainer: {
-    //         ...retainer,
-    //         fullData: retainerProject
-    //       }
-    //     })}
-    //   >
-    //     <Ionicons name="play-outline" size={16} color="#fff" />
-    //     <Text style={styles.btnText}>Resume Activity</Text>
-    //   </TouchableOpacity>
-    // );
   };
 
   return (

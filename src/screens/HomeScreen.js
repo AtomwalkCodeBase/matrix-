@@ -21,17 +21,12 @@ const HomePage = ({ navigation }) => {
     profile, 
     companyInfo, 
     isLoading,
-    // Attendance states from context
     employeeData,
     setEmployeeData,
     setCurrentDate,
     setCurrentTimeStr,
     refreshKey,
-
-    // Attendance functions from context
     setdatatime,
-
-    refreshData
   } = useContext(AppContext);
   const [company, setCompany] = useState({});
   const [empId, setEmpId] = useState('');
@@ -132,19 +127,11 @@ const HomePage = ({ navigation }) => {
     };
   }, [isConnected, profile]);
 
-  // useFocusEffect(
-  //   useCallback(() => {
-  //     if (employeeData?.id) {
-  //       refreshData();
-  //     }
-  //   }, [employeeData, refreshKey])
-  // );
-
 
   const menuItems = [
     {
       id: 2,
-      title: 'Timesheet',
+      title: 'My Audit',
       icon: <MaterialCommunityIcons name="timetable" size={24} color={colors.primary} />,
       onPress: () => router.push('TimeSheet')
     },
@@ -382,26 +369,6 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: 'bold',
   },
-  attendanceButtonsContainer: {
-    width: '100%',
-  },
-  attendanceButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    gap: 10,
-  },
-  attendanceButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    borderRadius: 10,
-    elevation: 2,
-    minHeight: 48,
-  },
   buttonLoading: {
     position: 'absolute',
     top: 0,
@@ -422,20 +389,9 @@ const styles = StyleSheet.create({
   yesterdayButton: {
     backgroundColor: '#FF6B6B',
   },
-  checkedInButton: {
-    backgroundColor: '#D7DAD7',
-  },
   disabledButton: {
     backgroundColor: '#f0f0f0',
     elevation: 0,
-  },
-  attendanceButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    marginLeft: 8,
-    fontSize: 14,
-    flexShrink: 1,
-    maxWidth: '90%',
   },
   disabledButtonText: {
     color: '#888',

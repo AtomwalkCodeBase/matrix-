@@ -8,11 +8,12 @@ import TimePicker from '../TimePicker';
 import FilePicker from '../FilePicker';
 import RemarksInput from '../RemarkInput';
 import { colors } from '../../Styles/appStyle';
-import { formatAMPMTime, formatAPITime, formatToApiDate, getCurrentDateTimeDefaults, normalizeToDDMMYYYY, parseApiDate } from './utils';
+import { DateForApiFormate, formatAMPMTime, formatAPITime, formatToApiDate, getCurrentDateTimeDefaults, normalizeToDDMMYYYY, parseApiDate } from './utils';
 import { AppContext } from '../../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorModal from '../ErrorModal';
 import CompanyDropdown from '../ComanyDropDown';
+import ConfirmationModal from '../ConfirmationModal';
 
 const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout = false, onSubmitActivity, onCompleteActivity }) => {
     const [resourceModalVisible, setResourceModalVisible] = useState(false);
@@ -23,6 +24,12 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     const [showErrorModal, setShowErrorModal] = useState(false)
     const [errorMessage, setErrorMessage] = useState("")
     const isExecutive = profile.grade_level < 100;
+    const [confirmPopup, setConfirmPopup] = useState({
+        isOpen: false,
+        title: "",
+        message: "",
+        onConfirm: null,
+    });
 
     const isRetainer = editingTask?.retainer;
 
@@ -62,7 +69,8 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     const todayApiPlanned = `${dd}-${mon}-${yyyy}`;
 
     const plannedEndDate = editingTask?.planned_end_date;
-    const isTodayPlannedEnd = plannedEndDate <= todayApiPlanned;
+    const isTodayPlannedEnd = DateForApiFormate(plannedEndDate, true) < DateForApiFormate(todayApiPlanned, true);
+    const isPlannedEndExceed = DateForApiFormate(plannedEndDate, true) <= DateForApiFormate(todayApiPlanned, true);
 
     const [formData, setFormData] = useState({
         date: getToday(),
@@ -214,21 +222,12 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             payload.endTime = `${displayHours}:${minutes} ${ampm}`;
         }
 
-        if (resourceList || payload.noOfResource) {
-            let tl_count = 0;
-            let ex_count = 0;
-            retainerInputs.forEach(item => {
-                if (item.name?.trim() && item.items?.toString().trim()) {
-                    if (item.resourceType === "TL") tl_count++;
-                    if (item.resourceType === "EX") ex_count++;
-                }
-            });
-
+        if (resourceList && tl_count > 0 && ex_count > 0) {
             payload.extraFields = {
-                ...(payload.extraFields || {}),
-                resource_list: resourceList,
-                tl_count: String(tl_count),
-                ex_count: String(ex_count)
+            ...(payload.extraFields || {}),
+            resource_list: resourceList,
+            tl_count: String(tl_count),
+            ex_count: String(ex_count)
             };
         }
         if (contextType !== "checkout_yesterday") return payload;
@@ -334,7 +333,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             };
             payload = buildPayload(payload);
 
-            // console.log("Activity Payload:", payload)
+            // console.log("Activity pause activity Payload:", payload)
 
             onSubmitActivity(payload);
         }
@@ -358,10 +357,17 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         };
 
         payload = buildPayload(payload);
-        // console.log("DATA_CORRECT Payload:", payload);
-        onSubmitActivity(payload);
-
-        onClose();
+        
+         setConfirmPopup({
+            isOpen: true,
+            title: "Complete Activity",
+            message:  `${!isPlannedEndExceed ? `Are you sure you want to complete this audit item.\n\n This audit is planned till ${project.planned_end_date}.\n\n After this you won't able to perform any activity for this audit item` : "Are you sure you want to complete this activity"}`,
+            onConfirm: () => {
+            onSubmitActivity(payload);
+            onClose();
+            setConfirmPopup((p) => ({ ...p, isOpen: false }));
+            },
+        });
     };
 
     const handleMarkComplete = () => {
@@ -391,10 +397,21 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         };
 
         payload = buildPayload(payload);
+         const modalMsg = isRetainer ? `Are you sure you want to mark today’s activity as complete for this retainer?` : !isPlannedEndExceed ? `Are you sure you want to complete this audit item.\n\n This audit is planned till ${editingTask.planned_end_date}.\n\n After this you won't able to perform any activity for this audit item` : "Are you sure you want to complete this activity"
+         setConfirmPopup({
+            isOpen: true,
+            title: "Complete Activity",
+            message: modalMsg,
+            onConfirm: () => {
+            onCompleteActivity(payload);
+            onClose();
+            setConfirmPopup((p) => ({ ...p, isOpen: false }));
+            },
+        });
 
-        //   console.log("Complete Activity Payload:", payload)
-        onCompleteActivity(payload);
-        onClose();
+        //   console.log("Complete Activity for retainer Payload:", payload)
+        // onCompleteActivity(payload);
+        // onClose();
     };
 
     const renderHeader = () => {
@@ -769,8 +786,16 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             <ErrorModal
                 visible={showErrorModal}
                 message={errorMessage} onClose={() => setShowErrorModal(false)}
-
             />
+
+        <ConfirmationModal
+            visible={confirmPopup.isOpen}
+            title={confirmPopup.title}
+            message={confirmPopup.message}
+            onConfirm={confirmPopup.onConfirm}
+            onCancel={() => setConfirmPopup((p) => ({ ...p, isOpen: false }))}
+            messageColor={!isPlannedEndExceed ? "red" : ""}
+        />
         </>
     );
 };

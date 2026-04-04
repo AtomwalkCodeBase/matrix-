@@ -75,6 +75,9 @@ export const formatMonthLabel = (start) => {
 };
 
 export function formatAMPMTime(time) {
+  if(!time){
+    return "--"
+  }
   // If you pass a time like "13:45" or "01:45 PM"
   return moment(time, ["HH:mm", "hh:mm A"]).format("hh:mm A");
 }
@@ -879,7 +882,7 @@ export const parseDateString = (str) => {
     return isNaN(d) ? null : d;
   };
 
-  export const DateForApiFormate = (value) => {
+  export const DateForApiFormate = (value, returnComparable = false) => {
     if (!value) return "";
 
     let d = value;
@@ -924,6 +927,10 @@ export const parseDateString = (str) => {
     const dd = String(d.getDate()).padStart(2, "0");
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
+
+    if (returnComparable) {
+        return `${yyyy}-${mm}-${dd}`;
+    }
 
     return `${dd}-${mm}-${yyyy}`;
 };

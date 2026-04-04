@@ -10,7 +10,8 @@ import {
 import { AntDesign, FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
 import RetainerCard from './RetainerCard';
-import { formatAMPMTime, getTodayApiDateStr } from './utils';
+import { DateForApiFormate, formatAMPMTime, formatToDDMMYYYY, getTodayApiDateStr } from './utils';
+import ConfirmationModal from '../ConfirmationModal';
 
 const PRIMARY_COLOR = colors.primary;
 
@@ -51,6 +52,10 @@ const getDatesBetween = (start, end) => {
 };
 
 const getStatusColor = (status) => {
+  if (typeof status === 'boolean') {
+    return status ?  '#ef4444' : '#10b981'; // green / red
+  }
+
   const s = (status || '').toLowerCase();
   return s === 'completed'
     ? '#10b981'
@@ -59,13 +64,16 @@ const getStatusColor = (status) => {
     : '#64748b';
 };
 
-// === Reusable Sub-Components ===
+const StatusBadge = ({ status }) => {
+  const isBoolean = typeof status === 'boolean';
+  const displayText = isBoolean ? status ? 'No' : 'Yes' : status || 'Planned';
 
-const StatusBadge = ({ status }) => (
-  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) }]}>
-    <Text style={styles.statusText}>{status || 'Planned'}</Text>
-  </View>
-);
+  return (
+    <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) }]}>
+      <Text style={styles.statusText}>{displayText}</Text>
+    </View>
+  );
+};
 
 const InfoItem = ({ icon, label, value }) => (
   <View style={styles.infoItem}>
@@ -183,6 +191,12 @@ export const AuditCard = ({
   showPincodeModal
 }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [confirmPopup, setConfirmPopup] = useState({
+       isOpen: false,
+       title: "",
+       message: "",
+       onConfirm: null,
+   });
   // console.log("Project Details---",project)
   const todayStr = getTodayApiDateStr();
 
@@ -264,6 +278,16 @@ export const AuditCard = ({
     return 'unknown';
   }, [project?.original_A?.ts_data_list]);
 
+  const auditEndDate = project?.original_P?.max_audit_end_date;
+    const isAuditEndDatePass = auditEndDate && DateForApiFormate(auditEndDate, true) < DateForApiFormate(todayStr, true);
+    const isPlannedEndExceed = DateForApiFormate(project?.planned_end_date, true) < DateForApiFormate(todayStr, true);
+
+  const isNonNegotiable = project?.original_P?.is_non_negotiable_date;
+  const isStrictDeadlinePassed = isNonNegotiable && isAuditEndDatePass;
+
+  const showAuditExceededMessage = isAuditEndDatePass;
+
+
   const renderPrimaryButton = () => {
 
     const isActivityCompleted = project?.original_A?.status === "S";
@@ -280,6 +304,7 @@ export const AuditCard = ({
     }
 
     // 2. If activity has pending checkout from previous day
+    // Always allow this to remain visible even if strict deadline has passed
     if (project?.hasPendingCheckout) {
       return (
         <TouchableOpacity
@@ -293,6 +318,7 @@ export const AuditCard = ({
     }
 
     // 3. If this project has an open session
+    // Always allow this to remain visible even if strict deadline has passed
     if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
       return (
         <TouchableOpacity
@@ -303,6 +329,11 @@ export const AuditCard = ({
           <Text style={styles.btnText}>Check Out</Text>
         </TouchableOpacity>
       );
+    }
+
+    // If strict deadline has passed and no open session to close, hide all other buttons
+    if (isStrictDeadlinePassed) {
+      return null;
     }
 
     // 4. If there's any open session globally, disable other projects
@@ -382,15 +413,11 @@ export const AuditCard = ({
   const document_required = project?.original_P?.is_file_applicable;
   const document_uploaded = project?.original_A?.submitted_file;
 
-  // console.log("project",project)
-  const isAuditEndDatePass = project?.original_P?.max_audit_end_date < todayStr;
-  const isNonNegotiable = project?.original_P?.is_non_negotiable_date;
-  const shouldHidePrimaryButton = isNonNegotiable && isAuditEndDatePass;
-
-  const showAuditExceededMessage = isAuditEndDatePass;
+  // console.log("project",JSON.stringify(project))
 
   return (
-    <View style={styles.card}>
+    <>
+    <View style={[ styles.card, { backgroundColor: isStrictDeadlinePassed ? `${colors.red}40` : '#fff' }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -401,7 +428,7 @@ export const AuditCard = ({
       </View>
 
       {/* Info Grid */}
-      <View style={styles.infoGrid}>
+      <View style={[styles.infoGrid, { backgroundColor: isStrictDeadlinePassed ? `${colors.red}20` : '#f8fafc' }]}>
         <InfoItem icon="briefcase-outline" label="Audit Type" value={auditType} />
         <InfoItem icon="cube-outline" label="Items" value={noOfItems} />
         {document_required && <InfoItem icon="document-attach-outline" label="Document Upload" value={document_uploaded ?
@@ -409,7 +436,7 @@ export const AuditCard = ({
         }
       </View>
 
-      <View style={styles.cardContainer}>
+      <View style={[styles.cardContainer, { backgroundColor: isStrictDeadlinePassed ? `${colors.red}20` : '#f8fafc' }]}>
         {/* LEFT SIDE */}
         <View style={styles.leftSection}>
           <View style={styles.headerRow}>
@@ -417,6 +444,16 @@ export const AuditCard = ({
             <Text style={styles.label}>Store Location</Text>
           </View>
           <Text style={styles.value}>{store_location || "--"}</Text>
+
+          {project?.original_P?.store_code &&
+          <> 
+          <View style={styles.headerRow}>
+             <Ionicons name="home" size={12} color="#64748b" />
+            <Text style={styles.label}>Store code</Text>
+          </View>
+          <Text style={styles.value}>{project?.original_P?.store_code}</Text>
+          </>
+          }
         </View>
 
         {/* DIVIDER */}
@@ -430,7 +467,7 @@ export const AuditCard = ({
           </View>
             {!project?.original_P?.pin_code ? (
               <TouchableOpacity
-                style={[styles.btn, styles.primaryBtn]}
+                style={[styles.btn, styles.primaryBtn, {maxHeight: 50}]}
                 onPress={() => showPincodeModal(project)}
               >
                 <AntDesign name="plus" size={14} color="#fff" />
@@ -441,6 +478,16 @@ export const AuditCard = ({
             </Text>}
           </View>
       </View>
+      
+      {project?.original_P?.is_non_negotiable_date && project?.original_P?.max_audit_end_date && 
+      //  <View style={[styles.timeline,{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginTop: 10 }]}>
+        <View style={[styles.cardContainer2]}>
+          <Text style={{ color: colors.white, textAlign: "center", fontWeight: "600"}}>Non negotiable Date: {`${formatDate(project?.original_P?.audit_date)} to ${formatDate(project?.original_P?.max_audit_end_date)}`}</Text>
+        </View>
+
+      // </View>
+      
+      }
 
       {/* Timeline */}
       <View style={styles.timeline}>
@@ -448,7 +495,7 @@ export const AuditCard = ({
         <TimelineRow
           icon="calendar-outline"
           label="Planned Date"
-          value={`${formatDate(project?.planned_start_date)} to ${formatDate(project?.planned_end_date)}`}
+          value={`${formatDate(project?.original_P?.start_date)} to ${formatDate(project?.original_P?.end_date)}`}
         />
         <TimelineRow
           icon="calendar-outline"
@@ -462,9 +509,13 @@ export const AuditCard = ({
         />}
       </View>
 
-      {showAuditExceededMessage && <View>
-        <Text style={{color: colors.red, marginBottom: "15"}}>Audit max end date has been exceeded</Text>
-      </View>}
+      {showAuditExceededMessage && project?.project_period_status !== "Completed" &&
+        <View>
+          <Text style={{ color: colors.red, marginBottom: "15" }}>{
+            isStrictDeadlinePassed ? "Audit max end date has been exceeded. You can't start the activity" :
+              "Audit max end date has been exceeded"}
+          </Text>
+        </View>}
 
       {/* Retainer Section - Always visible if there are retainers */}
       <RetainerSection
@@ -478,7 +529,7 @@ export const AuditCard = ({
 
       {/* Action Buttons */}
       <View style={styles.actions}>
-        {!shouldHidePrimaryButton && (periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
+        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
         <TouchableOpacity
           style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
           onPress={handleToggleDetails}
@@ -521,7 +572,18 @@ export const AuditCard = ({
                   ))}
                 </View>
               </ScrollView>
-              {(project.project_period_status !== "Completed" && !project?.hasPendingCheckout) && <TouchableOpacity
+              {project.project_period_status === "Completed" && project?.original_A?.status !== "A" && 
+              <TouchableOpacity
+                style={[styles.btn, styles.primaryBtn, { marginTop: 10 }]}
+                onPress={() => onAction({ type: 'reverse', project})}
+
+              >
+                <FontAwesome6 name="check-circle" size={16} color={colors.white} />
+                <Text style={styles.btnText}>Reverse Audit Status</Text>
+              </TouchableOpacity>
+              }
+              {(project.project_period_status !== "Completed" && !project?.hasPendingCheckout && !hasOpenSession) && 
+              <TouchableOpacity
                 style={[styles.btn, styles.successBtn, { marginTop: 10 }]}
                 onPress={() => onAction({ type: 'force_complete', project })}
               >
@@ -538,6 +600,16 @@ export const AuditCard = ({
         </View>
       )}
     </View>
+
+ <ConfirmationModal
+            visible={confirmPopup.isOpen}
+            title={confirmPopup.title}
+            message={confirmPopup.message}
+            onConfirm={confirmPopup.onConfirm}
+            onCancel={() => setConfirmPopup((p) => ({ ...p, isOpen: false }))}
+            messageColor={!isPlannedEndExceed ? "red" : ""}
+        />
+    </>
   );
 };
 
@@ -686,7 +758,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   timeline: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionTitle: {
     fontSize: 13,
@@ -963,6 +1035,16 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 16,
     alignItems: "center",
+  },
+    cardContainer2: {
+    flexDirection: "row",
+    // backgroundColor: '#f8fafc',
+     backgroundColor: colors.red,
+    borderRadius: 10,
+    padding: 6,
+    marginVertical: 5,
+    alignItems: "center",
+    // justifyContent: "center"
   },
 
   leftSection: {
