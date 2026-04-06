@@ -24,7 +24,8 @@ const RemarkModals = ({
   error,
   isLoading = false,
   type = "text",
-  errorMessage
+  errorMessage,
+  maxLength
 }) => {
   const handleSubmit = () => {
     if (onSubmit) {
@@ -59,6 +60,7 @@ const RemarkModals = ({
               placeholder="Enter Pincode (eg: XXXXXX)"
               claimAmount={remark}
               setClaimAmount={setRemark}
+              maxLength={maxLength}
           />}
           {errorMessage &&
             <Text style={{color: colors.red, marginBottom: "15"}}>{errorMessage}</Text>

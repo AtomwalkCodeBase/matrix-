@@ -1003,7 +1003,7 @@ const APMTimeSheet = () => {
       setConfirmPopup({
         isOpen: true,
         title: "Reverse Audit status",
-        message: "Are you sure you want to Reverse audit status",
+        message: `⚠️ You are about to undo the completed audit. The status will be changed to In Progress.\n\nDo you want to continue?`,
         onConfirm: async () => {
           await handleActivitySubmit({
             project,
@@ -1097,7 +1097,7 @@ const APMTimeSheet = () => {
       const activityDate = defaultApiDate;
 
       if (!aId) {
-        setErrorMessage("Please start the activity to add pin code.");
+        setErrorMessage("Pincode entry is not allowed until the activity has started.");
         setShowErrorModal(true);
         setIsLoading(false);
         return;
@@ -1352,6 +1352,7 @@ const APMTimeSheet = () => {
         remark={pincode}
         setRemark={setPincode}
         errorMessage={errorMessage}
+        maxLength={6}
       />}
     </SafeAreaView>
   );

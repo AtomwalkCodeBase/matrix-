@@ -32,7 +32,6 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     });
 
     const isRetainer = editingTask?.retainer;
-
     const contextType = editingTask?.modalContext?.type;
     const isRetainerUpdate = editingTask?.modalContext?.type === "update_retainer";
     const hasExistingResources = retainerInputs.filter(v => v.name?.trim() && v.items?.toString().trim()).length > 0;
@@ -370,7 +369,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
          setConfirmPopup({
             isOpen: true,
             title: "Complete Activity",
-            message:  `${!isPlannedEndExceed ? `Are you sure you want to complete this audit item.\n\n This audit is planned till ${project.planned_end_date}.\n\n After this you won't able to perform any activity for this audit item` : "Are you sure you want to complete this activity"}`,
+            message:  `${!isPlannedEndExceed ? `Are you sure you want to complete this audit item.\n\n This audit is planned till ${editingTask?.planned_end_date}.\n\n After this you won't able to perform any activity for this audit item` : "Are you sure you want to complete this activity"}`,
             onConfirm: () => {
             onSubmitActivity(payload);
             onClose();
@@ -469,7 +468,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
 
                             {isPendingCheckout && !isRetainer && (
-                                <Text style={styles.warningText}>⚠️ Your yesterday checkout is still pending!</Text>
+                                <Text style={styles.warningText}>⚠️ Your previous checkout is still pending!</Text>
                             )}
 
                             <Text style={{ backgroundColor: colors.primary, borderRadius: 10, color: "white", textAlign: "center", padding: 6, fontWeight: 500, fontSize: 14 }}>NO of Items Assigned you to Audit: {editingTask?.original_P?.no_of_items}</Text>
@@ -609,7 +608,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                                 disabled={!isValid}
                                                 onPress={handleSubmit}
                                             >
-                                                <Text style={[styles.applyButtonText, { textAlign: "center" }]}>Checkout For Yesterday</Text>
+                                                <Text style={[styles.applyButtonText, { textAlign: "center" }]}>Check out previous check-in</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity
                                                 style={[
@@ -620,7 +619,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                                 disabled={!isValid}
                                                 onPress={handleMarkComplete}
                                             >
-                                                <Text style={[styles.applyButtonText, { textAlign: "center" }]}>Completed</Text>
+                                                <Text style={[styles.applyButtonText, { textAlign: "center" }]}>Mark Activity Complete</Text>
                                             </TouchableOpacity>
                                         </>
 

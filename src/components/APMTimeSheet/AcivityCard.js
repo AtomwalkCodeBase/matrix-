@@ -312,7 +312,7 @@ export const AuditCard = ({
           onPress={() => onAction({ type: 'checkout_yesterday', project })}
         >
           <Ionicons name="time-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Checkout Yesterday</Text>
+          <Text style={styles.btnText}>Close Check-in</Text>
         </TouchableOpacity>
       );
     }
@@ -356,13 +356,6 @@ export const AuditCard = ({
           <Ionicons name="play-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Resume Activity</Text>
         </TouchableOpacity>
-        // <TouchableOpacity
-        //   style={[styles.btn, styles.checkOutBtn]}
-        //   onPress={() => onAction({ type: 'continue', project })}
-        // >
-        //   <Ionicons name="log-out-outline" size={16} color="#fff" />
-        //   <Text style={styles.btnText}>Check Out</Text>
-        // </TouchableOpacity>
       );
     }
 

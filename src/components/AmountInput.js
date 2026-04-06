@@ -21,7 +21,7 @@ const Label = styled.Text`
   font-weight: 600;
 `;
 
-const AmountInput = ({ error, label,placeholder ,claimAmount, setClaimAmount }) => {
+const AmountInput = ({ error, label,placeholder ,claimAmount, setClaimAmount, maxLength }) => {
   return (
     <FieldContainer>
      {label && <Label>{label}</Label>}
@@ -30,6 +30,7 @@ const AmountInput = ({ error, label,placeholder ,claimAmount, setClaimAmount }) 
         keyboardType="numeric"
         value={claimAmount}
         onChangeText={setClaimAmount}
+        maxLength={maxLength ? Number(maxLength) : undefined}
       />
       {error && (
         <Text style={{marginTop: 7, color: colors.red, fontSize: 12}}>
