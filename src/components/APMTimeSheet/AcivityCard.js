@@ -285,7 +285,7 @@ export const AuditCard = ({
   const isNonNegotiable = project?.original_P?.is_non_negotiable_date;
   const isStrictDeadlinePassed = isNonNegotiable && isAuditEndDatePass;
 
-  const showAuditExceededMessage = isAuditEndDatePass;
+  const showAuditExceededMessage = isNonNegotiable && isAuditEndDatePass;
 
 
   const renderPrimaryButton = () => {

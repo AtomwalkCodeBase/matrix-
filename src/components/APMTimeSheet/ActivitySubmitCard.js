@@ -222,12 +222,21 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             payload.endTime = `${displayHours}:${minutes} ${ampm}`;
         }
 
-        if (resourceList && tl_count > 0 && ex_count > 0) {
+         if (resourceList || payload.noOfResource) {
+            let tl_count = 0;
+            let ex_count = 0;
+            retainerInputs.forEach(item => {
+                if (item.name?.trim() && item.items?.toString().trim()) {
+                    if (item.resourceType === "TL") tl_count++;
+                    if (item.resourceType === "EX") ex_count++;
+                }
+            });
+
             payload.extraFields = {
-            ...(payload.extraFields || {}),
-            resource_list: resourceList,
-            tl_count: String(tl_count),
-            ex_count: String(ex_count)
+                ...(payload.extraFields || {}),
+                resource_list: resourceList,
+                tl_count: String(tl_count),
+                ex_count: String(ex_count)
             };
         }
         if (contextType !== "checkout_yesterday") return payload;

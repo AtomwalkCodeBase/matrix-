@@ -732,7 +732,7 @@ const APMTimeSheet = () => {
             return true;
           }
 
-          setErrorMessage(mode === "REVERSE_COMPLETE" ? "Failed change status update. Try Again sometime." : "Failed to complete this activity.Please try again sometime. ");
+          setErrorMessage(mode === "REVERSE_COMPLETE" ? "Failed to change status update.Please Try Again sometime." : "Failed to complete this activity.Please try again sometime. ");
           setShowErrorModal(true);
           return false;
 
