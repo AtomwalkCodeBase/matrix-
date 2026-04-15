@@ -59,7 +59,7 @@ const APMTimeSheet = () => {
   const [empId, setEmpId] = useState(null);
   const [allProjects, setAllProjects] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
@@ -722,11 +722,11 @@ const APMTimeSheet = () => {
         });
 
         try {
-      //     for (let [key, value] of formData.entries()) {
-      //   console.log(key, value);
-      // }
-          const res = await postAllocationData(formData);
-          // const res ={status : 200}
+          for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
+          // const res = await postAllocationData(formData);
+          const res ={status : 200}
 
           if (res?.status === 200) {
             return true;
@@ -904,9 +904,9 @@ const APMTimeSheet = () => {
         }
       });
 
-      // for (let [key, value] of formData.entries()) {
-      //   console.log(key, value);
-      // }
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value);
+      }
 
       const res = await postAllocationData(formData);
       // const res = { status: 200 }
@@ -931,6 +931,7 @@ const APMTimeSheet = () => {
       //   "Error in handleActivitySubmit",
       //   error?.response?.data || error?.message || error
       // );
+      console.log("error",error)
 
       const errorMessage = extractApiErrorMessage(
         error,
@@ -950,7 +951,7 @@ const APMTimeSheet = () => {
 
   // Action handlers
   const handleActivityAction = ({ type, project, retainer = false, isMaxAuditEndDatePass }) => {
-    if (type === "start") {
+    if (type === "start" || type === "start_a") {
       if (!retainer) {
         const hasOpenSession = allProjects?.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
         if (hasOpenSession) {
@@ -962,8 +963,9 @@ const APMTimeSheet = () => {
 
       setConfirmPopup({
         isOpen: true,
-        title: "Start Activity",
-        message: `${isMaxAuditEndDatePass ? `Max audit end date is Passed .${'\n\n'}Still Do you want to start the activity` : "Start this activity now?"}`,
+        title: `${type === "start_a" ? "Again Start Activity" : "Start Activity"}`,
+        // title:  "Start Activity",
+        message: `${isMaxAuditEndDatePass ? `Max audit end date is Passed .${'\n\n'}Still Do you want to start the activity` : type === "start_a" ? "Are you sure, Again you want to start the activity ?" : "Start this activity now ?"}`,
         onConfirm: async () => {
           await handleActivitySubmit({ project, mode: "ADD" });
           await onRefresh();
@@ -1297,6 +1299,7 @@ const APMTimeSheet = () => {
                           setPincodeProject(proj);
                           setIsPincodeModalOpen(true);
                         }}
+                        isLoading={isLoading}
                       />
                     </React.Fragment>
                   );
@@ -1322,7 +1325,7 @@ const APMTimeSheet = () => {
 
       <ConfirmationModal
         visible={confirmPopup.isOpen}
-        title={confirmPopup.title}
+        headerTitle={confirmPopup.title}
         message={confirmPopup.message}
         onConfirm={confirmPopup.onConfirm}
         onCancel={() => setConfirmPopup((p) => ({ ...p, isOpen: false }))}

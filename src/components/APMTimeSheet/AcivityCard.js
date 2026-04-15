@@ -187,8 +187,8 @@ export const AuditCard = ({
   hasOpenSessionGlobally, 
   retainerData,
   onToggleRetainers,
-
-  showPincodeModal
+  showPincodeModal,
+  isLoading
 }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [confirmPopup, setConfirmPopup] = useState({
@@ -293,13 +293,25 @@ export const AuditCard = ({
     const isActivityCompleted = project?.original_A?.status === "S";
     const thisProjectHasOpenSession = hasOpenSession;
 
+    if(project?.original_A?.status === "A"){
+       return (<></>)
+    }
+
     // 1. If activity is completed (status: "S")
     if (isActivityCompleted) {
       return (
-        <View style={[styles.btn, styles.disabledBtn]}>
-          <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Activity is complete</Text>
-        </View>
+        // <View style={[styles.btn, styles.disabledBtn]}>
+        //   <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
+        //   <Text style={styles.btnText}>Activity is complete</Text>
+        // </View>
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
+          onPress={() => onAction({ type: 'start_a', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+          disabled={isLoading}
+        >
+          <Ionicons name="log-in-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Again Start Activity</Text>
+        </TouchableOpacity>
       );
     }
 
@@ -308,8 +320,9 @@ export const AuditCard = ({
     if (project?.hasPendingCheckout) {
       return (
         <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
+          style={[styles.btn, styles.primaryBtn ,isLoading && styles.disabledBtn]}
           onPress={() => onAction({ type: 'checkout_yesterday', project })}
+          disabled={isLoading}
         >
           <Ionicons name="time-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Close Check-in</Text>
@@ -322,8 +335,9 @@ export const AuditCard = ({
     if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
       return (
         <TouchableOpacity
-          style={[styles.btn, styles.checkOutBtn]}
+          style={[styles.btn, styles.checkOutBtn, isLoading && styles.disabledBtn]}
           onPress={() => onAction({ type: 'continue', project })}
+          disabled={isLoading}
         >
           <Ionicons name="log-out-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Check Out</Text>
@@ -350,8 +364,9 @@ export const AuditCard = ({
     if (lastEntryStatus === 'checked_out') {
       return (
         <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
+          style={[styles.btn, styles.primaryBtn,isLoading && styles.disabledBtn]}
           onPress={() => onAction({ type: 'resume', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+          disabled={isLoading}
         >
           <Ionicons name="play-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Resume Activity</Text>
@@ -363,8 +378,9 @@ export const AuditCard = ({
     if (!project?.original_A) {
       return (
         <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
+          style={[styles.btn, styles.primaryBtn ,isLoading && styles.disabledBtn]}
           onPress={() => onAction({ type: 'start', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+          disabled={isLoading}
         >
           <Ionicons name="log-in-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Start Activity</Text>
@@ -378,6 +394,7 @@ export const AuditCard = ({
         <TouchableOpacity
           style={[styles.btn, styles.primaryBtn]}
           onPress={() => onAction({ type: 'resume', project })}
+          disabled={isLoading}
         >
           <Ionicons name="play-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Resume Activity</Text>
@@ -390,6 +407,7 @@ export const AuditCard = ({
       <TouchableOpacity
         style={[styles.btn, styles.primaryBtn]}
         onPress={() => onAction({ type: 'start', project })}
+        disabled={isLoading}
       >
         <Ionicons name="log-in-outline" size={16} color="#fff" />
         <Text style={styles.btnText}>Start Activity</Text>
@@ -410,7 +428,7 @@ export const AuditCard = ({
 
   return (
     <>
-    <View style={[ styles.card, { backgroundColor: isStrictDeadlinePassed ? `${colors.red}40` : '#fff' }]}>
+    <View style={[ styles.card, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed"  ? `${colors.red}40` : '#fff' }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -421,7 +439,7 @@ export const AuditCard = ({
       </View>
 
       {/* Info Grid */}
-      <View style={[styles.infoGrid, { backgroundColor: isStrictDeadlinePassed ? `${colors.red}20` : '#f8fafc' }]}>
+      <View style={[styles.infoGrid, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed" ? `${colors.red}20` : '#f8fafc' }]}>
         <InfoItem icon="briefcase-outline" label="Audit Type" value={auditType} />
         <InfoItem icon="cube-outline" label="Items" value={noOfItems} />
         {document_required && <InfoItem icon="document-attach-outline" label="Document Upload" value={document_uploaded ?
@@ -429,7 +447,7 @@ export const AuditCard = ({
         }
       </View>
 
-      <View style={[styles.cardContainer, { backgroundColor: isStrictDeadlinePassed ? `${colors.red}20` : '#f8fafc' }]}>
+      <View style={[styles.cardContainer, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed" ? `${colors.red}20` : '#f8fafc' }]}>
         {/* LEFT SIDE */}
         <View style={styles.leftSection}>
           <View style={styles.headerRow}>
@@ -522,7 +540,7 @@ export const AuditCard = ({
 
       {/* Action Buttons */}
       <View style={styles.actions}>
-        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending') && renderPrimaryButton()}
+        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending' || periodStatus === 'Completed') && renderPrimaryButton()}
         <TouchableOpacity
           style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
           onPress={handleToggleDetails}
