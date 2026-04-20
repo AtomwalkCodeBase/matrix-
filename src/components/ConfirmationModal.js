@@ -37,12 +37,32 @@ const ConfirmationModal = ({
     }
   }, [visible]);
 
+  const handleConfirm = async () => {
+    // First close the modal
+    if (onCancel) {
+      onCancel();
+    }
+    
+    // Small delay to ensure modal close animation completes
+    setTimeout(() => {
+      if (onConfirm) {
+        onConfirm();
+      }
+    }, 200);
+  };
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel();
+    }
+  };
+
   return (
     <Modal
       animationType="fade"
       transparent={true}
       visible={visible}
-      onRequestClose={onCancel}
+      onRequestClose={handleCancel}
       statusBarTranslucent={true}
     >
       <View style={styles.centeredView}>
@@ -50,14 +70,14 @@ const ConfirmationModal = ({
           styles.modalView,
           { transform: [{ scale: scaleValue }] }
         ]}>
-          <MaterialIcons name="clear" size={24} color="black" onPress={onCancel} style={styles.cancel} />
+          <MaterialIcons name="clear" size={24} color="black" onPress={handleCancel} style={styles.cancel} />
           <Text style={styles.modalTitle}>{headerTitle ? headerTitle : "Confirmation"}</Text>
           <Text style={[styles.modalText, messageColor && { color: messageColor }]}>{message}</Text>
           
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
-              onPress={onCancel}
+              onPress={handleCancel}
               activeOpacity={0.7}
               accessibilityLabel={cancelText}
             >
@@ -71,7 +91,7 @@ const ConfirmationModal = ({
                 styles.button,
                 color ? { backgroundColor: color, marginLeft: 8 } : styles.confirmButton
               ]}
-              onPress={onConfirm}
+              onPress={handleConfirm}
               activeOpacity={0.7}
               accessibilityLabel={confirmText}
             >

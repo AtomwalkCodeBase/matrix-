@@ -293,7 +293,7 @@ export const AuditCard = ({
     const isActivityCompleted = project?.original_A?.status === "S";
     const thisProjectHasOpenSession = hasOpenSession;
 
-    if(project?.original_A?.status === "A"){
+    if(project?.original_P?.status !== "S"){
        return (<></>)
     }
 
@@ -310,7 +310,7 @@ export const AuditCard = ({
           disabled={isLoading}
         >
           <Ionicons name="log-in-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Again Start Activity</Text>
+          <Text style={styles.btnText}>Start Again Activity</Text>
         </TouchableOpacity>
       );
     }
@@ -513,11 +513,11 @@ export const AuditCard = ({
           label="Planned Time"
           value={`${formatAMPMTime(project?.original_P?.start_time)} to ${formatAMPMTime(project?.original_P?.end_time)}`}
         />
-        {project.actual_start_date && <TimelineRow
+        {/* {project.actual_start_date && <TimelineRow
           icon="calendar-outline"
           label="Actual Date"
           value={`${formatDate(project?.original_A?.start_date)} to ${formatDate(project?.original_A?.end_date)}`}
-        />}
+        />} */}
       </View>
 
       {showAuditExceededMessage && project?.project_period_status !== "Completed" &&
@@ -560,7 +560,7 @@ export const AuditCard = ({
       {isDetailsOpen && (
         <View style={styles.detailsSection}>
           {store_remark && <View style={styles.timeline}>
-            <Text style={styles.sectionTitle}>Store Remark</Text>
+            <Text style={styles.sectionTitle}>Account Manager Remark</Text>
             <TimelineRow
               value={store_remark}
             />

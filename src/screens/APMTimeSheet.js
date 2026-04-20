@@ -652,6 +652,14 @@ const APMTimeSheet = () => {
     return "There is no record found for check-out. Please reload the screen and try again.";
   }
 
+  // NEW: Handle missing timesheet record for previous date
+  if (
+    backendMessage.includes("No Time Sheet record found for previous Date") ||
+    backendMessage.includes("E00001")
+  ) {
+    return "Previous activity record was incomplete due to missing check-in days. The system has marked earlier records as completed. You can now click 'Start Again' to continue the activity.";
+  }
+
   // Existing generic handling
   if (error?.response?.data?.error) {
     return error.response.data.error;
@@ -725,8 +733,8 @@ const APMTimeSheet = () => {
           for (let [key, value] of formData.entries()) {
         console.log(key, value);
       }
-          // const res = await postAllocationData(formData);
-          const res ={status : 200}
+          const res = await postAllocationData(formData);
+          // const res ={status : 200}
 
           if (res?.status === 200) {
             return true;

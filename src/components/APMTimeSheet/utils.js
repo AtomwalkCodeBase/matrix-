@@ -379,40 +379,43 @@ export const normalizeProjects = (apiData = []) => {
   const groups = buildActivityGroupMap(apiData);
   const todayApiStr = getTodayApiDateStr();
   
-  // For each grouped item, build the final object
   const final = groups.map(group => {
     const P = group.original_P;
     const A = group.original_A;
     const allA = Array.isArray(group.allAEntries) ? group.allAEntries : [];
     
-    // Generate a unique ID for the project card
+    const sortedActivities = [...allA].sort((a, b) => {
+      const dateA = parseApiDate(a.start_date);
+      const dateB = parseApiDate(b.start_date);
+      if (dateA && dateB) {
+        return dateB - dateA;
+      }
+      return (b.id || 0) - (a.id || 0);
+    });
+    
+    const latestActivity = sortedActivities[0];
     const projectId = P ? `P_${P.id}` : (A ? `A_${A.id}` : `group_${group.key}`);
 
-    // planned dates only from P
     const planned_start_date = P?.start_date || null;
     const planned_end_date = P?.end_date || null;
 
-    // identity fields
     const p_id = (P?.id) || null;
-    const a_id = (A?.id) || null;
+    const a_id = (latestActivity?.id) || (A?.id) || null;
     const customer_name = (P?.customer_name) || (A?.customer_name) || null;
     const audit_type = (P?.product_name) || (A?.product_name) || null;
     const activity_id = (P?.activity_id) || (A?.activity_id) || null;
     const order_item_key = (P?.order_item_key) || (A?.order_item_key) || null;
-    const order_item_id = (P?.order_item_id) || (A?.order_item_id) || null; // Add this
+    const order_item_id = (P?.order_item_id) || (A?.order_item_id) || null;
     const project_name = (P?.project_name) || (A?.project_name) || null;
     const activity_name = (P?.activity_name) || (A?.activity_name) || null;
     const location = (P?.store_name) || (A?.store_name) || "";
-    const is_ope_actual = (P?.is_ope_actual) || (A?.is_ope_actual) ;
-    const order_item_status = (P?.order_item_status) || (A?.order_item_status) ;
-    const ope_amt = (A?.ope_amt) ;
+    const is_ope_actual = (P?.is_ope_actual) || (A?.is_ope_actual);
+    const order_item_status = (P?.order_item_status) || (A?.order_item_status);
+    const ope_amt = (A?.ope_amt);
 
-    // Build combined day_logs from ALL A entries (merging by date, latest geo wins)
     const day_logs = buildDayLogsFromAEntries(allA);
-
     const allDates = Object.keys(day_logs).map(d => parseApiDate(d)).filter(Boolean).sort((a, b) => a - b);
 
-    // actual date from the day_logs
     const actual_start_date = allDates.length ? formatToApiDate(allDates[0]) : null;
     const actual_end_date = allDates.length ? formatToApiDate(allDates[allDates.length - 1]) : null;
 
@@ -421,141 +424,184 @@ export const normalizeProjects = (apiData = []) => {
         0
     );
 
-    // Total effort = sum of effort from ALL A entries (rule 5)
     const totalEffort = allA.reduce((sum, e) => {
         const v = typeof e.effort === "number" ? e.effort : 0;
         return sum + v;
     }, 0);
 
-    // effort_unit: prefer any non-null effort_unit from original_A, else from first A, else null
-    const effort_unit = (A && A.effort_unit) ? A.effort_unit :
+    const effort_unit = (latestActivity && latestActivity.effort_unit) ? latestActivity.effort_unit :
         (allA.length > 0 && allA.find(a => a.effort_unit)?.effort_unit) || null;
 
-    // Determine 'complete' as per rule: true only if original_A (highest id) has status === "S"
-    const complete = A?.status && A.status !== "N";
-
-    // Determine project_period_status as per RULE 6
     let project_period_status = "Planned";
-    const anyAHasCompleted = allA.some(x => x && (x.status === "S" || (x.status_display && x.status_display.toUpperCase() === "SUBMITTED")));
-    if (complete || anyAHasCompleted) {
+    let complete = false;
+    let isParentCompleted = false;
+    
+    // Determine status based on Parent (P) activity_type
+    if (P && P.activity_type === "P") {
+      // Check if Parent status is Completed (other than "S")
+      if (P.status !== "S") {
+        // Parent status is "C" or other - COMPLETED
         project_period_status = "Completed";
-    } else if (allA && allA.length > 0) {
-        project_period_status = "In Progress";
-    } else if (P) {
-        if (planned_end_date) {
-            const end = parseApiDate(planned_end_date);
-            const today = parseApiDate(todayApiStr);
-            if (end && today && end.getTime() < today.getTime()) {
-                project_period_status = "Pending";
-            } else {
-                project_period_status = "Planned";
-            }
+        complete = true;
+        isParentCompleted = true;
+      } else {
+        // Parent status is "S" - Check if there are any Activity entries
+        const hasActivityEntries = allA && allA.length > 0;
+        
+        if (hasActivityEntries) {
+          // Has Activity entries - IN PROGRESS
+          project_period_status = "In Progress";
+          complete = false;
+          isParentCompleted = false;
         } else {
-            project_period_status = "Planned";
+          // No Activity entries - PLANNED
+          project_period_status = "Planned";
+          complete = false;
+          isParentCompleted = false;
         }
+      }
+    } else if (latestActivity) {
+      // For Activity (A) records without parent
+      const hasAnyActivity = latestActivity.ts_data_list && latestActivity.ts_data_list.length > 0;
+      if (hasAnyActivity) {
+        project_period_status = "In Progress";
+        complete = false;
+      } else {
+        project_period_status = "Planned";
+        complete = false;
+      }
     } else {
-        project_period_status = "Pending";
+      project_period_status = "Pending";
     }
 
-    // Today's status (for todayApiStr) as per RULE 6 (todaysStatus)
-    const todayLog = day_logs[todayApiStr] || null;
+    // Today's status - only relevant for Activity (A) records
     let todaysStatus = "Planned";
+    const todayLog = day_logs[todayApiStr] || null;
+    
     if (todayLog && todayLog.check_in && todayLog.check_out) {
-        todaysStatus = "Complete";
+      todaysStatus = "Complete";
     } else if (todayLog && todayLog.check_in && !todayLog.check_out) {
-        todaysStatus = "Active";
-    } else {
-        todaysStatus = "Planned";
+      todaysStatus = "Active";
     }
 
-    // Pending checkout detection
+    // Pending checkout detection - only for Activity records
     const todayObj = parseApiDate(todayApiStr);
-    const hasPreviousDatePendingCheckout = Object.keys(day_logs).some(dateStr => {
+    let hasPendingCheckout = false;
+    let pendingCheckoutDate = null;
+    
+    if (!isParentCompleted && latestActivity?.ts_data_list) {
+      const pendingEntry = latestActivity.ts_data_list.find(entry => {
+        const entryDate = parseDateString(entry.a_date);
+        if (!entryDate) return false;
+        const isPreviousDate = entryDate.getTime() < todayObj.getTime();
+        if (!isPreviousDate) return false;
+        
+        if (entry.geo_data) {
+          const hasCheckIn = entry.geo_data.includes('I|');
+          const hasCheckOut = entry.geo_data.includes('O|') && !entry.geo_data.includes('O||');
+          return hasCheckIn && !hasCheckOut;
+        }
+        return false;
+      });
+      
+      if (pendingEntry) {
+        hasPendingCheckout = true;
+        pendingCheckoutDate = pendingEntry.a_date;
+      }
+    }
+    
+    if (!hasPendingCheckout && !isParentCompleted) {
+      const pendingDate = Object.keys(day_logs).find(dateStr => {
         const log = day_logs[dateStr];
         const d = parseApiDate(dateStr);
         if (!log || !d) return false;
         const isPreviousDate = d.getTime() < todayObj.getTime();
         return isPreviousDate && log.check_in && !log.check_out;
-    });
-
-    const hasPendingCheckout = hasPreviousDatePendingCheckout;
-    const pendingCheckoutDate = hasPendingCheckout
-        ? Object.keys(day_logs)
-            .filter(dateStr => {
-                const log = day_logs[dateStr];
-                const d = parseApiDate(dateStr);
-                if (!log || !d) return false;
-                return d.getTime() < todayObj.getTime() && log.check_in && !log.check_out;
-            })
-            .sort((a, b) => parseApiDate(a) - parseApiDate(b))[0]
-        : null;
-
-    let show_start_button = false;
-    let show_end_button = false;
-    const hasTodayCheckIn = !!(todayLog && todayLog.check_in);
-    const hasTodayCheckOut = !!(todayLog && todayLog.check_out);
-
-    if (hasPendingCheckout && pendingCheckoutDate !== todayApiStr) {
-        show_start_button = false;
-        show_end_button = true;
-    } else if (!hasTodayCheckIn && !hasPendingCheckout) {
-        show_start_button = true;
-        show_end_button = false;
-    } else if (hasTodayCheckIn && !hasTodayCheckOut) {
-        show_start_button = false;
-        show_end_button = true;
-    } else if (hasTodayCheckIn && hasTodayCheckOut) {
-        show_start_button = false;
-        show_end_button = false;
+      });
+      
+      if (pendingDate) {
+        hasPendingCheckout = true;
+        pendingCheckoutDate = pendingDate;
+      }
     }
 
-    // original_P: full original P object or null
-    // original_A: full original A object (the highest id) or null
+    // Button visibility logic
+    let show_start_button = false;
+    let show_end_button = false;
+    let show_details_only = false;
+    
+    // If Parent is Completed, only show Details button
+    if (isParentCompleted) {
+      show_details_only = true;
+      show_start_button = false;
+      show_end_button = false;
+    } else {
+      const hasTodayCheckIn = !!(todayLog && todayLog.check_in);
+      const hasTodayCheckOut = !!(todayLog && todayLog.check_out);
+
+      if (hasPendingCheckout && pendingCheckoutDate !== todayApiStr) {
+        show_start_button = false;
+        show_end_button = true;
+      } else if (!hasTodayCheckIn && !hasPendingCheckout) {
+        show_start_button = true;
+        show_end_button = false;
+      } else if (hasTodayCheckIn && !hasTodayCheckOut) {
+        show_start_button = false;
+        show_end_button = true;
+      } else if (hasTodayCheckIn && hasTodayCheckOut) {
+        show_start_button = false;
+        show_end_button = false;
+      }
+    }
+
     const original_P = P || null;
-    const original_A = A || null;
+    const original_A = latestActivity || A || null;
 
     return {
-        id: projectId,
-        title: project_name,
-        a_id: a_id,
-        p_id: p_id,
-        customer_name,
-        audit_type,
-        project_name,
-        activity_name,
-        activity_id,
-        order_item_key: order_item_key,
-        order_item_id: order_item_id, // Add this field
-
-        planned_start_date: planned_start_date || null,
-        planned_end_date: planned_end_date || null,
-
-        actual_start_date: actual_start_date || null,
-        actual_end_date: actual_end_date || null,
-        is_ope_actual: is_ope_actual || false,
-        order_item_status: order_item_status,
-        ope_amt: ope_amt,
-        location: location,
-
-        complete: Boolean(complete),
-
-        todaysStatus: (todaysStatus === "Planned" && project_period_status === "Pending") ? "Planned" : todaysStatus,
-        project_period_status,
-
-        show_start_button,
-        show_end_button,
-        hasPendingCheckout,
-        pendingCheckoutDate: pendingCheckoutDate || null,
-
-        effort: totalEffort,
-        effort_unit: effort_unit || null,
-
-        total_no_of_items,
-
-        day_logs: day_logs,
-
-        original_P,
-        original_A
+      id: projectId,
+      title: project_name,
+      a_id: a_id,
+      p_id: p_id,
+      customer_name,
+      audit_type,
+      project_name,
+      activity_name,
+      activity_id,
+      order_item_key: order_item_key,
+      order_item_id: order_item_id,
+      
+      planned_start_date: planned_start_date || null,
+      planned_end_date: planned_end_date || null,
+      
+      actual_start_date: actual_start_date || null,
+      actual_end_date: actual_end_date || null,
+      is_ope_actual: is_ope_actual || false,
+      order_item_status: order_item_status,
+      ope_amt: ope_amt,
+      location: location,
+      
+      complete: complete,
+      isParentCompleted: isParentCompleted,
+      
+      todaysStatus: (todaysStatus === "Planned" && project_period_status === "Pending") ? "Planned" : todaysStatus,
+      project_period_status,
+      
+      show_start_button,
+      show_end_button,
+      show_details_only,
+      hasPendingCheckout,
+      pendingCheckoutDate: pendingCheckoutDate || null,
+      
+      effort: totalEffort,
+      effort_unit: effort_unit || null,
+      
+      total_no_of_items,
+      
+      day_logs: day_logs,
+      
+      original_P,
+      original_A,
+      all_activities: sortedActivities
     };
   });
   return final;
