@@ -6,12 +6,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // };
 const getDbName = async () => {
 
-  return "APM_002"
+  return "APM_001"
 };
 
 
-const localhost = "https://www.atomwalk.com"
-const newlocalhost = "https://www.atomwalk.com"
+const localhost = "https://crm.atomwalk.com"
+const newlocalhost = "https://crm.atomwalk.com"
 
 const apiURL = "/api";
 const apiURLHR = "/hr_api";
