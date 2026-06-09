@@ -144,14 +144,6 @@ const RetainerSection = ({
             // Additional safety check - filter out any a_type: "A" that might have slipped through
             if (retainer.a_type === "A") return null;
 
-            // Debug each retainer
-            // console.log(`🎯 Retainer ${index}:`, {
-            //   name: retainer.employee_name,
-            //   emp_id: retainer.emp_id,
-            //   hasFullData: !!retainer.fullData,
-            //   fullDataKeys: retainer.fullData ? Object.keys(retainer.fullData) : []
-            // });
-
             return (
               <RetainerCard
                 parentProject={project}
@@ -199,7 +191,6 @@ export const AuditCard = ({
        message: "",
        onConfirm: null,
    });
-  // console.log("Project Details---",project)
   const todayStr = getTodayApiDateStr();
 
   const checkInData = useMemo(() => {
@@ -322,7 +313,7 @@ export const AuditCard = ({
     if (isApproved) {
     return (
       <View style={[styles.btn, styles.disabledBtn]}>
-        <Ionicons name="lock-closed-outline" size={16} color="#fff" />
+        <Ionicons name="bag-check-outline" size={16} color="#fff" />
         <Text style={styles.btnText}>Activity Approved</Text>
       </View>
     );
@@ -437,7 +428,7 @@ export const AuditCard = ({
   const document_required = project?.original_P?.is_file_applicable;
   const document_uploaded = project?.original_A?.submitted_file;
 
-  // console.log("project",JSON.stringify(project))
+  console.log("project?.original_A",project?.original_A)
 
   return (
     <>
@@ -450,6 +441,14 @@ export const AuditCard = ({
         </View>
         <StatusBadge status={isApproved ? 'Approved' : periodStatus} />
       </View>
+
+      {/* Branch Added Note */}
+{project?.original_A?.ref_p_id === "" && (
+  <View style={styles.branchNoteContainer}>
+    <Ionicons name="information-circle-outline" size={14} color="#3b82f6" />
+    <Text style={styles.branchNote}>Actual is added by the Branch</Text>
+  </View>
+)}
 
       {/* Info Grid */}
       <View style={[styles.infoGrid, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed" ? `${colors.red}20` : '#f8fafc' }]}>
@@ -764,6 +763,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
+  branchNoteContainer: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  backgroundColor: '#EFF6FF',      // light blue background
+  paddingVertical: 6,
+  paddingHorizontal: 10,
+  borderRadius: 6,
+  marginBottom: 10,
+  gap: 6,
+},
+branchNote: {
+  fontSize: 12,
+  color: '#1D4ED8',               // blue text
+  fontWeight: '500',
+  flex: 1,
+},
   infoGrid: {
     flexDirection: 'row',
     backgroundColor: '#f8fafc',
