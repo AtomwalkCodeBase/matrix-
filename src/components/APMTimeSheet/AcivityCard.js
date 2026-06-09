@@ -50,23 +50,25 @@ const getDatesBetween = (start, end) => {
   }
   return dates;
 };
-
 const getStatusColor = (status) => {
   if (typeof status === 'boolean') {
-    return status ?  '#ef4444' : '#10b981'; // green / red
+    return status ? '#ef4444' : '#10b981';
   }
 
   const s = (status || '').toLowerCase();
-  return s === 'completed'
-    ? '#10b981'
-    : s === 'in progress'
-    ? '#f59e0b'
-    : '#64748b';
+  if (s === 'completed') return '#10b981';
+  if (s === 'in progress') return '#f59e0b';
+  if (s === 'approved') return '#3b82f6';   // blue for approved
+  return '#64748b';                          // default grey
 };
 
 const StatusBadge = ({ status }) => {
   const isBoolean = typeof status === 'boolean';
-  const displayText = isBoolean ? status ? 'No' : 'Yes' : status || 'Planned';
+  const displayText = isBoolean
+    ? status
+      ? 'No'
+      : 'Yes'
+    : status || 'Planned';
 
   return (
     <View style={[styles.statusBadge, { backgroundColor: getStatusColor(status) }]}>
@@ -287,6 +289,9 @@ export const AuditCard = ({
 
   const showAuditExceededMessage = isNonNegotiable && isAuditEndDatePass;
 
+  const isApproved =
+  project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
+
 
   const renderPrimaryButton = () => {
 
@@ -314,6 +319,14 @@ export const AuditCard = ({
         </TouchableOpacity>
       );
     }
+    if (isApproved) {
+    return (
+      <View style={[styles.btn, styles.disabledBtn]}>
+        <Ionicons name="lock-closed-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Activity Approved</Text>
+      </View>
+    );
+  }
 
     // 2. If activity has pending checkout from previous day
     // Always allow this to remain visible even if strict deadline has passed
@@ -435,7 +448,7 @@ export const AuditCard = ({
           <Text style={styles.customerName} numberOfLines={1}>{customerName}</Text>
           <Text style={styles.orderKey}>{project?.order_item_key}</Text>
         </View>
-        <StatusBadge status={periodStatus} />
+        <StatusBadge status={isApproved ? 'Approved' : periodStatus} />
       </View>
 
       {/* Info Grid */}
@@ -558,58 +571,65 @@ export const AuditCard = ({
 
       {/* Expanded Details */}
       {isDetailsOpen && (
-        <View style={styles.detailsSection}>
-          {store_remark && <View style={styles.timeline}>
-            <Text style={styles.sectionTitle}>Account Manager Remark</Text>
-            <TimelineRow
-              value={store_remark}
-            />
-          </View>}
+  <View style={styles.detailsSection}>
+    {store_remark && (
+      <View style={styles.timeline}>
+        <Text style={styles.sectionTitle}>Account Manager Remark</Text>
+        <TimelineRow value={store_remark} />
+      </View>
+    )}
 
-          <View style={styles.progressHeader}>
-            <Text style={styles.sectionTitle}>Daily Progress</Text>
-            {/* <Text style={styles.calendarProgress}>
-              {loggedDates.length}/{plannedDays.length} days completed
-            </Text> */}
+    <View style={styles.progressHeader}>
+      <Text style={styles.sectionTitle}>Daily Progress</Text>
+      {/* <Text style={styles.calendarProgress}>
+        {loggedDates.length}/{plannedDays.length} days completed
+      </Text> */}
+    </View>
+
+    {/* Daily Logs */}
+    {checkInData?.length > 0 ? (
+      <>
+        <ScrollView style={styles.dailyLogScroll} nestedScrollEnabled>
+          <View style={styles.dailyLog}>
+            {checkInData?.map((entry, idx) => (
+              <DailyLogEntry key={idx} entry={entry} />
+            ))}
           </View>
+        </ScrollView>
 
-          {/* Daily Logs */}
-          {checkInData?.length > 0 ? (
-            <>
-              <ScrollView style={styles.dailyLogScroll} nestedScrollEnabled>
-                <View style={styles.dailyLog}>
-                  {checkInData?.map((entry, idx) => (
-                    <DailyLogEntry key={idx} entry={entry} />
-                  ))}
-                </View>
-              </ScrollView>
-              {project.project_period_status === "Completed" && project?.original_A?.status !== "A" && 
-              <TouchableOpacity
-                style={[styles.btn, styles.primaryBtn, { marginTop: 10 }]}
-                onPress={() => onAction({ type: 'reverse', project})}
+        {/* Reverse Audit Status – only visible if not approved */}
+        {project.project_period_status === "Completed" && !isApproved && (
+          <TouchableOpacity
+            style={[styles.btn, styles.primaryBtn, { marginTop: 10 }]}
+            onPress={() => onAction({ type: 'reverse', project })}
+          >
+            <FontAwesome6 name="check-circle" size={16} color={colors.white} />
+            <Text style={styles.btnText}>Reverse Audit Status</Text>
+          </TouchableOpacity>
+        )}
 
-              >
-                <FontAwesome6 name="check-circle" size={16} color={colors.white} />
-                <Text style={styles.btnText}>Reverse Audit Status</Text>
-              </TouchableOpacity>
-              }
-              {(project.project_period_status !== "Completed" && !project?.hasPendingCheckout && !hasOpenSession) && 
-              <TouchableOpacity
-                style={[styles.btn, styles.successBtn, { marginTop: 10 }]}
-                onPress={() => onAction({ type: 'force_complete', project })}
-              >
-                <FontAwesome6 name="check-circle" size={16} color={colors.white} />
-                <Text style={styles.btnText}>Mark as Complete</Text>
-              </TouchableOpacity>}
-            </>
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="calendar-outline" size={24} color="#cbd5e1" />
-              <Text style={styles.emptyText}>No activity logged yet</Text>
-            </View>
-          )}
-        </View>
-      )}
+        {/* Mark as Complete – only visible if not approved */}
+        {(project.project_period_status !== "Completed" &&
+          !project?.hasPendingCheckout &&
+          !hasOpenSession &&
+          !isApproved) && (
+          <TouchableOpacity
+            style={[styles.btn, styles.successBtn, { marginTop: 10 }]}
+            onPress={() => onAction({ type: 'force_complete', project })}
+          >
+            <FontAwesome6 name="check-circle" size={16} color={colors.white} />
+            <Text style={styles.btnText}>Mark as Complete</Text>
+          </TouchableOpacity>
+        )}
+      </>
+    ) : (
+      <View style={styles.emptyState}>
+        <Ionicons name="calendar-outline" size={24} color="#cbd5e1" />
+        <Text style={styles.emptyText}>No activity logged yet</Text>
+      </View>
+    )}
+  </View>
+)}
     </View>
 
  <ConfirmationModal
