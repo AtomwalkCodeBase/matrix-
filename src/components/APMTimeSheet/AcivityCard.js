@@ -301,9 +301,9 @@ export const AuditCard = ({
         //   <Text style={styles.btnText}>Activity is complete</Text>
         // </View>
         <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
+          style={[styles.btn, styles.primaryBtn, (isLoading || hasOpenSessionGlobally) && styles.disabledBtn]}
           onPress={() => onAction({ type: 'start_a', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
-          disabled={isLoading}
+          disabled={isLoading || hasOpenSessionGlobally}
         >
           <Ionicons name="log-in-outline" size={16} color="#fff" />
           <Text style={styles.btnText}>Start Again Activity</Text>
@@ -427,8 +427,6 @@ export const AuditCard = ({
   const store_remark = project?.original_A?.store_remarks || project?.original_P?.store_remarks || '';
   const document_required = project?.original_P?.is_file_applicable;
   const document_uploaded = project?.original_A?.submitted_file;
-
-  console.log("project?.original_A",project?.original_A)
 
   return (
     <>

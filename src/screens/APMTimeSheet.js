@@ -730,10 +730,10 @@ const APMTimeSheet = () => {
         });
 
         try {
-          for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
           const res = await postAllocationData(formData);
+      //     for (let [key, value] of formData.entries()) {
+      //   console.log(key, value);
+      // }
           // const res ={status : 200}
 
           if (res?.status === 200) {
@@ -912,11 +912,11 @@ const APMTimeSheet = () => {
         }
       });
 
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value);
-      }
-
+      
       const res = await postAllocationData(formData);
+      // for (let [key, value] of formData.entries()) {
+      //   console.log(key, value);
+      // }
       // const res = { status: 200 }
 
       if (res?.status === 200) {

@@ -136,8 +136,6 @@ const ProjectCard = ({
   const canCheckIn = isActive && !hasOpenSession;
   const canCheckOut = isActive && hasOpenSession && todayHasCheckIn && !todayHasCheckOut;
 
-  console.log("Card Data--",JSON.stringify(project))
-
   return (
     <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
       {/* HEADER */}
