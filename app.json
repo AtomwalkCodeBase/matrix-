@@ -2,7 +2,7 @@
   "expo": {
     "name": "Atomwalk Project Timesheet",
     "slug": "atomwalk-project-timesheet",
-    "version": "1.0.1",
+    "version": "1.0.10",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
     "scheme": "myapp",

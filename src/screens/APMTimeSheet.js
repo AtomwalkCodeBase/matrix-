@@ -428,135 +428,143 @@ const APMTimeSheet = () => {
 
   // Apply filters + pagination
   const applyFiltersAndPagination = useCallback((list, filters, page = 1) => {
-  let filtered = [...list];
+    let filtered = [...list];
 
-  // --- (filtering logic unchanged) ---
-  if (filters.status && filters.status !== "All") {
-    filtered = filtered.filter((p) => {
-      const statusMatch = p.project_period_status === filters.status ||
-        p.status === filters.status;
-      return statusMatch;
+    // --- (filtering logic unchanged) ---
+    if (filters.status && filters.status !== "All") {
+      filtered = filtered.filter((p) => {
+        const statusMatch = p.project_period_status === filters.status ||
+          p.status === filters.status;
+        return statusMatch;
+      });
+    }
+
+    if (filters.period) {
+      switch (filters.period) {
+        case "today": {
+          const todayApiStr = getTodayApiDateStr();
+          filtered = filtered.filter(project => {
+            const isApproved = project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
+            const hasActivityToday = project.day_logs && project.day_logs[todayApiStr];
+            const isPlannedForToday = isDateInRange(todayApiStr, project.planned_start_date, project.planned_end_date);
+
+            // If the project is approved, only keep it if there is activity today
+            if (isApproved) {
+              return hasActivityToday; // Show only if today's log exists
+            }
+
+            // For other projects, use the existing logic
+            return hasActivityToday || project.hasPendingCheckout || isPlannedForToday;
+          });
+          break;
+        }
+        case "this_week": {
+          const weekRange = getDateRangeFromPeriod("this_week");
+          const weekStart = parseDateString(weekRange.startDate);
+          const weekEnd = parseDateString(weekRange.endDate);
+          filtered = filtered.filter(project => {
+            const hasActivityInWeek = Object.keys(project.day_logs || {}).some(dateStr => {
+              const activityDate = parseApiDate(dateStr);
+              if (!activityDate || !weekStart || !weekEnd) return false;
+              const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+              const weekStartOnly = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
+              const weekEndOnly = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
+              return activityDateOnly >= weekStartOnly && activityDateOnly <= weekEndOnly;
+            });
+            const plannedStart = parseApiDate(project.planned_start_date);
+            const plannedEnd = parseApiDate(project.planned_end_date);
+            const isPlannedForWeek = (plannedStart && weekStart && weekEnd &&
+              plannedStart >= weekStart && plannedStart <= weekEnd) ||
+              (plannedEnd && weekStart && weekEnd &&
+                plannedEnd >= weekStart && plannedEnd <= weekEnd);
+            return hasActivityInWeek || isPlannedForWeek || project.hasPendingCheckout;
+          });
+          break;
+        }
+        case "previous_week":
+        case "last_week": {
+          const prevWeekRange = getDateRangeFromPeriod("previous_week");
+          const prevWeekStart = parseDateString(prevWeekRange.startDate);
+          const prevWeekEnd = parseDateString(prevWeekRange.endDate);
+          filtered = filtered.filter(project => {
+            const hasActivityInPrevWeek = Object.keys(project.day_logs || {}).some(dateStr => {
+              const activityDate = parseApiDate(dateStr);
+              if (!activityDate || !prevWeekStart || !prevWeekEnd) return false;
+              const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+              const prevStartOnly = new Date(prevWeekStart.getFullYear(), prevWeekStart.getMonth(), prevWeekStart.getDate());
+              const prevEndOnly = new Date(prevWeekEnd.getFullYear(), prevWeekEnd.getMonth(), prevWeekEnd.getDate());
+              return activityDateOnly >= prevStartOnly && activityDateOnly <= prevEndOnly;
+            });
+            const plannedStart = parseApiDate(project.planned_start_date);
+            const plannedEnd = parseApiDate(project.planned_end_date);
+            const isPlannedForPrevWeek = (plannedStart && prevWeekStart && prevWeekEnd &&
+              plannedStart >= prevWeekStart && plannedStart <= prevWeekEnd) ||
+              (plannedEnd && prevWeekStart && prevWeekEnd &&
+                plannedEnd >= prevWeekStart && plannedEnd <= prevWeekEnd);
+            return hasActivityInPrevWeek || isPlannedForPrevWeek || project.hasPendingCheckout;
+          });
+          break;
+        }
+        case "this_month": {
+          const monthRange = getDateRangeFromPeriod("this_month");
+          const monthStart = parseDateString(monthRange.startDate);
+          const monthEnd = parseDateString(monthRange.endDate);
+          filtered = filtered.filter(project => {
+            const hasActivityInMonth = Object.keys(project.day_logs || {}).some(dateStr => {
+              const activityDate = parseApiDate(dateStr);
+              if (!activityDate || !monthStart || !monthEnd) return false;
+              const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+              const monthStartOnly = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate());
+              const monthEndOnly = new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate());
+              return activityDateOnly >= monthStartOnly && activityDateOnly <= monthEndOnly;
+            });
+            const plannedStart = parseApiDate(project.planned_start_date);
+            const plannedEnd = parseApiDate(project.planned_end_date);
+            const isPlannedForMonth = (plannedStart && monthStart && monthEnd &&
+              plannedStart >= monthStart && plannedStart <= monthEnd) ||
+              (plannedEnd && monthStart && monthEnd &&
+                plannedEnd >= monthStart && plannedEnd <= monthEnd);
+            return hasActivityInMonth || isPlannedForMonth || project.hasPendingCheckout;
+          });
+          break;
+        }
+        default:
+          break;
+      }
+    }
+
+    // --- Sorting: In Progress → Planned → Completed → Approved → others ---
+    const getStatusPriority = (project) => {
+      // Approved takes highest number (lowest priority) – we want it after Completed
+      const isApproved = project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
+      if (isApproved) return 4;
+
+      const status = project.project_period_status || '';
+      switch (status) {
+        case 'In Progress': return 1;
+        case 'Planned': return 2;
+        case 'Completed': return 3;
+        default: return 5; // Pending, etc.
+      }
+    };
+
+    const sorted = [...filtered].sort((a, b) => {
+      const priorityA = getStatusPriority(a);
+      const priorityB = getStatusPriority(b);
+      if (priorityA !== priorityB) return priorityA - priorityB;
+
+      // If same priority, sort by planned start date (earliest first)
+      const dateA = parseApiDate(a.planned_start_date) || new Date(0);
+      const dateB = parseApiDate(b.planned_start_date) || new Date(0);
+      return dateA - dateB;
     });
-  }
 
-  if (filters.period) {
-    switch (filters.period) {
-      case "today": {
-        const todayApiStr = getTodayApiDateStr();
-        filtered = filtered.filter(project => {
-          const hasActivityToday = project.day_logs && project.day_logs[todayApiStr];
-          const isPlannedForToday = isDateInRange(todayApiStr, project.planned_start_date, project.planned_end_date);
-          return hasActivityToday || project.hasPendingCheckout || isPlannedForToday;
-        });
-        break;
-      }
-      case "this_week": {
-        const weekRange = getDateRangeFromPeriod("this_week");
-        const weekStart = parseDateString(weekRange.startDate);
-        const weekEnd = parseDateString(weekRange.endDate);
-        filtered = filtered.filter(project => {
-          const hasActivityInWeek = Object.keys(project.day_logs || {}).some(dateStr => {
-            const activityDate = parseApiDate(dateStr);
-            if (!activityDate || !weekStart || !weekEnd) return false;
-            const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
-            const weekStartOnly = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
-            const weekEndOnly = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
-            return activityDateOnly >= weekStartOnly && activityDateOnly <= weekEndOnly;
-          });
-          const plannedStart = parseApiDate(project.planned_start_date);
-          const plannedEnd = parseApiDate(project.planned_end_date);
-          const isPlannedForWeek = (plannedStart && weekStart && weekEnd &&
-            plannedStart >= weekStart && plannedStart <= weekEnd) ||
-            (plannedEnd && weekStart && weekEnd &&
-              plannedEnd >= weekStart && plannedEnd <= weekEnd);
-          return hasActivityInWeek || isPlannedForWeek || project.hasPendingCheckout;
-        });
-        break;
-      }
-      case "previous_week":
-      case "last_week": {
-        const prevWeekRange = getDateRangeFromPeriod("previous_week");
-        const prevWeekStart = parseDateString(prevWeekRange.startDate);
-        const prevWeekEnd = parseDateString(prevWeekRange.endDate);
-        filtered = filtered.filter(project => {
-          const hasActivityInPrevWeek = Object.keys(project.day_logs || {}).some(dateStr => {
-            const activityDate = parseApiDate(dateStr);
-            if (!activityDate || !prevWeekStart || !prevWeekEnd) return false;
-            const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
-            const prevStartOnly = new Date(prevWeekStart.getFullYear(), prevWeekStart.getMonth(), prevWeekStart.getDate());
-            const prevEndOnly = new Date(prevWeekEnd.getFullYear(), prevWeekEnd.getMonth(), prevWeekEnd.getDate());
-            return activityDateOnly >= prevStartOnly && activityDateOnly <= prevEndOnly;
-          });
-          const plannedStart = parseApiDate(project.planned_start_date);
-          const plannedEnd = parseApiDate(project.planned_end_date);
-          const isPlannedForPrevWeek = (plannedStart && prevWeekStart && prevWeekEnd &&
-            plannedStart >= prevWeekStart && plannedStart <= prevWeekEnd) ||
-            (plannedEnd && prevWeekStart && prevWeekEnd &&
-              plannedEnd >= prevWeekStart && plannedEnd <= prevWeekEnd);
-          return hasActivityInPrevWeek || isPlannedForPrevWeek || project.hasPendingCheckout;
-        });
-        break;
-      }
-      case "this_month": {
-        const monthRange = getDateRangeFromPeriod("this_month");
-        const monthStart = parseDateString(monthRange.startDate);
-        const monthEnd = parseDateString(monthRange.endDate);
-        filtered = filtered.filter(project => {
-          const hasActivityInMonth = Object.keys(project.day_logs || {}).some(dateStr => {
-            const activityDate = parseApiDate(dateStr);
-            if (!activityDate || !monthStart || !monthEnd) return false;
-            const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
-            const monthStartOnly = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate());
-            const monthEndOnly = new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate());
-            return activityDateOnly >= monthStartOnly && activityDateOnly <= monthEndOnly;
-          });
-          const plannedStart = parseApiDate(project.planned_start_date);
-          const plannedEnd = parseApiDate(project.planned_end_date);
-          const isPlannedForMonth = (plannedStart && monthStart && monthEnd &&
-            plannedStart >= monthStart && plannedStart <= monthEnd) ||
-            (plannedEnd && monthStart && monthEnd &&
-              plannedEnd >= monthStart && plannedEnd <= monthEnd);
-          return hasActivityInMonth || isPlannedForMonth || project.hasPendingCheckout;
-        });
-        break;
-      }
-      default:
-        break;
-    }
-  }
+    // Pagination
+    const startIdx = (page - 1) * PROJECTS_PER_PAGE;
+    const paginated = sorted.slice(0, startIdx + PROJECTS_PER_PAGE);
 
-  // --- Sorting: In Progress → Planned → Completed → Approved → others ---
-  const getStatusPriority = (project) => {
-    // Approved takes highest number (lowest priority) – we want it after Completed
-    const isApproved = project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
-    if (isApproved) return 4;
-
-    const status = project.project_period_status || '';
-    switch (status) {
-      case 'In Progress': return 1;
-      case 'Planned':     return 2;
-      case 'Completed':   return 3;
-      default:            return 5; // Pending, etc.
-    }
-  };
-
-  const sorted = [...filtered].sort((a, b) => {
-    const priorityA = getStatusPriority(a);
-    const priorityB = getStatusPriority(b);
-    if (priorityA !== priorityB) return priorityA - priorityB;
-
-    // If same priority, sort by planned start date (earliest first)
-    const dateA = parseApiDate(a.planned_start_date) || new Date(0);
-    const dateB = parseApiDate(b.planned_start_date) || new Date(0);
-    return dateA - dateB;
-  });
-
-  // Pagination
-  const startIdx = (page - 1) * PROJECTS_PER_PAGE;
-  const paginated = sorted.slice(0, startIdx + PROJECTS_PER_PAGE);
-
-  setProjects(paginated);
-}, []);
+    setProjects(paginated);
+  }, []);
 
   const loadMore = () => {
     if (isLoadingMore) return;
@@ -575,49 +583,49 @@ const APMTimeSheet = () => {
   };
 
   const onRefresh = async () => {
-  setRefreshing(true);
-  
-  try {
-    // RESET to initial state completely
-    setAllProjects([]);
-    setProjects([]);
-    setRetainerData({});
-    
-    // Get fresh employee ID (in case it changed)
-    const storedEmpId = await AsyncStorage.getItem("empId");
-    if (!storedEmpId) {
-      setErrorMessage("Employee ID not found. Please login again.");
+    setRefreshing(true);
+
+    try {
+      // RESET to initial state completely
+      setAllProjects([]);
+      setProjects([]);
+      setRetainerData({});
+
+      // Get fresh employee ID (in case it changed)
+      const storedEmpId = await AsyncStorage.getItem("empId");
+      if (!storedEmpId) {
+        setErrorMessage("Employee ID not found. Please login again.");
+        setShowErrorModal(true);
+        setRefreshing(false);
+        return;
+      }
+
+      setEmpId(storedEmpId);
+
+      // Reset filters to default
+      setActiveFilters({ ...DEFAULT_FILTERS });
+      setPendingFilters({ ...DEFAULT_FILTERS });
+
+      // Get current date ranges (same as initial load)
+      const todayRange = getDateRangeFromPeriod("today");
+      const monthRange = getDateRangeFromPeriod("this_month");
+
+      // Set dates (same as initial load)
+      setDateRange(todayRange);
+      setStartDateObj(parseDateString(todayRange.startDate) || new Date());
+      setEndDateObj(parseDateString(todayRange.endDate) || new Date());
+
+      // Fetch projects with same parameters as initial load
+      await fetchProjects(storedEmpId, monthRange.startDate, monthRange.endDate);
+
+    } catch (err) {
+      console.error("Refresh error:", err);
+      setErrorMessage("Failed to refresh. Please try again.");
       setShowErrorModal(true);
+    } finally {
       setRefreshing(false);
-      return;
     }
-    
-    setEmpId(storedEmpId);
-    
-    // Reset filters to default
-    setActiveFilters({ ...DEFAULT_FILTERS });
-    setPendingFilters({ ...DEFAULT_FILTERS });
-    
-    // Get current date ranges (same as initial load)
-    const todayRange = getDateRangeFromPeriod("today");
-    const monthRange = getDateRangeFromPeriod("this_month");
-    
-    // Set dates (same as initial load)
-    setDateRange(todayRange);
-    setStartDateObj(parseDateString(todayRange.startDate) || new Date());
-    setEndDateObj(parseDateString(todayRange.endDate) || new Date());
-    
-    // Fetch projects with same parameters as initial load
-    await fetchProjects(storedEmpId, monthRange.startDate, monthRange.endDate);
-    
-  } catch (err) {
-    console.error("Refresh error:", err);
-    setErrorMessage("Failed to refresh. Please try again.");
-    setShowErrorModal(true);
-  } finally {
-    setRefreshing(false);
-  }
-};
+  };
 
   // Location helper
   const getCurrentLocation = async () => {
@@ -638,48 +646,48 @@ const APMTimeSheet = () => {
   };
 
   const extractApiErrorMessage = (error, fallback) => {
-  const backendMessage =
-    error?.response?.data?.error ||
-    error?.response?.data?.message ||
-    "";
+    const backendMessage =
+      error?.response?.data?.error ||
+      error?.response?.data?.message ||
+      "";
 
-  // SPECIFIC CASE HANDLING
-  if (
-    backendMessage ===
-    "Invalid request - No valid Time Sheet record found."
-  ) {
-    return "There is no record found for check-out. Please reload the screen and try again.";
-  }
+    // SPECIFIC CASE HANDLING
+    if (
+      backendMessage ===
+      "Invalid request - No valid Time Sheet record found."
+    ) {
+      return "There is no record found for check-out. Please reload the screen and try again.";
+    }
 
-  // NEW: Handle missing timesheet record for previous date
-  if (
-    backendMessage.includes("No Time Sheet record found for previous Date") ||
-    backendMessage.includes("E00001")
-  ) {
-    return "Previous activity record was incomplete due to missing check-in days. The system has marked earlier records as completed. You can now click 'Start Again' to continue the activity.";
-  }
+    // NEW: Handle missing timesheet record for previous date
+    if (
+      backendMessage.includes("No Time Sheet record found for previous Date") ||
+      backendMessage.includes("E00001")
+    ) {
+      return "Previous activity record was incomplete due to missing check-in days. The system has marked earlier records as completed. You can now click 'Start Again' to continue the activity.";
+    }
 
-  // Existing generic handling
-  if (error?.response?.data?.error) {
-    return error.response.data.error;
-  }
+    // Existing generic handling
+    if (error?.response?.data?.error) {
+      return error.response.data.error;
+    }
 
-  if (error?.response?.data?.message) {
-    return error.response.data.message;
-  }
+    if (error?.response?.data?.message) {
+      return error.response.data.message;
+    }
 
-  if (error?.response?.data?.errors) {
-    return Object.values(error.response.data.errors)
-      .flat()
-      .join("\n");
-  }
+    if (error?.response?.data?.errors) {
+      return Object.values(error.response.data.errors)
+        .flat()
+        .join("\n");
+    }
 
-  if (error?.message) {
-    return error.message;
-  }
+    if (error?.message) {
+      return error.message;
+    }
 
-  return fallback;
-};
+    return fallback;
+  };
 
 
 
@@ -693,69 +701,70 @@ const APMTimeSheet = () => {
 
     setIsLoading(true);
 
-          if (mode === "FORCE_COMPLETE" || mode === "REVERSE_COMPLETE") {
-        const formData = new FormData();
+    if (mode === "FORCE_COMPLETE" || mode === "REVERSE_COMPLETE") {
+      const formData = new FormData();
 
-        const resolvedEmpId =
-          project?.original_P?.emp_id ||
-          project?.original_A?.emp_id ||
-          "";
+      const resolvedEmpId =
+        project?.original_P?.emp_id ||
+        project?.original_A?.emp_id ||
+        "";
 
-        const aId = project?.original_A?.id;
+      const aId = project?.original_A?.id;
 
-        if (!resolvedEmpId || !aId) {
-          setErrorMessage("Unable to identify activity");
-          setShowErrorModal(true);
-          setIsLoading(false);
-          return false;
-        }
-
-        formData.append("emp_id", resolvedEmpId);
-        formData.append("a_id", String(aId));
-        formData.append("call_mode", mode === "REVERSE_COMPLETE" ? "REVERSE_COMPLETE" :"FORCE_COMPLETE");
-        if(mode === "REVERSE_COMPLETE"){
-          formData.append("geo_type", "O")
-        }
-        if (data.file) {
-          formData.append("submitted_file", data.file);
-        }
-        if (data.remarks) {
-        formData.append("remarks",data.remarks);}
-
-        Object.entries(extraFields).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            formData.append(key, value);
-          }
-        });
-
-        try {
-          const res = await postAllocationData(formData);
-      //     for (let [key, value] of formData.entries()) {
-      //   console.log(key, value);
-      // }
-          // const res ={status : 200}
-
-          if (res?.status === 200) {
-            return true;
-          }
-
-          setErrorMessage(mode === "REVERSE_COMPLETE" ? "Failed to change status update.Please Try Again sometime." : "Failed to complete this activity.Please try again sometime. ");
-          setShowErrorModal(true);
-          return false;
-
-        } catch (error) {
-          const msg = extractApiErrorMessage(
-            error,
-            "Unable to force complete activity"
-          );
-          setErrorMessage(msg);
-          setShowErrorModal(true);
-          return false;
-
-        } finally {
-          setIsLoading(false);
-        }
+      if (!resolvedEmpId || !aId) {
+        setErrorMessage("Unable to identify activity");
+        setShowErrorModal(true);
+        setIsLoading(false);
+        return false;
       }
+
+      formData.append("emp_id", resolvedEmpId);
+      formData.append("a_id", String(aId));
+      formData.append("call_mode", mode === "REVERSE_COMPLETE" ? "REVERSE_COMPLETE" : "FORCE_COMPLETE");
+      if (mode === "REVERSE_COMPLETE") {
+        formData.append("geo_type", "O")
+      }
+      if (data.file) {
+        formData.append("submitted_file", data.file);
+      }
+      if (data.remarks) {
+        formData.append("remarks", data.remarks);
+      }
+
+      Object.entries(extraFields).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, value);
+        }
+      });
+
+      try {
+        const res = await postAllocationData(formData);
+        //     for (let [key, value] of formData.entries()) {
+        //   console.log(key, value);
+        // }
+        // const res ={status : 200}
+
+        if (res?.status === 200) {
+          return true;
+        }
+
+        setErrorMessage(mode === "REVERSE_COMPLETE" ? "Failed to change status update.Please Try Again sometime." : "Failed to complete this activity.Please try again sometime. ");
+        setShowErrorModal(true);
+        return false;
+
+      } catch (error) {
+        const msg = extractApiErrorMessage(
+          error,
+          "Unable to force complete activity"
+        );
+        setErrorMessage(msg);
+        setShowErrorModal(true);
+        return false;
+
+      } finally {
+        setIsLoading(false);
+      }
+    }
 
 
     try {
@@ -879,31 +888,31 @@ const APMTimeSheet = () => {
           return false;
         }
         if (isUpdateRetainer) {
-    formData.append("call_mode", "DATA_CORRECT");
-    formData.append("a_id", String(aId));
-    formData.append("geo_type", "O");
-
-    formData.append("no_of_items",String(Number(data.noOfItems || 0)));
-
-        } else {
-
-        formData.append("no_of_items",String(Number(data.noOfItems || 0)));
-        formData.append("call_mode", "UPDATE");
-        formData.append("a_id", String(aId));
-
-        if (data.endTime) {
-          formData.append("end_time", formatAMPMTime(data.endTime));
-        }
-
-        if (startTime) {
-          formData.append("start_time", formatAMPMTime(startTime));
-          formData.append("remarks", "Project resume from Mobile");
-          formData.append("geo_type", "I");
-        } else {
+          formData.append("call_mode", "DATA_CORRECT");
+          formData.append("a_id", String(aId));
           formData.append("geo_type", "O");
+
+          formData.append("no_of_items", String(Number(data.noOfItems || 0)));
+
+        } else {
+
+          formData.append("no_of_items", String(Number(data.noOfItems || 0)));
+          formData.append("call_mode", "UPDATE");
+          formData.append("a_id", String(aId));
+
+          if (data.endTime) {
+            formData.append("end_time", formatAMPMTime(data.endTime));
+          }
+
+          if (startTime) {
+            formData.append("start_time", formatAMPMTime(startTime));
+            formData.append("remarks", "Project resume from Mobile");
+            formData.append("geo_type", "I");
+          } else {
+            formData.append("geo_type", "O");
+          }
         }
       }
-    }
 
       Object.entries(extraFields).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
@@ -911,7 +920,7 @@ const APMTimeSheet = () => {
         }
       });
 
-      
+
       const res = await postAllocationData(formData);
       // for (let [key, value] of formData.entries()) {
       //   console.log(key, value);
@@ -938,7 +947,7 @@ const APMTimeSheet = () => {
       //   "Error in handleActivitySubmit",
       //   error?.response?.data || error?.message || error
       // );
-      console.log("error",error)
+      console.log("error", error)
 
       const errorMessage = extractApiErrorMessage(
         error,
@@ -959,19 +968,19 @@ const APMTimeSheet = () => {
   // Action handlers
   const handleActivityAction = ({ type, project, retainer = false, isMaxAuditEndDatePass }) => {
     if (type === "start" || type === "start_a") {
-  if (!retainer) {
-    const hasOpenSession = allProjects?.some((p) => {
-      // Skip approved projects
-      const isApproved = p?.original_A?.activity_type === 'A' && p?.original_A?.status === 'A';
-      if (isApproved) return false;
-      return p.todaysStatus === "Active" || p.hasPendingCheckout === true;
-    });
-    if (hasOpenSession) {
-      setErrorMessage("Finish Pending");
-      setShowErrorModal(true);
-      return;
-    }
-  }
+      if (!retainer) {
+        const hasOpenSession = allProjects?.some((p) => {
+          // Skip approved projects
+          const isApproved = p?.original_A?.activity_type === 'A' && p?.original_A?.status === 'A';
+          if (isApproved) return false;
+          return p.todaysStatus === "Active" || p.hasPendingCheckout === true;
+        });
+        if (hasOpenSession) {
+          setErrorMessage("Finish Pending");
+          setShowErrorModal(true);
+          return;
+        }
+      }
 
       setConfirmPopup({
         isOpen: true,
@@ -1042,7 +1051,7 @@ const APMTimeSheet = () => {
     const { extraFields = {}, ...dataWithoutExtraFields } = formData;
     return handleActivitySubmit({
       project: selectedProject,
-      mode: formData.mode === "FORCE_COMPLETE" ? "FORCE_COMPLETE" :"UPDATE",
+      mode: formData.mode === "FORCE_COMPLETE" ? "FORCE_COMPLETE" : "UPDATE",
       data: dataWithoutExtraFields,
       extraFields,
     }).then(async (success) => {
@@ -1183,30 +1192,30 @@ const APMTimeSheet = () => {
     setIsCustomExpanded(false);
   };
 
-const hasAnyOpenSession = useMemo(() => {
-  if (!allProjects.length) return false;
+  const hasAnyOpenSession = useMemo(() => {
+    if (!allProjects.length) return false;
 
-  return allProjects.some(project => {
-    // Skip approved projects
-    const isApproved = project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
-    if (isApproved) return false;
+    return allProjects.some(project => {
+      // Skip approved projects
+      const isApproved = project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
+      if (isApproved) return false;
 
-    const lastLogEntry = Object.values(project.day_logs || {}).pop();
-    const hasOpenFromDayLogs = lastLogEntry &&
-      lastLogEntry.check_in &&
-      !lastLogEntry.check_out;
+      const lastLogEntry = Object.values(project.day_logs || {}).pop();
+      const hasOpenFromDayLogs = lastLogEntry &&
+        lastLogEntry.check_in &&
+        !lastLogEntry.check_out;
 
-    let hasOpenFromTsData = false;
-    if (project?.original_A?.ts_data_list?.length) {
-      const entries = project.original_A.ts_data_list;
-      const lastTsEntry = entries[entries.length - 1];
-      const geoData = lastTsEntry?.geo_data || '';
-      hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
-    }
+      let hasOpenFromTsData = false;
+      if (project?.original_A?.ts_data_list?.length) {
+        const entries = project.original_A.ts_data_list;
+        const lastTsEntry = entries[entries.length - 1];
+        const geoData = lastTsEntry?.geo_data || '';
+        hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
+      }
 
-    return hasOpenFromDayLogs || hasOpenFromTsData;
-  });
-}, [allProjects]);
+      return hasOpenFromDayLogs || hasOpenFromTsData;
+    });
+  }, [allProjects]);
 
   const applyCustomDateRange = () => {
     if (startDateObj > endDateObj) {
