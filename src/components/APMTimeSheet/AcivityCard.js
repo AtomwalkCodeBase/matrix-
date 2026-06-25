@@ -284,33 +284,51 @@ export const AuditCard = ({
   project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
 
 
-  const renderPrimaryButton = () => {
+  
+  // 1. Add this useMemo inside the AuditCard component (before renderPrimaryButton)
+const isTodayWithinActualDates = useMemo(() => {
+  const actualStart = project?.original_A?.start_date;
+  const actualEnd = project?.original_A?.end_date;
+  if (!actualStart || !actualEnd) return false;
 
-    const isActivityCompleted = project?.original_A?.status === "S";
-    const thisProjectHasOpenSession = hasOpenSession;
+  const startDate = parseAPIDate(actualStart);
+  const endDate = parseAPIDate(actualEnd);
+  if (!startDate || !endDate) return false;
 
-    if(project?.original_P?.status !== "S"){
-       return (<></>)
-    }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
 
-    // 1. If activity is completed (status: "S")
-    if (isActivityCompleted) {
-      return (
-        // <View style={[styles.btn, styles.disabledBtn]}>
-        //   <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-        //   <Text style={styles.btnText}>Activity is complete</Text>
-        // </View>
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn, (isLoading || hasOpenSessionGlobally) && styles.disabledBtn]}
-          onPress={() => onAction({ type: 'start_a', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
-          disabled={isLoading || hasOpenSessionGlobally}
-        >
-          <Ionicons name="log-in-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Start Again Activity</Text>
-        </TouchableOpacity>
-      );
-    }
-    if (isApproved) {
+  return today >= start && today <= end;
+}, [project]);
+
+// 2. Updated renderPrimaryButton
+const renderPrimaryButton = () => {
+  const isActivityCompleted = project?.original_A?.status === "S";
+  const thisProjectHasOpenSession = hasOpenSession;
+  const isApproved =
+    project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
+  const isSubmitted = isActivityCompleted;
+
+  if (project?.original_P?.status !== "S") {
+    return null;
+  }
+
+  // If submitted (completed or approved) AND today is within actual dates → show "Completed for Today"
+  if (isSubmitted && isTodayWithinActualDates) {
+    return (
+      <View style={[styles.btn, styles.disabledBtn]}>
+        <Ionicons name="checkmark-circle" size={16} color="#fff" />
+        <Text style={styles.btnText}>Completed for Today</Text>
+      </View>
+    );
+  }
+
+  // 1. If activity is approved (but today NOT within actual dates)
+  if (isApproved) {
     return (
       <View style={[styles.btn, styles.disabledBtn]}>
         <Ionicons name="bag-check-outline" size={16} color="#fff" />
@@ -319,105 +337,117 @@ export const AuditCard = ({
     );
   }
 
-    // 2. If activity has pending checkout from previous day
-    // Always allow this to remain visible even if strict deadline has passed
-    if (project?.hasPendingCheckout) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn ,isLoading && styles.disabledBtn]}
-          onPress={() => onAction({ type: 'checkout_yesterday', project })}
-          disabled={isLoading}
-        >
-          <Ionicons name="time-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Close Check-in</Text>
-        </TouchableOpacity>
-      );
-    }
-
-    // 3. If this project has an open session
-    // Always allow this to remain visible even if strict deadline has passed
-    if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.checkOutBtn, isLoading && styles.disabledBtn]}
-          onPress={() => onAction({ type: 'continue', project })}
-          disabled={isLoading}
-        >
-          <Ionicons name="log-out-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Check Out</Text>
-        </TouchableOpacity>
-      );
-    }
-
-    // If strict deadline has passed and no open session to close, hide all other buttons
-    if (isStrictDeadlinePassed) {
-      return null;
-    }
-
-    // 4. If there's any open session globally, disable other projects
-    if (hasOpenSessionGlobally && !thisProjectHasOpenSession) {
-      return (
-        <View style={[styles.btn, styles.disabledBtn]}>
-          <Ionicons name="lock-closed-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Finish Pending</Text>
-        </View>
-      );
-    }
-
-    // 5. If activity was checked out but not submitted
-    if (lastEntryStatus === 'checked_out') {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn,isLoading && styles.disabledBtn]}
-          onPress={() => onAction({ type: 'resume', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
-          disabled={isLoading}
-        >
-          <Ionicons name="play-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Resume Activity</Text>
-        </TouchableOpacity>
-      );
-    }
-
-    // 6. If activity hasn't started yet
-    if (!project?.original_A) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn ,isLoading && styles.disabledBtn]}
-          onPress={() => onAction({ type: 'start', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
-          disabled={isLoading}
-        >
-          <Ionicons name="log-in-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Start Activity</Text>
-        </TouchableOpacity>
-      );
-    }
-
-    // 7. Fallback for Resume button
-    if (project?.original_A) {
-      return (
-        <TouchableOpacity
-          style={[styles.btn, styles.primaryBtn]}
-          onPress={() => onAction({ type: 'resume', project })}
-          disabled={isLoading}
-        >
-          <Ionicons name="play-outline" size={16} color="#fff" />
-          <Text style={styles.btnText}>Resume Activity</Text>
-        </TouchableOpacity>
-      );
-    }
-
-    // Default fallback
+  // 2. If activity is completed (status "S") but today NOT within actual dates → allow "Start Again"
+  if (isActivityCompleted) {
     return (
       <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn]}
-        onPress={() => onAction({ type: 'start', project })}
+        style={[styles.btn, styles.primaryBtn, (isLoading || hasOpenSessionGlobally) && styles.disabledBtn]}
+        onPress={() => onAction({ type: 'start_a', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+        disabled={isLoading || hasOpenSessionGlobally}
+      >
+        <Ionicons name="log-in-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Start Again Activity</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // 3. If activity has pending checkout from previous day
+  if (project?.hasPendingCheckout) {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
+        onPress={() => onAction({ type: 'checkout_yesterday', project })}
+        disabled={isLoading}
+      >
+        <Ionicons name="time-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Close Check-in</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // 4. If this project has an open session
+  if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.checkOutBtn, isLoading && styles.disabledBtn]}
+        onPress={() => onAction({ type: 'continue', project })}
+        disabled={isLoading}
+      >
+        <Ionicons name="log-out-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Check Out</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // If strict deadline has passed and no open session to close, hide all other buttons
+  if (isStrictDeadlinePassed) {
+    return null;
+  }
+
+  // 5. If there's any open session globally, disable other projects
+  if (hasOpenSessionGlobally && !thisProjectHasOpenSession) {
+    return (
+      <View style={[styles.btn, styles.disabledBtn]}>
+        <Ionicons name="lock-closed-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Finish Pending</Text>
+      </View>
+    );
+  }
+
+  // 6. If activity was checked out but not submitted
+  if (lastEntryStatus === 'checked_out') {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
+        onPress={() => onAction({ type: 'resume', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+        disabled={isLoading}
+      >
+        <Ionicons name="play-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Resume Activity</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // 7. If activity hasn't started yet
+  if (!project?.original_A) {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
+        onPress={() => onAction({ type: 'start', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
         disabled={isLoading}
       >
         <Ionicons name="log-in-outline" size={16} color="#fff" />
         <Text style={styles.btnText}>Start Activity</Text>
       </TouchableOpacity>
     );
-  };
+  }
+
+  // 8. Fallback for Resume button
+  if (project?.original_A) {
+    return (
+      <TouchableOpacity
+        style={[styles.btn, styles.primaryBtn]}
+        onPress={() => onAction({ type: 'resume', project })}
+        disabled={isLoading}
+      >
+        <Ionicons name="play-outline" size={16} color="#fff" />
+        <Text style={styles.btnText}>Resume Activity</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  // Default fallback
+  return (
+    <TouchableOpacity
+      style={[styles.btn, styles.primaryBtn]}
+      onPress={() => onAction({ type: 'start', project })}
+      disabled={isLoading}
+    >
+      <Ionicons name="log-in-outline" size={16} color="#fff" />
+      <Text style={styles.btnText}>Start Activity</Text>
+    </TouchableOpacity>
+  );
+};
 
   const customerName = project?.customer_name || 'Unknown Customer';
   const auditType = project?.original_P?.product_name || project?.audit_type || 'N/A';

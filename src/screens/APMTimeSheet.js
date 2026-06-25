@@ -428,136 +428,135 @@ const APMTimeSheet = () => {
 
   // Apply filters + pagination
   const applyFiltersAndPagination = useCallback((list, filters, page = 1) => {
-    let filtered = [...list];
+  let filtered = [...list];
 
-    if (filters.status && filters.status !== "All") {
-      filtered = filtered.filter((p) => {
-        const statusMatch = p.project_period_status === filters.status ||
-          p.status === filters.status;
-        return statusMatch;
-      });
-    }
+  // --- (filtering logic unchanged) ---
+  if (filters.status && filters.status !== "All") {
+    filtered = filtered.filter((p) => {
+      const statusMatch = p.project_period_status === filters.status ||
+        p.status === filters.status;
+      return statusMatch;
+    });
+  }
 
-    if (filters.period) {
-      switch (filters.period) {
-        case "today":
-          const todayStr = formatToDDMMYYYY(new Date());
-          const todayApiStr = getTodayApiDateStr();
-          
-          filtered = filtered.filter(project => {
-            const hasActivityToday = project.day_logs && project.day_logs[todayApiStr];
-            const isPlannedForToday = isDateInRange(todayApiStr,project.planned_start_date,project.planned_end_date  )
-
-            return hasActivityToday || project.hasPendingCheckout || isPlannedForToday;
+  if (filters.period) {
+    switch (filters.period) {
+      case "today": {
+        const todayApiStr = getTodayApiDateStr();
+        filtered = filtered.filter(project => {
+          const hasActivityToday = project.day_logs && project.day_logs[todayApiStr];
+          const isPlannedForToday = isDateInRange(todayApiStr, project.planned_start_date, project.planned_end_date);
+          return hasActivityToday || project.hasPendingCheckout || isPlannedForToday;
+        });
+        break;
+      }
+      case "this_week": {
+        const weekRange = getDateRangeFromPeriod("this_week");
+        const weekStart = parseDateString(weekRange.startDate);
+        const weekEnd = parseDateString(weekRange.endDate);
+        filtered = filtered.filter(project => {
+          const hasActivityInWeek = Object.keys(project.day_logs || {}).some(dateStr => {
+            const activityDate = parseApiDate(dateStr);
+            if (!activityDate || !weekStart || !weekEnd) return false;
+            const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+            const weekStartOnly = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
+            const weekEndOnly = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
+            return activityDateOnly >= weekStartOnly && activityDateOnly <= weekEndOnly;
           });
-          break;
-
-        case "this_week":
-          const weekRange = getDateRangeFromPeriod("this_week");
-          const weekStart = parseDateString(weekRange.startDate);
-          const weekEnd = parseDateString(weekRange.endDate);
-
-          filtered = filtered.filter(project => {
-            const hasActivityInWeek = Object.keys(project.day_logs || {}).some(dateStr => {
-              const activityDate = parseApiDate(dateStr);
-              if (!activityDate || !weekStart || !weekEnd) return false;
-
-              const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
-              const weekStartOnly = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate());
-              const weekEndOnly = new Date(weekEnd.getFullYear(), weekEnd.getMonth(), weekEnd.getDate());
-
-              return activityDateOnly >= weekStartOnly && activityDateOnly <= weekEndOnly;
-            });
-
-            const plannedStart = parseApiDate(project.planned_start_date);
-            const plannedEnd = parseApiDate(project.planned_end_date);
-
-            const isPlannedForWeek = (plannedStart && weekStart && weekEnd &&
-              plannedStart >= weekStart && plannedStart <= weekEnd) ||
-              (plannedEnd && weekStart && weekEnd &&
-                plannedEnd >= weekStart && plannedEnd <= weekEnd);
-
-            return hasActivityInWeek || isPlannedForWeek || project.hasPendingCheckout;
-          });
-          break;
-
-          case "previous_week":
-      case "last_week":
-        const prevWeekRange = getDateRangeFromPeriod("previous_week");   // ← uses the function you already updated
+          const plannedStart = parseApiDate(project.planned_start_date);
+          const plannedEnd = parseApiDate(project.planned_end_date);
+          const isPlannedForWeek = (plannedStart && weekStart && weekEnd &&
+            plannedStart >= weekStart && plannedStart <= weekEnd) ||
+            (plannedEnd && weekStart && weekEnd &&
+              plannedEnd >= weekStart && plannedEnd <= weekEnd);
+          return hasActivityInWeek || isPlannedForWeek || project.hasPendingCheckout;
+        });
+        break;
+      }
+      case "previous_week":
+      case "last_week": {
+        const prevWeekRange = getDateRangeFromPeriod("previous_week");
         const prevWeekStart = parseDateString(prevWeekRange.startDate);
         const prevWeekEnd = parseDateString(prevWeekRange.endDate);
-
         filtered = filtered.filter(project => {
           const hasActivityInPrevWeek = Object.keys(project.day_logs || {}).some(dateStr => {
             const activityDate = parseApiDate(dateStr);
             if (!activityDate || !prevWeekStart || !prevWeekEnd) return false;
-
             const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
             const prevStartOnly = new Date(prevWeekStart.getFullYear(), prevWeekStart.getMonth(), prevWeekStart.getDate());
-            const prevEndOnly   = new Date(prevWeekEnd.getFullYear(),   prevWeekEnd.getMonth(),   prevWeekEnd.getDate());
-
+            const prevEndOnly = new Date(prevWeekEnd.getFullYear(), prevWeekEnd.getMonth(), prevWeekEnd.getDate());
             return activityDateOnly >= prevStartOnly && activityDateOnly <= prevEndOnly;
           });
-
           const plannedStart = parseApiDate(project.planned_start_date);
           const plannedEnd = parseApiDate(project.planned_end_date);
-
-          const isPlannedForPrevWeek = 
-            (plannedStart && prevWeekStart && prevWeekEnd &&
-              plannedStart >= prevWeekStart && plannedStart <= prevWeekEnd) ||
+          const isPlannedForPrevWeek = (plannedStart && prevWeekStart && prevWeekEnd &&
+            plannedStart >= prevWeekStart && plannedStart <= prevWeekEnd) ||
             (plannedEnd && prevWeekStart && prevWeekEnd &&
               plannedEnd >= prevWeekStart && plannedEnd <= prevWeekEnd);
-
           return hasActivityInPrevWeek || isPlannedForPrevWeek || project.hasPendingCheckout;
         });
         break;
-
-        case "this_month":
-          const monthRange = getDateRangeFromPeriod("this_month");
-          const monthStart = parseDateString(monthRange.startDate);
-          const monthEnd = parseDateString(monthRange.endDate);
-
-          filtered = filtered.filter(project => {
-            const hasActivityInMonth = Object.keys(project.day_logs || {}).some(dateStr => {
-              const activityDate = parseApiDate(dateStr);
-              if (!activityDate || !monthStart || !monthEnd) return false;
-
-              const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
-              const monthStartOnly = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate());
-              const monthEndOnly = new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate());
-
-              return activityDateOnly >= monthStartOnly && activityDateOnly <= monthEndOnly;
-            });
-
-            const plannedStart = parseApiDate(project.planned_start_date);
-            const plannedEnd = parseApiDate(project.planned_end_date);
-
-            const isPlannedForMonth = (plannedStart && monthStart && monthEnd &&
-              plannedStart >= monthStart && plannedStart <= monthEnd) ||
-              (plannedEnd && monthStart && monthEnd &&
-                plannedEnd >= monthStart && plannedEnd <= monthEnd);
-
-            return hasActivityInMonth || isPlannedForMonth || project.hasPendingCheckout;
-          });
-          break;
-
-        default:
-          break;
       }
+      case "this_month": {
+        const monthRange = getDateRangeFromPeriod("this_month");
+        const monthStart = parseDateString(monthRange.startDate);
+        const monthEnd = parseDateString(monthRange.endDate);
+        filtered = filtered.filter(project => {
+          const hasActivityInMonth = Object.keys(project.day_logs || {}).some(dateStr => {
+            const activityDate = parseApiDate(dateStr);
+            if (!activityDate || !monthStart || !monthEnd) return false;
+            const activityDateOnly = new Date(activityDate.getFullYear(), activityDate.getMonth(), activityDate.getDate());
+            const monthStartOnly = new Date(monthStart.getFullYear(), monthStart.getMonth(), monthStart.getDate());
+            const monthEndOnly = new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate());
+            return activityDateOnly >= monthStartOnly && activityDateOnly <= monthEndOnly;
+          });
+          const plannedStart = parseApiDate(project.planned_start_date);
+          const plannedEnd = parseApiDate(project.planned_end_date);
+          const isPlannedForMonth = (plannedStart && monthStart && monthEnd &&
+            plannedStart >= monthStart && plannedStart <= monthEnd) ||
+            (plannedEnd && monthStart && monthEnd &&
+              plannedEnd >= monthStart && plannedEnd <= monthEnd);
+          return hasActivityInMonth || isPlannedForMonth || project.hasPendingCheckout;
+        });
+        break;
+      }
+      default:
+        break;
     }
+  }
 
-    const todayStr = formatToDDMMYYYY(new Date());
-    const sorted = [...filtered].sort((a, b) => {
-      const aIsTodayComplete = a.todaysStatus === "complete" && a.activityDate === todayStr;
-      const bIsTodayComplete = b.todaysStatus === "complete" && b.activityDate === todayStr;
-      return aIsTodayComplete ? 1 : bIsTodayComplete ? -1 : 0;
-    });
+  // --- Sorting: In Progress → Planned → Completed → Approved → others ---
+  const getStatusPriority = (project) => {
+    // Approved takes highest number (lowest priority) – we want it after Completed
+    const isApproved = project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
+    if (isApproved) return 4;
 
-    const startIdx = (page - 1) * PROJECTS_PER_PAGE;
-    const paginated = sorted.slice(0, startIdx + PROJECTS_PER_PAGE);
+    const status = project.project_period_status || '';
+    switch (status) {
+      case 'In Progress': return 1;
+      case 'Planned':     return 2;
+      case 'Completed':   return 3;
+      default:            return 5; // Pending, etc.
+    }
+  };
 
-    setProjects(paginated);
-  }, []);
+  const sorted = [...filtered].sort((a, b) => {
+    const priorityA = getStatusPriority(a);
+    const priorityB = getStatusPriority(b);
+    if (priorityA !== priorityB) return priorityA - priorityB;
+
+    // If same priority, sort by planned start date (earliest first)
+    const dateA = parseApiDate(a.planned_start_date) || new Date(0);
+    const dateB = parseApiDate(b.planned_start_date) || new Date(0);
+    return dateA - dateB;
+  });
+
+  // Pagination
+  const startIdx = (page - 1) * PROJECTS_PER_PAGE;
+  const paginated = sorted.slice(0, startIdx + PROJECTS_PER_PAGE);
+
+  setProjects(paginated);
+}, []);
 
   const loadMore = () => {
     if (isLoadingMore) return;
@@ -960,14 +959,19 @@ const APMTimeSheet = () => {
   // Action handlers
   const handleActivityAction = ({ type, project, retainer = false, isMaxAuditEndDatePass }) => {
     if (type === "start" || type === "start_a") {
-      if (!retainer) {
-        const hasOpenSession = allProjects?.some((p) => p.todaysStatus === "Active" || p.hasPendingCheckout === true);
-        if (hasOpenSession) {
-          setErrorMessage("Finish Pending");
-          setShowErrorModal(true);
-          return;
-        }
-      }
+  if (!retainer) {
+    const hasOpenSession = allProjects?.some((p) => {
+      // Skip approved projects
+      const isApproved = p?.original_A?.activity_type === 'A' && p?.original_A?.status === 'A';
+      if (isApproved) return false;
+      return p.todaysStatus === "Active" || p.hasPendingCheckout === true;
+    });
+    if (hasOpenSession) {
+      setErrorMessage("Finish Pending");
+      setShowErrorModal(true);
+      return;
+    }
+  }
 
       setConfirmPopup({
         isOpen: true,
@@ -1179,26 +1183,30 @@ const APMTimeSheet = () => {
     setIsCustomExpanded(false);
   };
 
-  const hasAnyOpenSession = useMemo(() => {
-    if (!allProjects.length) return false;
+const hasAnyOpenSession = useMemo(() => {
+  if (!allProjects.length) return false;
 
-    return allProjects.some(project => {
-      const lastLogEntry = Object.values(project.day_logs || {}).pop();
-      const hasOpenFromDayLogs = lastLogEntry &&
-        lastLogEntry.check_in &&
-        !lastLogEntry.check_out;
+  return allProjects.some(project => {
+    // Skip approved projects
+    const isApproved = project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
+    if (isApproved) return false;
 
-      let hasOpenFromTsData = false;
-      if (project?.original_A?.ts_data_list?.length) {
-        const entries = project.original_A.ts_data_list;
-        const lastTsEntry = entries[entries.length - 1];
-        const geoData = lastTsEntry?.geo_data || '';
-        hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
-      }
+    const lastLogEntry = Object.values(project.day_logs || {}).pop();
+    const hasOpenFromDayLogs = lastLogEntry &&
+      lastLogEntry.check_in &&
+      !lastLogEntry.check_out;
 
-      return hasOpenFromDayLogs || hasOpenFromTsData;
-    });
-  }, [allProjects]);
+    let hasOpenFromTsData = false;
+    if (project?.original_A?.ts_data_list?.length) {
+      const entries = project.original_A.ts_data_list;
+      const lastTsEntry = entries[entries.length - 1];
+      const geoData = lastTsEntry?.geo_data || '';
+      hasOpenFromTsData = geoData.includes('I|') && !geoData.includes('O|');
+    }
+
+    return hasOpenFromDayLogs || hasOpenFromTsData;
+  });
+}, [allProjects]);
 
   const applyCustomDateRange = () => {
     if (startDateObj > endDateObj) {
@@ -1357,7 +1365,7 @@ const APMTimeSheet = () => {
           setErrorMessage("")
         }}
         onSubmit={handlePincodeSubmit}
-        title="Pin code"
+        title="Store Location - Pincode"
         placeholder="Enter pin code"
         type="number"
         remark={pincode}

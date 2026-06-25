@@ -57,7 +57,7 @@ const RemarkModals = ({
               error={error}
               placeholder={placeholder}
           /> : <AmountInput
-              placeholder="Enter Pincode (eg: XXXXXX)"
+              placeholder="Enter Store Pincode (eg: XXXXXX)"
               claimAmount={remark}
               setClaimAmount={setRemark}
               maxLength={maxLength}
