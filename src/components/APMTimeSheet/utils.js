@@ -521,7 +521,12 @@ export const normalizeProjects = (apiData = []) => {
       
       if (pendingDate) {
         hasPendingCheckout = true;
-        pendingCheckoutDate = pendingDate;
+        if (pendingDate) {
+          hasPendingCheckout = true;
+          pendingCheckoutDate = day_logs[pendingDate].date;
+        }
+        // pendingCheckoutDate = pendingDate;
+
       }
     }
 

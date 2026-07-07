@@ -342,8 +342,8 @@ const renderPrimaryButton = () => {
     return (
       <TouchableOpacity
         style={[styles.btn, styles.primaryBtn, (isLoading || hasOpenSessionGlobally) && styles.disabledBtn]}
-        onPress={() => onAction({ type: 'start_a', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
         disabled={isLoading || hasOpenSessionGlobally}
+        onPress={() => onAction({ type: 'start_a', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
       >
         <Ionicons name="log-in-outline" size={16} color="#fff" />
         <Text style={styles.btnText}>Start Again Activity</Text>
@@ -399,8 +399,8 @@ const renderPrimaryButton = () => {
     return (
       <TouchableOpacity
         style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
-        onPress={() => onAction({ type: 'resume', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
         disabled={isLoading}
+        onPress={() => onAction({ type: 'resume', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
       >
         <Ionicons name="play-outline" size={16} color="#fff" />
         <Text style={styles.btnText}>Resume Activity</Text>
@@ -413,8 +413,8 @@ const renderPrimaryButton = () => {
     return (
       <TouchableOpacity
         style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
-        onPress={() => onAction({ type: 'start', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
         disabled={isLoading}
+        onPress={() => onAction({ type: 'start', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
       >
         <Ionicons name="log-in-outline" size={16} color="#fff" />
         <Text style={styles.btnText}>Start Activity</Text>
@@ -427,8 +427,8 @@ const renderPrimaryButton = () => {
     return (
       <TouchableOpacity
         style={[styles.btn, styles.primaryBtn]}
-        onPress={() => onAction({ type: 'resume', project })}
         disabled={isLoading}
+        onPress={() => onAction({ type: 'resume', project })}
       >
         <Ionicons name="play-outline" size={16} color="#fff" />
         <Text style={styles.btnText}>Resume Activity</Text>
@@ -440,8 +440,8 @@ const renderPrimaryButton = () => {
   return (
     <TouchableOpacity
       style={[styles.btn, styles.primaryBtn]}
-      onPress={() => onAction({ type: 'start', project })}
       disabled={isLoading}
+      onPress={() => onAction({ type: 'start', project })}
     >
       <Ionicons name="log-in-outline" size={16} color="#fff" />
       <Text style={styles.btnText}>Start Activity</Text>
