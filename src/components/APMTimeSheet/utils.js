@@ -1,50 +1,51 @@
 import moment from "moment";
 import { colors } from "../../Styles/appStyle";
+import { EMP_TYPE_LABEL } from "./RetainerResourceScreen";
 
 const MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const MONTH_MAP = MONTH_SHORT_NAMES.reduce((acc, m, i) => {
-    acc[m.toLowerCase()] = i;
-    return acc;
+  acc[m.toLowerCase()] = i;
+  return acc;
 }, {});
 
 export const parseApiDate = (apiDateStr) => {
-    if (!apiDateStr || typeof apiDateStr !== "string") return null;
-    const parts = apiDateStr.split("-");
-    if (parts.length !== 3) return null;
-    const dd = parseInt(parts[0], 10);
-    const mon = parts[1];
-    const yyyy = parseInt(parts[2], 10);
-    const monthIndex = MONTH_MAP[mon.toLowerCase()];
-    if (isNaN(dd) || isNaN(monthIndex) || isNaN(yyyy)) return null;
-    // Create date in local timezone
-    return new Date(yyyy, monthIndex, dd, 0, 0, 0, 0);
+  if (!apiDateStr || typeof apiDateStr !== "string") return null;
+  const parts = apiDateStr.split("-");
+  if (parts.length !== 3) return null;
+  const dd = parseInt(parts[0], 10);
+  const mon = parts[1];
+  const yyyy = parseInt(parts[2], 10);
+  const monthIndex = MONTH_MAP[mon.toLowerCase()];
+  if (isNaN(dd) || isNaN(monthIndex) || isNaN(yyyy)) return null;
+  // Create date in local timezone
+  return new Date(yyyy, monthIndex, dd, 0, 0, 0, 0);
 };
 
 export const formatToApiDate = (d) => {
-    if (!(d instanceof Date)) return null;
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mon = MONTH_SHORT_NAMES[d.getMonth()];
-    const yyyy = d.getFullYear();
-    return `${dd}-${mon}-${yyyy}`;
+  if (!(d instanceof Date)) return null;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mon = MONTH_SHORT_NAMES[d.getMonth()];
+  const yyyy = d.getFullYear();
+  return `${dd}-${mon}-${yyyy}`;
 };
 
 export const formatToDDMMYYYY = (dateValue) => {
-    if (!dateValue) return ""
+  if (!dateValue) return ""
 
-    if (dateValue instanceof Date) {
-        const dd = String(dateValue.getDate()).padStart(2, "0")
-        const mm = String(dateValue.getMonth() + 1).padStart(2, "0")
-        const yyyy = dateValue.getFullYear()
-        return `${dd}-${mm}-${yyyy}`
-    }
+  if (dateValue instanceof Date) {
+    const dd = String(dateValue.getDate()).padStart(2, "0")
+    const mm = String(dateValue.getMonth() + 1).padStart(2, "0")
+    const yyyy = dateValue.getFullYear()
+    return `${dd}-${mm}-${yyyy}`
+  }
 
-    if (typeof dateValue === "string" && dateValue.includes("-")) {
-        const [year, month, day] = dateValue.split("-")
-        return `${day}-${month}-${year}`
-    }
+  if (typeof dateValue === "string" && dateValue.includes("-")) {
+    const [year, month, day] = dateValue.split("-")
+    return `${day}-${month}-${year}`
+  }
 
-    return ""
+  return ""
 }
 
 export const apiDateToDDMMYYYY = (apiDateStr) => {
@@ -75,7 +76,7 @@ export const formatMonthLabel = (start) => {
 };
 
 export function formatAMPMTime(time) {
-  if(!time){
+  if (!time) {
     return "--"
   }
   // If you pass a time like "13:45" or "01:45 PM"
@@ -83,62 +84,62 @@ export function formatAMPMTime(time) {
 }
 
 export const isDateInRange = (apiDateStr, startApi, endApi) => {
-    const d = parseApiDate(apiDateStr);
-    const s = parseApiDate(startApi);
-    const e = parseApiDate(endApi);
-    if (!d || !s || !e) return false;
-    // compare only yyyy-mm-dd by zeroing time already done in parseApiDate
-    return d.getTime() >= s.getTime() && d.getTime() <= e.getTime();
+  const d = parseApiDate(apiDateStr);
+  const s = parseApiDate(startApi);
+  const e = parseApiDate(endApi);
+  if (!d || !s || !e) return false;
+  // compare only yyyy-mm-dd by zeroing time already done in parseApiDate
+  return d.getTime() >= s.getTime() && d.getTime() <= e.getTime();
 };
 
 export const getTodayApiDateStr = () => {
-    const d = new Date();
-    return formatToApiDate(d);
+  const d = new Date();
+  return formatToApiDate(d);
 };
 
 const parseGeoData = (geoString) => {
-    if (!geoString || typeof geoString !== "string") {
-        return { check_in: null, check_out: null };
-    }
+  if (!geoString || typeof geoString !== "string") {
+    return { check_in: null, check_out: null };
+  }
 
-    // Split by 'O|' to get all pieces. First piece contains the "I|" info.
-    const parts = geoString.split("^O|");
-    const checkInPart = parts[0] || "";
-    const checkOutPart = parts.slice(1).pop() || ""; // take last O|... part (latest checkout if many)
+  // Split by 'O|' to get all pieces. First piece contains the "I|" info.
+  const parts = geoString.split("^O|");
+  const checkInPart = parts[0] || "";
+  const checkOutPart = parts.slice(1).pop() || ""; // take last O|... part (latest checkout if many)
 
-    let check_in = null;
-    let check_out = null;
+  let check_in = null;
+  let check_out = null;
 
-    // Parse check in (strip leading 'I|' if present)
-    if (checkInPart) {
-        const inStr = checkInPart.startsWith("I|") ? checkInPart.slice(2) : checkInPart;
-        const inParts = inStr.split("|").map(s => s === "" ? null : s);
-        // Expect [time, lat, lng] but be defensive
-        const time = inParts[0] || null;
-        const lat = inParts[1] != null ? Number(inParts[1]) : null;
-        const lng = inParts[2] != null ? Number(inParts[2]) : null;
-        check_in = {
-            time,
-            lat: Number.isFinite(lat) ? lat : null,
-            lng: Number.isFinite(lng) ? lng : null
-        };
-    }
+  // Parse check in (strip leading 'I|' if present)
+  if (checkInPart) {
+    const inStr = checkInPart.startsWith("I|") ? checkInPart.slice(2) : checkInPart;
+    const inParts = inStr.split("|").map(s => s === "" ? null : s);
+    // Expect [time, lat, lng] but be defensive
+    const time = inParts[0] || null;
+    const lat = inParts[1] != null ? Number(inParts[1]) : null;
+    const lng = inParts[2] != null ? Number(inParts[2]) : null;
+    check_in = {
+      time,
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null
+    };
+  }
 
-    // Parse check out (we already took last out part)
-    if (checkOutPart) {
-        // checkOutPart may begin with a time (no leading O|)
-        const outParts = checkOutPart.split("|").map(s => s === "" ? null : s);
-        const time = outParts[0] || null;
-        const lat = outParts[1] != null ? Number(outParts[1]) : null;
-        const lng = outParts[2] != null ? Number(outParts[2]) : null;
-        check_out = {
-            time,
-            lat: Number.isFinite(lat) ? lat : null,
-            lng: Number.isFinite(lng) ? lng : null
-        };
-    }
+  // Parse check out (we already took last out part)
+  if (checkOutPart) {
+    // checkOutPart may begin with a time (no leading O|)
+    const outParts = checkOutPart.split("|").map(s => s === "" ? null : s);
+    const time = outParts[0] || null;
+    const lat = outParts[1] != null ? Number(outParts[1]) : null;
+    const lng = outParts[2] != null ? Number(outParts[2]) : null;
+    check_out = {
+      time,
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null
+    };
+  }
 
-    return { check_in, check_out };
+  return { check_in, check_out };
 };
 // const buildDayLogsFromAEntries = (aEntries = []) => {
 //     const dayLogs = {};
@@ -210,10 +211,10 @@ const parseGeoData = (geoString) => {
 //         // Get first check-in and last check-out if available
 //         const firstSession = log.sessions[0];
 //         const lastSession = log.sessions[log.sessions.length - 1];
-        
+
 //         const firstCheckIn = firstSession?.check_in;
 //         const lastCheckOut = lastSession?.check_out;
-        
+
 //         // Check if any session is incomplete (has check-in but no check-out)
 //         const hasIncompleteSession = log.sessions.some(session => 
 //             session.check_in && !session.check_out
@@ -295,12 +296,12 @@ export const buildActivityGroupMap = (apiData = []) => {
   const aItems = apiData.filter(item => item.activity_type === "A");
 
   const groups = {};
-  
+
   // 1. First handle P items (create groups for all P items)
   pItems.forEach(pItem => {
     // Create a unique key using P's id and order_item_id
     const key = `${pItem.id}_${pItem.order_item_id}`;
-    
+
     if (!groups[key]) {
       groups[key] = {
         key,
@@ -311,21 +312,21 @@ export const buildActivityGroupMap = (apiData = []) => {
       };
     }
   });
-  
+
   // 2. Now assign A items to groups
   aItems.forEach(aItem => {
     // Try to find matching P item by comparing A's free_code with P's id
     let matchingKey = null;
-    
+
     // First, check if free_code matches any P's id
     if (aItem.ref_p_id) {
       matchingKey = Object.keys(groups).find(key => {
         const group = groups[key];
-        return group.original_P && 
-               String(group.original_P.id) === String(aItem.ref_p_id);
+        return group.original_P &&
+          String(group.original_P.id) === String(aItem.ref_p_id);
       });
     }
-    
+
     // If no match by free_code, try by order_item_id (fallback)
     if (!matchingKey && aItem.order_item_id) {
       matchingKey = Object.keys(groups).find(key => {
@@ -333,7 +334,7 @@ export const buildActivityGroupMap = (apiData = []) => {
         return group.order_item_id === aItem.order_item_id;
       });
     }
-    
+
     if (matchingKey) {
       // Add A item to existing group
       groups[matchingKey].allAEntries.push(aItem);
@@ -353,15 +354,15 @@ export const buildActivityGroupMap = (apiData = []) => {
       }
     }
   });
-  
+
   // 3. Convert to array and derive original_A
   const result = Object.values(groups).map(group => {
     const allA = group.allAEntries || [];
-    
+
     // Sort A entries by id ascending and pick the highest id as original_A
     const sortedA = [...allA].sort((a, b) => (a.id || 0) - (b.id || 0));
     const original_A = sortedA.length > 0 ? sortedA[sortedA.length - 1] : null;
-    
+
     return {
       key: group.key,
       original_P: group.original_P || null,
@@ -371,19 +372,19 @@ export const buildActivityGroupMap = (apiData = []) => {
       order_item_key: group.order_item_key
     };
   });
-  
+
   return result;
 };
 
 export const normalizeProjects = (apiData = []) => {
   const groups = buildActivityGroupMap(apiData);
   const todayApiStr = getTodayApiDateStr();
-  
+
   const final = groups.map(group => {
     const P = group.original_P;
     const A = group.original_A;
     const allA = Array.isArray(group.allAEntries) ? group.allAEntries : [];
-    
+
     const sortedActivities = [...allA].sort((a, b) => {
       const dateA = parseApiDate(a.start_date);
       const dateB = parseApiDate(b.start_date);
@@ -392,7 +393,7 @@ export const normalizeProjects = (apiData = []) => {
       }
       return (b.id || 0) - (a.id || 0);
     });
-    
+
     const latestActivity = sortedActivities[0];
     const projectId = P ? `P_${P.id}` : (A ? `A_${A.id}` : `group_${group.key}`);
 
@@ -420,22 +421,22 @@ export const normalizeProjects = (apiData = []) => {
     const actual_end_date = allDates.length ? formatToApiDate(allDates[allDates.length - 1]) : null;
 
     const total_no_of_items = Object.values(day_logs).reduce(
-        (sum, d) => sum + (Number(d.no_of_items) || 0),
-        0
+      (sum, d) => sum + (Number(d.no_of_items) || 0),
+      0
     );
 
     const totalEffort = allA.reduce((sum, e) => {
-        const v = typeof e.effort === "number" ? e.effort : 0;
-        return sum + v;
+      const v = typeof e.effort === "number" ? e.effort : 0;
+      return sum + v;
     }, 0);
 
     const effort_unit = (latestActivity && latestActivity.effort_unit) ? latestActivity.effort_unit :
-        (allA.length > 0 && allA.find(a => a.effort_unit)?.effort_unit) || null;
+      (allA.length > 0 && allA.find(a => a.effort_unit)?.effort_unit) || null;
 
     let project_period_status = "Planned";
     let complete = false;
     let isParentCompleted = false;
-    
+
     // Determine status based on Parent (P) activity_type
     if (P && P.activity_type === "P") {
       // Check if Parent status is Completed (other than "S")
@@ -447,7 +448,7 @@ export const normalizeProjects = (apiData = []) => {
       } else {
         // Parent status is "S" - Check if there are any Activity entries
         const hasActivityEntries = allA && allA.length > 0;
-        
+
         if (hasActivityEntries) {
           // Has Activity entries - IN PROGRESS
           project_period_status = "In Progress";
@@ -477,7 +478,7 @@ export const normalizeProjects = (apiData = []) => {
     // Today's status - only relevant for Activity (A) records
     let todaysStatus = "Planned";
     const todayLog = day_logs[todayApiStr] || null;
-    
+
     if (todayLog && todayLog.check_in && todayLog.check_out) {
       todaysStatus = "Complete";
     } else if (todayLog && todayLog.check_in && !todayLog.check_out) {
@@ -488,14 +489,14 @@ export const normalizeProjects = (apiData = []) => {
     const todayObj = parseApiDate(todayApiStr);
     let hasPendingCheckout = false;
     let pendingCheckoutDate = null;
-    
+
     if (!isParentCompleted && latestActivity?.ts_data_list) {
       const pendingEntry = latestActivity.ts_data_list.find(entry => {
         const entryDate = parseDateString(entry.a_date);
         if (!entryDate) return false;
         const isPreviousDate = entryDate.getTime() < todayObj.getTime();
         if (!isPreviousDate) return false;
-        
+
         if (entry.geo_data) {
           const hasCheckIn = entry.geo_data.includes('I|');
           const hasCheckOut = entry.geo_data.includes('O|') && !entry.geo_data.includes('O||');
@@ -503,13 +504,13 @@ export const normalizeProjects = (apiData = []) => {
         }
         return false;
       });
-      
+
       if (pendingEntry) {
         hasPendingCheckout = true;
         pendingCheckoutDate = pendingEntry.a_date;
       }
     }
-    
+
     if (!hasPendingCheckout && !isParentCompleted) {
       const pendingDate = Object.keys(day_logs).find(dateStr => {
         const log = day_logs[dateStr];
@@ -518,7 +519,7 @@ export const normalizeProjects = (apiData = []) => {
         const isPreviousDate = d.getTime() < todayObj.getTime();
         return isPreviousDate && log.check_in && !log.check_out;
       });
-      
+
       if (pendingDate) {
         hasPendingCheckout = true;
         if (pendingDate) {
@@ -534,7 +535,7 @@ export const normalizeProjects = (apiData = []) => {
     let show_start_button = false;
     let show_end_button = false;
     let show_details_only = false;
-    
+
     // If Parent is Completed, only show Details button
     if (isParentCompleted) {
       show_details_only = true;
@@ -574,36 +575,36 @@ export const normalizeProjects = (apiData = []) => {
       activity_id,
       order_item_key: order_item_key,
       order_item_id: order_item_id,
-      
+
       planned_start_date: planned_start_date || null,
       planned_end_date: planned_end_date || null,
-      
+
       actual_start_date: actual_start_date || null,
       actual_end_date: actual_end_date || null,
       is_ope_actual: is_ope_actual || false,
       order_item_status: order_item_status,
       ope_amt: ope_amt,
       location: location,
-      
+
       complete: complete,
       isParentCompleted: isParentCompleted,
-      
+
       todaysStatus: (todaysStatus === "Planned" && project_period_status === "Pending") ? "Planned" : todaysStatus,
       project_period_status,
-      
+
       show_start_button,
       show_end_button,
       show_details_only,
       hasPendingCheckout,
       pendingCheckoutDate: pendingCheckoutDate || null,
-      
+
       effort: totalEffort,
       effort_unit: effort_unit || null,
-      
+
       total_no_of_items,
-      
+
       day_logs: day_logs,
-      
+
       original_P,
       original_A,
       all_activities: sortedActivities
@@ -614,205 +615,205 @@ export const normalizeProjects = (apiData = []) => {
 
 export const mapAllocationData = (apiData = []) => {
 
-    if (!Array.isArray(apiData) || apiData.length === 0) {
-        return {
-            projectsData: [],
-            employeeData: []
-        };
-    }
-
-    const projectMap = {}
-    const employeeMap = {}
-
-    /*
-      Step 1: Group by
-      activity_id + order_item_key + emp_id
-      Prefer A over P
-    */
-    const grouped = {}
-
-    apiData.forEach(item => {
-        const key = `${item.activity_id}_${item.order_item_key}_${item.emp_id}`
-
-        if (!grouped[key]) {
-            grouped[key] = { P: null, A: null }
-        }
-
-        if (item.activity_type === "P") {
-            grouped[key].P = item
-        }
-
-        if (item.activity_type === "A") {
-            if (!grouped[key].A) {
-                grouped[key].A = item
-            } else {
-                grouped[key].A.ts_data_list = [
-                    ...(grouped[key].A.ts_data_list || []),
-                    ...(item.ts_data_list || [])
-                ]
-            }
-        }
-    })
-
-    /*
-      Step 2: Build projectMap + employeeMap
-    */
-    Object.values(grouped).forEach(group => {
-
-        const data = group.A || group.P
-        if (!data) return
-
-        const activity_id = data.activity_id
-        const order_item_key = data.order_item_key
-        const project_name = data.project_name
-        const customer_name = data.customer_name
-        const audit_type = data.product_name
-
-        const emp_id = data.emp_id
-        const employee_name = data.employee_name
-
-        const isWorking = !!group.A  // A = Working | P = Only Assigned
-
-        const planned_start_date = group.P?.start_date || null
-        const planned_end_date = group.P?.end_date || null
-
-        const actual_start_date = group.A?.start_date || null
-        const actual_end_date = group.A?.end_date || null
-
-        const effort = group.A?.effort || 0
-        const effort_unit = group.A?.effort_unit || null
-
-        const complete = !!(group.A && group.A.status !== "N");
-
-        const day_logs = buildDayLogsFromAEntries(
-            group.A ? [group.A] : [],
-            //   group.A?.remarks || group.P?.remarks || ""
-        )
-
-        const projectKey = `${activity_id}_${order_item_key}`
-
-        /* =================== EMPLOYEE MAP =================== */
-        if (!employeeMap[emp_id]) {
-            employeeMap[emp_id] = {
-                emp_id,
-                employee_name,
-                // color: getRandomColor(),   // ✅ Unique color per employee
-                projects: []
-            }
-        }
-
-        // const employeeColor = employeeMap[emp_id].color
-
-
-        /* =================== PROJECT DATA =================== */
-        if (!projectMap[projectKey]) {
-            projectMap[projectKey] = {
-                activity_id,
-                order_item_key,
-                project_name,
-                audit_type,
-                customer_name,
-
-                planned_start_date,
-                planned_end_date,
-
-                total_assigned_employees: 0,
-                total_working_employees: 0,
-
-                project_status: "planned",
-                project_period_status: "Planned",
-
-                teamMembers: [],
-                totalHours: 0
-            }
-        }
-
-        // ✅ Count assigned & working
-        projectMap[projectKey].total_assigned_employees += 1
-        if (isWorking) {
-            projectMap[projectKey].total_working_employees += 1
-        }
-
-        // ✅ Update project status if ANY employee is working
-        if (isWorking) {
-            projectMap[projectKey].project_status = "active"
-            projectMap[projectKey].project_period_status = "IN Progress"
-        }
-
-        projectMap[projectKey].teamMembers.push({
-            emp_id,
-            employee_name,
-            // color: employeeColor,      // ✅ same color everywhere
-
-            type: isWorking ? "A" : "P",
-
-            activity_status: complete,
-
-            activity_id,
-            order_item_key,
-            project_name,
-
-            planned_start_date,
-            planned_end_date,
-
-            actual_start_date,
-            actual_end_date,
-
-            effort,
-            effort_unit,
-
-            day_logs
-        })
-
-        projectMap[projectKey].totalHours =
-            projectMap[projectKey].teamMembers.reduce(
-                (sum, m) => sum + (Number(m.effort) || 0),
-                0
-            );
-
-
-
-        /* =================== EMPLOYEE PROJECTS =================== */
-        const alreadyAdded = employeeMap[emp_id].projects.some(
-            p => p.activity_id === activity_id && p.order_item_key === order_item_key
-        )
-
-        if (!alreadyAdded) {
-            employeeMap[emp_id].projects.push({
-                activity_id,
-                order_item_key,
-                project_name,
-                customer_name,
-                audit_type,
-
-                planned_start_date,
-                planned_end_date,
-
-                actual_start_date,
-                actual_end_date,
-
-                effort,
-                effort_unit,
-
-                project_status: isWorking ? "active" : "planned",
-                project_period_status: isWorking ? "IN Progress" : "Planned",
-
-                day_logs
-            })
-             employeeMap[emp_id].projects.totalHoursPerProject =
-                 employeeMap[emp_id].projects.reduce(
-                    (sum, m) => sum + (Number(m.effort) || 0),
-                    0
-            );
-        }
-
-    })
-
-
+  if (!Array.isArray(apiData) || apiData.length === 0) {
     return {
-        projectsData: Object.values(projectMap),
-        employeeData: Object.values(employeeMap)
+      projectsData: [],
+      employeeData: []
+    };
+  }
+
+  const projectMap = {}
+  const employeeMap = {}
+
+  /*
+    Step 1: Group by
+    activity_id + order_item_key + emp_id
+    Prefer A over P
+  */
+  const grouped = {}
+
+  apiData.forEach(item => {
+    const key = `${item.activity_id}_${item.order_item_key}_${item.emp_id}`
+
+    if (!grouped[key]) {
+      grouped[key] = { P: null, A: null }
     }
+
+    if (item.activity_type === "P") {
+      grouped[key].P = item
+    }
+
+    if (item.activity_type === "A") {
+      if (!grouped[key].A) {
+        grouped[key].A = item
+      } else {
+        grouped[key].A.ts_data_list = [
+          ...(grouped[key].A.ts_data_list || []),
+          ...(item.ts_data_list || [])
+        ]
+      }
+    }
+  })
+
+  /*
+    Step 2: Build projectMap + employeeMap
+  */
+  Object.values(grouped).forEach(group => {
+
+    const data = group.A || group.P
+    if (!data) return
+
+    const activity_id = data.activity_id
+    const order_item_key = data.order_item_key
+    const project_name = data.project_name
+    const customer_name = data.customer_name
+    const audit_type = data.product_name
+
+    const emp_id = data.emp_id
+    const employee_name = data.employee_name
+
+    const isWorking = !!group.A  // A = Working | P = Only Assigned
+
+    const planned_start_date = group.P?.start_date || null
+    const planned_end_date = group.P?.end_date || null
+
+    const actual_start_date = group.A?.start_date || null
+    const actual_end_date = group.A?.end_date || null
+
+    const effort = group.A?.effort || 0
+    const effort_unit = group.A?.effort_unit || null
+
+    const complete = !!(group.A && group.A.status !== "N");
+
+    const day_logs = buildDayLogsFromAEntries(
+      group.A ? [group.A] : [],
+      //   group.A?.remarks || group.P?.remarks || ""
+    )
+
+    const projectKey = `${activity_id}_${order_item_key}`
+
+    /* =================== EMPLOYEE MAP =================== */
+    if (!employeeMap[emp_id]) {
+      employeeMap[emp_id] = {
+        emp_id,
+        employee_name,
+        // color: getRandomColor(),   // ✅ Unique color per employee
+        projects: []
+      }
+    }
+
+    // const employeeColor = employeeMap[emp_id].color
+
+
+    /* =================== PROJECT DATA =================== */
+    if (!projectMap[projectKey]) {
+      projectMap[projectKey] = {
+        activity_id,
+        order_item_key,
+        project_name,
+        audit_type,
+        customer_name,
+
+        planned_start_date,
+        planned_end_date,
+
+        total_assigned_employees: 0,
+        total_working_employees: 0,
+
+        project_status: "planned",
+        project_period_status: "Planned",
+
+        teamMembers: [],
+        totalHours: 0
+      }
+    }
+
+    // ✅ Count assigned & working
+    projectMap[projectKey].total_assigned_employees += 1
+    if (isWorking) {
+      projectMap[projectKey].total_working_employees += 1
+    }
+
+    // ✅ Update project status if ANY employee is working
+    if (isWorking) {
+      projectMap[projectKey].project_status = "active"
+      projectMap[projectKey].project_period_status = "IN Progress"
+    }
+
+    projectMap[projectKey].teamMembers.push({
+      emp_id,
+      employee_name,
+      // color: employeeColor,      // ✅ same color everywhere
+
+      type: isWorking ? "A" : "P",
+
+      activity_status: complete,
+
+      activity_id,
+      order_item_key,
+      project_name,
+
+      planned_start_date,
+      planned_end_date,
+
+      actual_start_date,
+      actual_end_date,
+
+      effort,
+      effort_unit,
+
+      day_logs
+    })
+
+    projectMap[projectKey].totalHours =
+      projectMap[projectKey].teamMembers.reduce(
+        (sum, m) => sum + (Number(m.effort) || 0),
+        0
+      );
+
+
+
+    /* =================== EMPLOYEE PROJECTS =================== */
+    const alreadyAdded = employeeMap[emp_id].projects.some(
+      p => p.activity_id === activity_id && p.order_item_key === order_item_key
+    )
+
+    if (!alreadyAdded) {
+      employeeMap[emp_id].projects.push({
+        activity_id,
+        order_item_key,
+        project_name,
+        customer_name,
+        audit_type,
+
+        planned_start_date,
+        planned_end_date,
+
+        actual_start_date,
+        actual_end_date,
+
+        effort,
+        effort_unit,
+
+        project_status: isWorking ? "active" : "planned",
+        project_period_status: isWorking ? "IN Progress" : "Planned",
+
+        day_logs
+      })
+      employeeMap[emp_id].projects.totalHoursPerProject =
+        employeeMap[emp_id].projects.reduce(
+          (sum, m) => sum + (Number(m.effort) || 0),
+          0
+        );
+    }
+
+  })
+
+
+  return {
+    projectsData: Object.values(projectMap),
+    employeeData: Object.values(employeeMap)
+  }
 }
 
 export const getCurrentDateTimeDefaults = () => {
@@ -829,15 +830,15 @@ export const getCurrentDateTimeDefaults = () => {
   return { todayISO, dayLogKey, apiDate, currentTime }
 }
 
- export const formatDate = (date) => {
-    if (!(date instanceof Date) || isNaN(date)) return '';
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}-${month}-${year}`;
-  };
+export const formatDate = (date) => {
+  if (!(date instanceof Date) || isNaN(date)) return '';
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}-${month}-${year}`;
+};
 
-  export const  normalizeToDDMMYYYY = (dateStr) => {
+export const normalizeToDDMMYYYY = (dateStr) => {
   if (!dateStr) return "";
 
   if (/^\d{2}-\d{2}-\d{4}$/.test(dateStr)) {
@@ -910,11 +911,11 @@ export const getDateRangeFromPeriod = (period) => {
       const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
       return { startDate: format(firstDay), endDate: format(lastDay) };
     }
-     case "yesterday": {
-            const y = new Date(today);
-            y.setDate(y.getDate() - 1);
-            return { startDate: format(y), endDate: format(y) };
-          }
+    case "yesterday": {
+      const y = new Date(today);
+      y.setDate(y.getDate() - 1);
+      return { startDate: format(y), endDate: format(y) };
+    }
 
     case 'today':
     default: {
@@ -924,90 +925,90 @@ export const getDateRangeFromPeriod = (period) => {
 };
 
 export const parseDateString = (str) => {
-    if (!str) return null;
-    const parts = str.split("-");
-    if (parts.length !== 3) return null;
-    const [dd, mm, yyyy] = parts.map(Number);
-    if (!dd || !mm || !yyyy) return null;
-    const d = new Date(yyyy, mm - 1, dd);
-    return isNaN(d) ? null : d;
-  };
+  if (!str) return null;
+  const parts = str.split("-");
+  if (parts.length !== 3) return null;
+  const [dd, mm, yyyy] = parts.map(Number);
+  if (!dd || !mm || !yyyy) return null;
+  const d = new Date(yyyy, mm - 1, dd);
+  return isNaN(d) ? null : d;
+};
 
-  export const DateForApiFormate = (value, returnComparable = false) => {
-    if (!value) return "";
+export const DateForApiFormate = (value, returnComparable = false) => {
+  if (!value) return "";
 
-    let d = value;
+  let d = value;
 
-    // If value is a string → normalize it
-    if (typeof value === "string") {
-        // Replace "/" with "-" to standardize
-        value = value.replace(/\//g, "-");
+  // If value is a string → normalize it
+  if (typeof value === "string") {
+    // Replace "/" with "-" to standardize
+    value = value.replace(/\//g, "-");
 
-        const monthNameMap = {
-            Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-            Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
-        };
+    const monthNameMap = {
+      Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+      Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11
+    };
 
-        // Split on "-" (after normalization)
-        const parts = value.split("-");
+    // Split on "-" (after normalization)
+    const parts = value.split("-");
 
-        if (parts.length === 3) {
-            let [a, b, c] = parts;
+    if (parts.length === 3) {
+      let [a, b, c] = parts;
 
-            // Case: "02-Dec-2025"
-            if (monthNameMap[b]) {
-                d = new Date(Number(c), monthNameMap[b], Number(a));
-            }
-            // Case: "2025-12-02" (YYYY-MM-DD)
-            else if (a.length === 4) {
-                d = new Date(Number(a), Number(b) - 1, Number(c));
-            }
-            // Case: "02-12-2025" (DD-MM-YYYY)
-            else {
-                d = new Date(Number(c), Number(b) - 1, Number(a));
-            }
-        } else {
-            // Fallback: try JS parser
-            d = new Date(value);
-        }
+      // Case: "02-Dec-2025"
+      if (monthNameMap[b]) {
+        d = new Date(Number(c), monthNameMap[b], Number(a));
+      }
+      // Case: "2025-12-02" (YYYY-MM-DD)
+      else if (a.length === 4) {
+        d = new Date(Number(a), Number(b) - 1, Number(c));
+      }
+      // Case: "02-12-2025" (DD-MM-YYYY)
+      else {
+        d = new Date(Number(c), Number(b) - 1, Number(a));
+      }
+    } else {
+      // Fallback: try JS parser
+      d = new Date(value);
     }
+  }
 
-    // If not Date or invalid → return ""
-    if (!(d instanceof Date) || isNaN(d)) return "";
+  // If not Date or invalid → return ""
+  if (!(d instanceof Date) || isNaN(d)) return "";
 
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
 
-    if (returnComparable) {
-        return `${yyyy}-${mm}-${dd}`;
-    }
+  if (returnComparable) {
+    return `${yyyy}-${mm}-${dd}`;
+  }
 
-    return `${dd}-${mm}-${yyyy}`;
+  return `${dd}-${mm}-${yyyy}`;
 };
 
 export const getStatusStyles = (status_display) => {
-    const key = status_display.toUpperCase().replace(/\s+/g, "_");
+  const key = status_display.toUpperCase().replace(/\s+/g, "_");
 
-    switch (key) {
-      case 'IN_PROGRESS':
-        return { bgColor: colors.lightblue, color: colors.black, borderColor: colors.lightblue, icon: 'access-time' };
-      case 'REJECTED':
-        return { bgColor: colors.danger, color: colors.white, borderColor: colors.danger, icon: 'cancel' };
-      case 'CANCELLED':
-        return { bgColor: colors.danger, color: colors.white, borderColor: colors.danger, icon: 'cancel' };
-      case 'COMPLETED':
-        return { bgColor: colors.success, color: colors.white, borderColor: colors.success, icon: 'check-circle' };
-      case 'PLANNED':
-        return { bgColor: colors.grey, color: colors.black, borderColor: colors.grey, icon: 'pause' };
-      case 'SUBMITTED':
-        return { bgColor: colors.warning, color: colors.white, borderColor: colors.warning, icon: 'pause' };
-      case 'PENDING':
-        return { bgColor: colors.warning, color: colors.white, borderColor: colors.warning, icon: 'pause' };
-      default:
-        return { bgColor: colors.textSecondary, color: colors.white, borderColor: colors.grey, icon: 'question-mark' };
-    }
-  };
+  switch (key) {
+    case 'IN_PROGRESS':
+      return { bgColor: colors.lightblue, color: colors.black, borderColor: colors.lightblue, icon: 'access-time' };
+    case 'REJECTED':
+      return { bgColor: colors.danger, color: colors.white, borderColor: colors.danger, icon: 'cancel' };
+    case 'CANCELLED':
+      return { bgColor: colors.danger, color: colors.white, borderColor: colors.danger, icon: 'cancel' };
+    case 'COMPLETED':
+      return { bgColor: colors.success, color: colors.white, borderColor: colors.success, icon: 'check-circle' };
+    case 'PLANNED':
+      return { bgColor: colors.grey, color: colors.black, borderColor: colors.grey, icon: 'pause' };
+    case 'SUBMITTED':
+      return { bgColor: colors.warning, color: colors.white, borderColor: colors.warning, icon: 'pause' };
+    case 'PENDING':
+      return { bgColor: colors.warning, color: colors.white, borderColor: colors.warning, icon: 'pause' };
+    default:
+      return { bgColor: colors.textSecondary, color: colors.white, borderColor: colors.grey, icon: 'question-mark' };
+  }
+};
 
 export const searchByKeys = (data = [], query = "", keys = []) => {
   if (!query.trim()) return data;
@@ -1057,7 +1058,7 @@ export const searchEmployeesBase = (data = [], query = "") => {
 };
 
 
-export const getMonthRange = ({ type = "current", mode = "month", offset = 0, weekStartsOn = 0,} = {}) => {
+export const getMonthRange = ({ type = "current", mode = "month", offset = 0, weekStartsOn = 0, } = {}) => {
   const today = new Date();
 
   let direction = 0;
@@ -1074,7 +1075,7 @@ export const getMonthRange = ({ type = "current", mode = "month", offset = 0, we
     // Move to target month
     start.setMonth(today.getMonth() + finalOffset, 1);
     end.setMonth(today.getMonth() + finalOffset + 1, 0); // last day of that month
-  } 
+  }
   else if (mode === "week") {
     const currentDay = today.getDay();
     // How many days to subtract to reach the start of the week
@@ -1082,10 +1083,10 @@ export const getMonthRange = ({ type = "current", mode = "month", offset = 0, we
 
     // Go to start of current week, then apply offset
     start.setDate(today.getDate() - diffToWeekStart + finalOffset * 7);
-    
+
     end = new Date(start);
     end.setDate(start.getDate() + 6);
-  } 
+  }
   else {
     throw new Error(`Unsupported mode: "${mode}". Use "month" or "week".`);
   }
@@ -1196,10 +1197,10 @@ export const mapEmployeeCustomerOrderItemData = (apiData = []) => {
         actual_end_date: A?.end_date || null,
 
         order_item_complete_status: A
-        ? A.status !== "N"
+          ? A.status !== "N"
             ? "completed"
             : "in progress"
-        : isPastDate(P.start_date)
+          : isPastDate(P.start_date)
             ? "pending"
             : "planned",
 
@@ -1216,20 +1217,20 @@ export const mapEmployeeCustomerOrderItemData = (apiData = []) => {
         /* ACTUAL */
         actual: A
           ? {
-              exists: true,
-              effort: A.effort || 0,
-              effort_unit: A.effort_unit || null,
-              status: A.status || "",
-              start_date: A.start_date || null,
-              end_date: A.end_date || null,
-              day_logs: buildDayLogsFromAEntries([A]),
-              submitted_file: A.submitted_file || null,
-              original_A: A
-            }
+            exists: true,
+            effort: A.effort || 0,
+            effort_unit: A.effort_unit || null,
+            status: A.status || "",
+            start_date: A.start_date || null,
+            end_date: A.end_date || null,
+            day_logs: buildDayLogsFromAEntries([A]),
+            submitted_file: A.submitted_file || null,
+            original_A: A
+          }
           : {
-              exists: false,
-              original_A: null
-            }
+            exists: false,
+            original_A: null
+          }
       };
     }
   });
@@ -1262,7 +1263,7 @@ export const normalizeDate = (d) => {
 
 const getTodayActionFlags = ({ allAEntries }) => {
   const today = normalizeDate(new Date());
-  
+
   // Find A started today
   const todayA = allAEntries.find(
     a => normalizeDate(a.start_date) === today
@@ -1369,4 +1370,73 @@ export const formatRetainerActivities = (apiData = []) => {
       ui
     };
   });
+};
+
+export const buildEmployeePayload = (resource, today, mode) => ({
+  ...(mode === "UPDATE" && resource.id && {
+    id: resource.id,
+    is_update: true,
+  }),
+
+  emp_id: resource.actual_emp_id,
+  emp_type: resource.emp_type === "TL" ? "T" : "E",
+  contract_rate: resource.contract_rate,
+  start_date: today,
+  end_date: today,
+  remarks: resource.remarks,
+  is_present: true
+});
+
+const mapAllocationToResource = (item) => ({
+  id: item.id ?? null,
+  allocation_id: item.allocation_id,
+  planned_emp_id: item.emp_id,
+  actual_emp_id: item.emp_id,
+  employee_name: item.employee_name,
+  actual_name: item.employee_name,
+  emp_type: EMP_TYPE_LABEL[item.emp_type] ?? item.emp_type,
+  contract_rate: item.contract_rate ?? "",
+  items: "",
+  remarks: item.remarks ?? "",
+  isReplacement: false,
+  isUpdate: false,
+  is_present: item.is_present,
+});
+
+export const mergeResourceData = (plannedResources = [], actualResources = []) => {
+  const actualMap = new Map(actualResources.map(item => [item.allocation_id, item]));
+  return plannedResources.map(planned => {
+    const actual = actualMap.get(planned.allocation_id);
+
+    if (!actual) {
+      return mapAllocationToResource(planned);
+    }
+    return {
+      id: actual.id,
+      allocation_id: planned.allocation_id,
+      planned_emp_id: planned.emp_id,
+      employee_name: planned.employee_name,
+      actual_emp_id: actual.emp_id,
+      actual_name: actual.employee_name,
+      emp_type: EMP_TYPE_LABEL[actual.emp_type] ?? actual.emp_type,
+      items: actual.items ?? "",
+      remarks: actual.remarks ?? "",
+      isReplacement: planned.emp_id !== actual.emp_id,
+      isUpdate: false,
+      is_present: planned.is_present,
+      contract_rate: actual.contract_rate ?? planned.contract_rate ?? "",
+    };
+  });
+
+};
+
+export const findCurrentDateEntry = (allAEntries = [], targetDateStr) => {
+  const target = DateForApiFormate(targetDateStr, true); // "YYYY-MM-DD", comparable
+
+  return allAEntries.find(entry => {
+    const start = DateForApiFormate(entry.start_date, true);
+    const end = DateForApiFormate(entry.end_date, true);
+    if (!start || !end || !target) return false;
+    return target >= start && target <= end;
+  }) ?? null;
 };

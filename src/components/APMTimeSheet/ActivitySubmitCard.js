@@ -14,8 +14,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorModal from '../ErrorModal';
 import CompanyDropdown from '../ComanyDropDown';
 import ConfirmationModal from '../ConfirmationModal';
+import { useRouter } from 'expo-router';
 
 const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout = false, onSubmitActivity, onCompleteActivity }) => {
+    const router = useRouter();
     const [resourceModalVisible, setResourceModalVisible] = useState(false);
     const [retainerInputs, setRetainerInputs] = useState([]);
     const [tempRetainerInputs, setTempRetainerInputs] = useState([]);
@@ -158,26 +160,35 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         return openEntry?.date || null; // e.g. "26-Feb-2026"
     };
 
+    // const handleOpenResourceModal = () => {
+
+    //     const count = Number(formData.noOfResource);
+
+    //     setRetainerInputs(prev => {
+
+    //         let updated = [...prev];
+
+    //         if (count > updated.length) {
+    //             updated = [...updated, ...Array(count - updated.length).fill({ name: "", items: "", resourceType: "" })];
+    //         }
+    //         else if (count < updated.length) {
+    //             updated = updated.slice(0, count);
+    //         }
+
+    //         setTempRetainerInputs(updated);
+    //         return updated;
+    //     });
+
+    //     setResourceModalVisible(true);
+    // };
     const handleOpenResourceModal = () => {
-
-        const count = Number(formData.noOfResource);
-
-        setRetainerInputs(prev => {
-
-            let updated = [...prev];
-
-            if (count > updated.length) {
-                updated = [...updated, ...Array(count - updated.length).fill({ name: "", items: "", resourceType: "" })];
-            }
-            else if (count < updated.length) {
-                updated = updated.slice(0, count);
-            }
-
-            setTempRetainerInputs(updated);
-            return updated;
+        router.push({
+            pathname: "/RetainerResourceScreen",
+            params: {
+                editingTask: JSON.stringify(editingTask),
+                resourceCount: String(formData.noOfResource),
+            },
         });
-
-        setResourceModalVisible(true);
     };
 
     const handleRetainerChange = (index, field, value) => {
@@ -221,7 +232,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             payload.endTime = `${displayHours}:${minutes} ${ampm}`;
         }
 
-         if (resourceList || payload.noOfResource) {
+        if (resourceList || payload.noOfResource) {
             let tl_count = 0;
             let ex_count = 0;
             retainerInputs.forEach(item => {
@@ -365,15 +376,15 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         };
 
         payload = buildPayload(payload);
-        
-         setConfirmPopup({
+
+        setConfirmPopup({
             isOpen: true,
             title: "Complete Activity",
-            message:  `${!isPlannedEndExceed ? `Are you sure you want to complete this audit item.\n\n This audit is planned till ${editingTask?.planned_end_date}.\n\n After this you won't able to perform any activity for this audit item` : "Are you sure you want to complete this activity"}`,
+            message: `${!isPlannedEndExceed ? `Are you sure you want to complete this audit item.\n\n This audit is planned till ${editingTask?.planned_end_date}.\n\n After this you won't able to perform any activity for this audit item` : "Are you sure you want to complete this activity"}`,
             onConfirm: () => {
-            onSubmitActivity(payload);
-            onClose();
-            setConfirmPopup((p) => ({ ...p, isOpen: false }));
+                onSubmitActivity(payload);
+                onClose();
+                setConfirmPopup((p) => ({ ...p, isOpen: false }));
             },
         });
     };
@@ -405,15 +416,15 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         };
 
         payload = buildPayload(payload);
-         const modalMsg = isRetainer ? `Are you sure you want to mark today’s activity as complete for this retainer?` : !isPlannedEndExceed ? `Are you sure you want to complete this audit item.\n\n This audit is planned till ${editingTask.planned_end_date}.\n\n After this you won't able to perform any activity for this audit item` : "Are you sure you want to complete this activity"
-         setConfirmPopup({
+        const modalMsg = isRetainer ? `Are you sure you want to mark today’s activity as complete for this retainer?` : !isPlannedEndExceed ? `Are you sure you want to complete this audit item.\n\n This audit is planned till ${editingTask.planned_end_date}.\n\n After this you won't able to perform any activity for this audit item` : "Are you sure you want to complete this activity"
+        setConfirmPopup({
             isOpen: true,
             title: "Complete Activity",
             message: modalMsg,
             onConfirm: () => {
-            onCompleteActivity(payload);
-            onClose();
-            setConfirmPopup((p) => ({ ...p, isOpen: false }));
+                onCompleteActivity(payload);
+                onClose();
+                setConfirmPopup((p) => ({ ...p, isOpen: false }));
             },
         });
 
@@ -505,26 +516,27 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                 />
                             </View>}
                             {isRetainer && <View style={styles.formGroup}>
-                                <AmountInput
+                                {/* <AmountInput
                                     label="Number of Resources *"
                                     placeholder="Enter no of resource"
                                     claimAmount={formData.noOfResource}
                                     setClaimAmount={(value) => { setFormData(prev => ({ ...prev, noOfResource: value })); }}
                                 // setClaimAmount={handleResourceCountChange}
-                                />
+                                /> */}
 
                                 <TouchableOpacity
                                     style={[
                                         styles.button,
                                         styles.applyButton,
                                         { marginTop: 14 },
-                                        (!formData.noOfResource || formData.noOfResource === "0") && styles.disabledButton
+                                        // (!formData.noOfResource || formData.noOfResource === "0") && styles.disabledButton
                                     ]}
-                                    disabled={!formData.noOfResource || formData.noOfResource === "0"}
+                                    // disabled={!formData.noOfResource || formData.noOfResource === "0"}
                                     onPress={handleOpenResourceModal}
                                 >
                                     <Text style={[styles.applyButtonText, { textAlign: "center" }]}>
-                                        {hasExistingResources ? "Update Resource Names" : "Add Resource Names"}
+                                        {/* {hasExistingResources ? "Update Resource Names" : "Add Resource Names"} */}
+                                        Add/Edit Resources
                                     </Text>
                                 </TouchableOpacity>
 
@@ -796,14 +808,14 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                 message={errorMessage} onClose={() => setShowErrorModal(false)}
             />
 
-        <ConfirmationModal
-            visible={confirmPopup.isOpen}
-            title={confirmPopup.title}
-            message={confirmPopup.message}
-            onConfirm={confirmPopup.onConfirm}
-            onCancel={() => setConfirmPopup((p) => ({ ...p, isOpen: false }))}
-            messageColor={!isPlannedEndExceed ? "red" : ""}
-        />
+            <ConfirmationModal
+                visible={confirmPopup.isOpen}
+                title={confirmPopup.title}
+                message={confirmPopup.message}
+                onConfirm={confirmPopup.onConfirm}
+                onCancel={() => setConfirmPopup((p) => ({ ...p, isOpen: false }))}
+                messageColor={!isPlannedEndExceed ? "red" : ""}
+            />
         </>
     );
 };
