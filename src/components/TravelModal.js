@@ -34,7 +34,7 @@ const TravelModal = ({ isVisible, travelRequest, onClose, onCancelRequest, showC
 
   // Get icon configuration for travel mode
   const getTravelModeIcon = (mode) => {
-    console.log("Travel mode===",mode)
+    // console.log("Travel mode===",mode)
     const modeLower = mode?.toLowerCase() || '';
     switch(modeLower) {
       case 'air': 

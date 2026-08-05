@@ -1,10 +1,11 @@
+import "expo-insights";
 import { Stack } from "expo-router";
 import { AppProvider } from "../context/AppContext";
 import { BackHandler, View, StyleSheet, StatusBar, Platform } from "react-native";
 import { colors } from '../src/Styles/appStyle';
 
 if (BackHandler && typeof BackHandler.removeEventListener !== "function") {
-  BackHandler.removeEventListener = () => { };
+  BackHandler.removeEventListener = () => {};
 }
 
 const StatusBarBackground = () => (
@@ -16,7 +17,7 @@ export default function RootLayout() {
     <AppProvider>
       {/* Background behind status bar */}
       <StatusBarBackground />
-
+      
       {/* Status bar itself */}
       <StatusBar
         barStyle="light-content"
@@ -42,6 +43,7 @@ export default function RootLayout() {
         <Stack.Screen name="ExpenseTracker/index" options={{ headerShown: false }} />
         <Stack.Screen name="OPEScreen/index" options={{ headerShown: false }} />
         <Stack.Screen name="RetainerResourceScreen/index" options={{ headerShown: false }} />
+        <Stack.Screen name="AddClaimList/index" options={{ headerShown: false }} />
       </Stack>
     </AppProvider>
   );

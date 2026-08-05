@@ -58,7 +58,7 @@ const GroupHeader = styled.TouchableOpacity`
   border-radius: 8px;
   margin-bottom: 8px;
   border-left-width: 4px;
-  border-left-color: ${props => props.isApproved ? '#4caf50' : props.isDraft ? '#a970ff' : '#ff9800'};
+  border-left-color: ${props => props.isApproved ? '#4caf50' : props.isDraft ? colors.primary : '#ff9800'};
 `;
 
 const StatusContainer = styled.View`
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   draftBadge: {
-    backgroundColor: '#a970ff',
+    backgroundColor: colors.primary,
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -506,6 +506,12 @@ const filterClaims = () => {
       // Alert.alert('Success', 'Claim deleted successfully!');
       setSuccessMessage("Claim deleted successfully!")
       setShowSuccessModal(true)
+
+      // Close the detail modal (if the delete was triggered from there) so the
+      // refreshed list is actually visible instead of sitting behind stale data.
+      setModalVisible(false);
+      setSelectedClaim(null);
+
       fetchClaimDetails();
     } catch (error) {
       // Alert.alert('Error', 'Failed to delete claim.');
@@ -533,6 +539,8 @@ const filterClaims = () => {
   // Determine if this is a resubmission (status 'B')
   const isResubmit = claimToEdit.expense_status === 'B';
   
+  // Editing an existing claim item already has its order item association,
+  // so we go straight to ClaimApply (no need to pick an order item again).
   router.push({
     pathname: 'ClaimApply',
     params: { 
@@ -556,7 +564,11 @@ const filterClaims = () => {
   setShowFilterModal(true);
 };
 
-  const handlePress = (mode, masterClaimId = null, claimData = null) => {
+  // Every "add claim item" action — whether starting a brand new claim or
+  // adding another item to an existing master claim — always goes through the
+  // Order Item picker first. A single master claim can contain items raised
+  // against different order items, so the order item is never assumed.
+  const handlePress = (mode, masterClaimId = null) => {
   const params = {
     mode: mode || (activeTab === 'drafts' ? 'ADD' : 'APPLY'),
   };
@@ -565,12 +577,8 @@ const filterClaims = () => {
     params.masterClaimId = masterClaimId;
   }
 
-  if (claimData) {
-    params.claimData = JSON.stringify(claimData);
-  }
-
   router.push({
-    pathname: 'ClaimApply',
+    pathname: 'AddClaimList',
     params
   });
 };
@@ -695,8 +703,8 @@ const filterClaims = () => {
         style={{ 
           padding: 16,
           borderLeftWidth: 6,
-          borderLeftColor: isApproved ? '#4caf50' : isDraft ? '#a970ff' : '#2196F3',
-          backgroundColor: isApproved ? '#f0f9f0' : isDraft ? '#f8f2ff' : '#E3F2FD'
+          borderLeftColor: isApproved ? '#4caf50' : isDraft ? colors.primary : '#2196F3',
+          backgroundColor: isApproved ? '#f0f9f0' : isDraft ? '#f2f7ff' : '#E3F2FD'
         }}
       >
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
@@ -705,7 +713,7 @@ const filterClaims = () => {
               <Text style={{ 
                 fontSize: 16, 
                 fontWeight: 'bold', 
-                color: isApproved ? '#4caf50' : isDraft ? '#a970ff' : '#454545',
+                color: isApproved ? '#4caf50' : isDraft ? colors.primary : '#454545',
                 marginRight: 8
               }}>
                 {item.master_claim_id}
@@ -728,7 +736,7 @@ const filterClaims = () => {
             <Text style={{ 
               fontSize: 16, 
               fontWeight: 'bold', 
-              color: isApproved ? '#4caf50' : isDraft ? '#a970ff' : '#454545',
+              color: isApproved ? '#4caf50' : isDraft ? colors.primary : '#454545',
               marginRight: 8
             }}>
               {formatIndianCurrency(groupTotal.toFixed(2))}
@@ -736,7 +744,7 @@ const filterClaims = () => {
             <Ionicons 
               name={expandedGroups[item.master_claim_id] ? 'chevron-up' : 'chevron-down'} 
               size={20} 
-              color={isApproved ? '#4caf50' : isDraft ? '#a970ff' : '#454545'} 
+              color={isApproved ? '#4caf50' : isDraft ? colors.primary : '#454545'} 
             />
           </View>
         </View>
@@ -779,7 +787,7 @@ const filterClaims = () => {
                 style={{ 
                   flex: 1,
                   padding: 12,
-                  backgroundColor: '#a970ff',
+                  backgroundColor: colors.primary,
                   borderRadius: 8,
                   flexDirection: 'row',
                   justifyContent: 'center',
@@ -865,7 +873,7 @@ const filterClaims = () => {
             </StatusItem>
             <StatusItem>
               <StatusTitle>Drafts</StatusTitle>
-              <StatusValue color="#9C27B0">
+              <StatusValue color="#2740b0">
                 {filteredClaims.filter(claim => claim.expense_status === 'N').length}
               </StatusValue>
             </StatusItem>
@@ -931,7 +939,7 @@ const filterClaims = () => {
 
         <ConfirmationModal
           visible={showDeleteConfirm}
-          message="Are you sure you want to delete this claim?"
+          message="You are about to delete this item. Once deleted, it cannot be recovered. Do you want to continue?"
           onConfirm={handleDeleteClaim}
           onCancel={() => setShowDeleteConfirm(false)}
           confirmText="Delete"

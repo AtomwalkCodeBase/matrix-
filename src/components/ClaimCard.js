@@ -77,6 +77,13 @@ const StatusText = styled.Text`
   margin-left: 4px;
 `;
 
+const DetailBold = styled.Text`
+  font-size: 14px;
+  color: #757575;
+  margin-bottom: 6px;
+  font-weight: bold;
+`;
+
 const DetailRow = styled.View`
   flex-direction: row;
   margin-bottom: 6px;
@@ -276,10 +283,13 @@ const ClaimCard = ({ claim, onPress, onViewFile, getStatusText, onDelete = () =>
       <View style={{ flexDirection: 'row' }}>
         <View style={{ flex: 1 }}>
           {status !== 'N' && (
-            <DetailRow>
+            <DetailBold>
               <DetailValue>{claim.claim_id}</DetailValue>
-            </DetailRow>
+            </DetailBold>
           )}
+          <DetailRow>
+              <DetailValue>{claim.o_item_key}</DetailValue>
+            </DetailRow>
 
           <DetailRow>
             <DetailLabel>Submitted:</DetailLabel>

@@ -141,6 +141,12 @@ const HomePage = ({ navigation }) => {
       icon: <FontAwesome5 name="rupee-sign" size={24} color={colors.primary} />,
       onPress: () => router.push('OPEScreen')
     },
+    {
+      id: 4,
+      title: 'My Claims',
+      icon: <FontAwesome5 name="money-bill-wave" size={24} color={colors.primary} />,
+      onPress: () => router.push('ClaimScreen')
+    },
    ...(profile.grade_level > 100 ? [{
       id: 5,
       title: 'Expense Tracker',

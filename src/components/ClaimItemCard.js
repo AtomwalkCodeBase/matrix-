@@ -172,76 +172,7 @@ const ClaimItemCard = ({
             </View>
           ) : (
             <>
-              {/* <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    itemActions?.action === 'APPROVE' && styles.actionButtonActive,
-                    itemActions?.action === 'APPROVE' && styles.approveButtonActive
-                  ]}
-                  onPress={() => handleActionChange('APPROVE')}
-                  disabled={isDisabled}
-                >
-                  <Text style={[
-                    styles.actionButtonText,
-                    itemActions?.action === 'APPROVE' && styles.actionButtonTextActive
-                  ]}>
-                    Approve
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    itemActions?.action === 'REJECT' && styles.actionButtonActive,
-                    itemActions?.action === 'REJECT' && styles.rejectButtonActive
-                  ]}
-                  onPress={() => handleActionChange('REJECT')}
-                  disabled={isDisabled}
-                >
-                  <Text style={[
-                    styles.actionButtonText,
-                    itemActions?.action === 'REJECT' && styles.actionButtonTextActive
-                  ]}>
-                    Reject
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    itemActions?.action === 'Back To Claimant' && styles.actionButtonActive,
-                    itemActions?.action === 'Back To Claimant' && styles.rejectButtonActive
-                  ]}
-                  onPress={() => handleActionChange('Back To Claimant')}
-                  disabled={isDisabled}
-                >
-                  <Text style={[
-                    styles.actionButtonText,
-                    itemActions?.action === 'Back To Claimant' && styles.actionButtonTextActive
-                  ]}>
-                    Back To Claimant
-                  </Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    itemActions?.action === 'FORWARD' && styles.actionButtonActive,
-                    itemActions?.action === 'FORWARD' && styles.forwardButtonActive
-                  ]}
-                  onPress={() => handleActionChange('FORWARD')}
-                  disabled={isDisabled}
-                >
-                  <Text style={[
-                    styles.actionButtonText,
-                    itemActions?.action === 'FORWARD' && styles.actionButtonTextActive
-                  ]}>
-                    Forward
-                  </Text>
-                </TouchableOpacity>
-              </View> */}
-
+              
               <ActionDropdown
                 item={item}
                 itemActions={itemActions}

@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // };
 const getDbName = async () => {
 
-  return "APM_001"
+  return "APM_002"
 };
 
 

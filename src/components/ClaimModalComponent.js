@@ -12,7 +12,7 @@ const statusOptions = [
   { label: 'Forwarded', value: 'F', color: '#7B1FA2' },
   { label: 'Rejected', value: 'R', color: '#EF4444' },
   { label: 'Back to Claimant', value: 'B', color: '#F59E0B' },
-  { label: 'Draft', value: 'N', color: '#10B981' },
+  { label: 'Draft', value: 'N', color: '#84928d' },
   { label: 'Settled', value: 'P', color: '#00C853' }, // Added Settled status
 ];
 
@@ -58,6 +58,7 @@ const ClaimModalComponent = ({
     return `₹${integerPart}${decimalPart}`;
   };
 
+
   const renderClaimDetails = () => {
     if (!claim) return null;
     const statusInfo = getStatusInfo(claim.expense_status);
@@ -73,13 +74,19 @@ const ClaimModalComponent = ({
           </StatusBadge>
         </ClaimHeader>
 
-        <ItemName>{claim.item_name}</ItemName>
+        <Divider />
+
+        <ItemName>{claim.o_item_key}</ItemName>
 
         <Divider />
 
         {/* Claim Details Section */}
-        <SectionTitle>Claim Details</SectionTitle>
+        <SectionTitle>Item Details</SectionTitle>
         <DetailGroup>
+          <DetailItem>
+            <DetailLabel>Claim Item</DetailLabel>
+            <DetailValue>{claim.item_name}</DetailValue>
+          </DetailItem>
           <DetailItem>
             <DetailLabel>Submitted Date</DetailLabel>
             <DetailValue>{formatDate(claim.submitted_date)}</DetailValue>
@@ -102,7 +109,7 @@ const ClaimModalComponent = ({
         </DetailGroup>
 
         {/* Claim Reference Section */}
-        <SectionTitle>Claim Reference</SectionTitle>
+        <SectionTitle>Item Reference</SectionTitle>
         <DetailGroup>
           {claim.project_name && (
             <DetailItem>
@@ -229,7 +236,7 @@ const ClaimModalComponent = ({
       <ModalOverlay>
         <ModalContainer>
           <ModalHeader>
-            <ModalTitle>Claim Details</ModalTitle>
+            <ModalTitle>Claim Item Details</ModalTitle>
             <CloseButton onPress={onClose}>
               <MaterialIcons name="close" size={24} color="#6B7280" />
             </CloseButton>
@@ -242,7 +249,7 @@ const ClaimModalComponent = ({
           <ModalFooter>
             {showCancelButton && (
               <ActionButton danger onPress={onCancelLeave}>
-                <ActionButtonText>CANCEL CLAIM</ActionButtonText>
+                <ActionButtonText>DELETE ITEM</ActionButtonText>
               </ActionButton>
             )}
             
@@ -338,19 +345,23 @@ const ClaimHeader = styled.View`
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
 `;
 
 const ClaimID = styled.Text`
   font-size: 16px;
   font-weight: 600;
   color: #111827;
+  flex: 1;
+  flex-wrap: wrap;
+  margin-right: 8px;
 `;
 
 const ItemName = styled.Text`
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   color: #111827;
-  margin-top: 4px;
+  margin-top: 2px;
 `;
 
 const StatusBadge = styled.View`
@@ -358,6 +369,7 @@ const StatusBadge = styled.View`
   border-radius: 12px;
   background-color: ${props => props.statusColor ? `${props.statusColor}20` : '#F3F4F6'};
   border: 1px solid ${props => props.statusColor || '#D1D5DB'};
+  flex-shrink: 0;
 `;
 
 const StatusText = styled.Text`
@@ -390,19 +402,27 @@ const DetailGroup = styled.View`
 const DetailItem = styled.View`
   flex-direction: row;
   justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
 `;
 
 const DetailLabel = styled.Text`
   font-size: 14px;
   color: #4B5563;
   font-weight: 500;
+  width: 40%;
+  flex-shrink: 0;
 `;
 
 const DetailValue = styled.Text`
   font-size: 14px;
   color: #111827;
   font-weight: 400;
+  flex: 1;
   text-align: right;
+  flex-wrap: wrap;
+  margin-left: 8px;
 `;
 
 const RemarksText = styled.Text`
