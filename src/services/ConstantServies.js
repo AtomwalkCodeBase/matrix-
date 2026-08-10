@@ -129,12 +129,12 @@ export const getEmpSal = async () => {
   const db_name = await getDbName();
   return `${newendpoint}/get_emp_salary_data/${db_name}/`;
 };
-export const setUserPinURL =  async () => {
+export const setUserPinURL = async () => {
   const db_name = await getDbName();
   return `${endpoint}/set_user_pin/${db_name}/`;
 }
 
-export const forgetEmpPinURL =  async () => {
+export const forgetEmpPinURL = async () => {
   const db_name = await getDbName();
   return `${newendpoint}/emp_forget_pin/${db_name}/`;
 }
@@ -172,17 +172,17 @@ export const getTimeSheetList = async () => {
 
 export const addTimesheet = async () => {
   const db_name = await getDbName();
-  return`${newendpoint}/process_time_sheet/${db_name}/`;
+  return `${newendpoint}/process_time_sheet/${db_name}/`;
 };
 
 export const validateApproveLimit = async () => {
   const db_name = await getDbName();
-  return`${newendpoint}/get_claim_approve_limit_data/${db_name}/`;
+  return `${newendpoint}/get_claim_approve_limit_data/${db_name}/`;
 };
 
 export const postTravelRequest = async () => {
   const db_name = await getDbName();
-  return`${newendpoint}/process_travel_request/${db_name}/`;
+  return `${newendpoint}/process_travel_request/${db_name}/`;
 };
 
 export const getAllocation = async () => {
@@ -203,4 +203,14 @@ export const processExpensePlannedItemList = async () => {
 export const processAllocation = async () => {
   const db_name = await getDbName();
   return `${newendpoint}/process_emp_allocation/${db_name}/`;
+};
+
+export const employeeTaskAllocationData = async () => {
+  const db_name = await getDbName();
+  return `${newendpoint}/get_contract_allocation_data/${db_name}/`;
+};
+
+export const processContractAllocation = async () => {
+  const db_name = await getDbName();
+  return `${newendpoint}/process_contract_allocation/${db_name}/`;
 };
