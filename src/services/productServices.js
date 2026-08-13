@@ -316,5 +316,5 @@ export async function getResourceAllocationList(payload) {
 
 export async function processContractEmpAllocation(data) {
   const url = await processContractAllocation();
-  return authAxiosPost(url, data)
+  return authAxiosFilePost(url, data)
 }

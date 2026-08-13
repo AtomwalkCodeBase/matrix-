@@ -41,7 +41,7 @@ import {
 } from "../components/APMTimeSheet/utils";
 
 import { getAllocationList, postAllocationData } from "../services/productServices";
-import { useNavigation } from "expo-router";
+import { useLocalSearchParams, useNavigation } from "expo-router";
 import { AuditCard } from "../components/APMTimeSheet/AcivityCard";
 import RetainerCard from "../components/APMTimeSheet/RetainerCard";
 import { colors } from "../Styles/appStyle";
@@ -56,6 +56,7 @@ const DEFAULT_FILTERS = {
 };
 
 const APMTimeSheet = () => {
+  const params = useLocalSearchParams();
   const [empId, setEmpId] = useState(null);
   const [allProjects, setAllProjects] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -947,7 +948,7 @@ const APMTimeSheet = () => {
       //   "Error in handleActivitySubmit",
       //   error?.response?.data || error?.message || error
       // );
-      console.log("error", error)
+      // console.log("error", error)
 
       const errorMessage = extractApiErrorMessage(
         error,
@@ -1363,6 +1364,7 @@ const APMTimeSheet = () => {
         isPendingCheckout={selectedProject?.modalContext?.type === "checkout_yesterday"}
         onSubmitActivity={handleSubmitFromModal}
         onCompleteActivity={handleMarkCompleteFromModal}
+        resourceListParam={params.resource_list}
       />
 
       {isPincodeModalOpen && <RemarkModals

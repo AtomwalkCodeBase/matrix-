@@ -10,6 +10,8 @@ const index = () => {
     const data = {
         editingTask: JSON.parse(params.editingTask || "{}"),
         resourceCount: Number(params.resourceCount || 0),
+        returnTo: params.returnTo,
+        resource_list: params.resource_list,
     };
 
     return (

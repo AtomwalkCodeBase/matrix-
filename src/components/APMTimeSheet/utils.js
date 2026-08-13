@@ -1384,33 +1384,79 @@ export const buildEmployeePayload = (resource, today, mode) => ({
   start_date: today,
   end_date: today,
   remarks: resource.remarks,
-  is_present: true
+  is_present: resource.is_present === true,
 });
 
-const mapAllocationToResource = (item) => ({
-  id: item.id ?? null,
-  allocation_id: item.allocation_id,
-  planned_emp_id: item.emp_id,
-  actual_emp_id: item.emp_id,
-  employee_name: item.employee_name,
-  actual_name: item.employee_name,
-  emp_type: EMP_TYPE_LABEL[item.emp_type] ?? item.emp_type,
-  contract_rate: item.contract_rate ?? "",
-  items: "",
-  remarks: item.remarks ?? "",
-  isReplacement: false,
-  isUpdate: false,
-  is_present: item.is_present,
-});
+const parseResourceListEntry = (entry) => {
+  const [name = "", items = "", type = "", empId = ""] = String(entry || "").split("^");
+  return {
+    name: name.trim(),
+    items: items.trim(),
+    type: type.trim(),
+    empId: empId.trim(),
+  };
+};
 
-export const mergeResourceData = (plannedResources = [], actualResources = []) => {
-  const actualMap = new Map(actualResources.map(item => [item.allocation_id, item]));
+const findResourceListEntry = (empIdMap, fallbackMap, empId, name, type) => {
+  if (empId?.trim()) {
+    const found = empIdMap.get(empId.trim());
+    if (found) return found;
+  }
+
+  if (!name?.trim() || !type?.trim()) return null;
+  return fallbackMap.get(`${name.trim().toLowerCase()}|${type.trim().toUpperCase()}`) || null;
+};
+
+const mapAllocationToResource = (item, empIdMap, fallbackMap) => {
+  const itemType = EMP_TYPE_LABEL[item.emp_type] ?? item.emp_type;
+  const rlEntry = findResourceListEntry(empIdMap, fallbackMap, item.emp_id, item.employee_name, itemType);
+  const isPresentVal = item.is_present !== undefined && item.is_present !== null ? (item.is_present === true || item.is_present === 1 || item.is_present === "1" || item.is_present === "Y" || item.is_present === "true") : true;
+  return {
+    id: item.id ?? null,
+    allocation_id: item.allocation_id,
+    planned_emp_id: item.emp_id,
+    actual_emp_id: item.emp_id,
+    employee_name: item.employee_name,
+    actual_name: item.employee_name,
+    emp_type: itemType,
+    contract_rate: item.contract_rate ?? "",
+    items: rlEntry?.items ?? "",
+    remarks: item.remarks ?? "",
+    isReplacement: false,
+    isUpdate: false,
+    is_present: isPresentVal,
+  };
+};
+
+export const mergeResourceData = (plannedResources = [], actualResources = [], resourceList = []) => {
+  const actualMap = new Map(actualResources.map(item => [item.emp_id, item]));
+  const parsedResourceList = Array.isArray(resourceList)
+    ? resourceList.map(parseResourceListEntry)
+    : [];
+
+  const empIdMap = new Map(
+    parsedResourceList
+      .filter(item => item.empId)
+      .map(item => [item.empId, item])
+  );
+
+  const fallbackMap = new Map(
+    parsedResourceList
+      .filter(item => !item.empId && item.name && item.type)
+      .map(item => [`${item.name.toLowerCase()}|${item.type.toUpperCase()}`, item])
+  );
   return plannedResources.map(planned => {
-    const actual = actualMap.get(planned.allocation_id);
+    const actual = actualMap.get(planned.emp_id);
 
     if (!actual) {
-      return mapAllocationToResource(planned);
+      return mapAllocationToResource(planned, empIdMap, fallbackMap);
     }
+
+    const actualType = EMP_TYPE_LABEL[actual.emp_type] ?? actual.emp_type;
+    const rlEntry = findResourceListEntry(empIdMap, fallbackMap, actual.emp_id, actual.employee_name, actualType);
+    const isPresentVal = actual.is_present !== undefined && actual.is_present !== null ? (actual.is_present === true || actual.is_present === 1 || actual.is_present === "1" || actual.is_present === "Y" || actual.is_present === "true") : true;
+
+
     return {
       id: actual.id,
       allocation_id: planned.allocation_id,
@@ -1418,12 +1464,16 @@ export const mergeResourceData = (plannedResources = [], actualResources = []) =
       employee_name: planned.employee_name,
       actual_emp_id: actual.emp_id,
       actual_name: actual.employee_name,
-      emp_type: EMP_TYPE_LABEL[actual.emp_type] ?? actual.emp_type,
-      items: actual.items ?? "",
+      emp_type: actualType,
+      items: rlEntry?.items ?? "",
       remarks: actual.remarks ?? "",
       isReplacement: planned.emp_id !== actual.emp_id,
       isUpdate: false,
-      is_present: planned.is_present,
+      is_present: isPresentVal,
+      plan_is_approved: planned.is_approved,
+      actual_is_approved: actual.is_approved,
+      plan_is_present: planned.is_present,
+      actual_is_present: isPresentVal,
       contract_rate: actual.contract_rate ?? planned.contract_rate ?? "",
     };
   });

@@ -16,7 +16,7 @@ import CompanyDropdown from '../ComanyDropDown';
 import ConfirmationModal from '../ConfirmationModal';
 import { useRouter } from 'expo-router';
 
-const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout = false, onSubmitActivity, onCompleteActivity }) => {
+const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout = false, onSubmitActivity, onCompleteActivity, resourceListParam }) => {
     const router = useRouter();
     const [resourceModalVisible, setResourceModalVisible] = useState(false);
     const [retainerInputs, setRetainerInputs] = useState([]);
@@ -86,10 +86,39 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     const [fileMimeType, setFileMimeType] = useState("");
     const [remarkError, setRemarkError] = useState("");
 
-    // console.log("editingTask", editingTask);
+    useEffect(() => {
+        if (resourceListParam) {
+            const parsed = resourceListParam.split("|").filter(Boolean).map(entry => {
+                const [name, items, resourceType, empId] = entry.split("^");
+                return { name, items, resourceType, empId };
+            });
+            setRetainerInputs(parsed);
+            setFormData(prev => ({ ...prev, noOfResource: String(parsed.length) }));
+        }
+    }, [resourceListParam]);
 
     useEffect(() => {
-        if (visible) {
+        // Skip resize while the field is empty (user mid-edit, e.g. cleared before typing a new digit) —
+        // avoids wiping already-filled rows just because the input passed through "" momentarily.
+        if (formData.noOfResource === "" || formData.noOfResource === undefined || formData.noOfResource === null) {
+            return;
+        }
+
+        const count = Number(formData.noOfResource) || 0;
+
+        setRetainerInputs(prev => {
+            if (count === prev.length) return prev;
+
+            if (count > prev.length) {
+                return [...prev, ...Array.from({ length: count - prev.length }, () => ({ name: "", items: "", resourceType: "" }))];
+            }
+
+            return prev.slice(0, count);
+        });
+    }, [formData.noOfResource]);
+
+    useEffect(() => {
+        if (visible && !resourceListParam) {
             let dateToUse;
 
             if (isPendingCheckout && editingTask?.pendingCheckoutDate) {
@@ -102,12 +131,14 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             // Check if resource_list exists and is an array
             const existingResourceList = isRetainer?.fullData?.original_A?.resource_list || [];
             //    const existingResourceList =['ram^20', 'hari^40'];
+            console.log("existingResourceList", existingResourceList)
             const formattedResources = existingResourceList.map(res => {
-                const [name, items, resourceType] = res.split("^");
+                const [name, items, resourceType, empId] = res.split("^");
                 return {
                     name: name || "",
                     items: items || "",
-                    resourceType: resourceType || ""
+                    resourceType: resourceType || "",
+                    empId: empId || ""
                 };
             });
 
@@ -147,7 +178,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         return true;
     }, [formData, isTodayPlannedEnd, editingTask?.original_P?.is_file_applicable, fileUri, editingTask]);
 
-    // console.log("editingTask", formData);
+    // console.log("editingTask", editingTask);
 
 
     const getOpenCheckInDate = () => {
@@ -182,11 +213,14 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     //     setResourceModalVisible(true);
     // };
     const handleOpenResourceModal = () => {
+        const currentResourceList = getJoinedResources();
         router.push({
             pathname: "/RetainerResourceScreen",
             params: {
                 editingTask: JSON.stringify(editingTask),
                 resourceCount: String(formData.noOfResource),
+                returnTo: "TimeSheet",
+                resource_list: currentResourceList || undefined,
             },
         });
     };
@@ -199,7 +233,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
         });
     };
 
-    const getJoinedResources = () => retainerInputs.filter(v => v.name && v.items && v.resourceType).map(v => `${v.name}^${v.items}^${v.resourceType}`).join("|");
+    const getJoinedResources = () => retainerInputs.filter(v => v.name && v.items && v.resourceType).map(v => `${v.name}^${v.items}^${v.resourceType}^${v.empId ?? ""}`).join("|");
 
     const formatDateToDDMMYYYY = (date) => {
         if (!date) return null;
@@ -516,22 +550,22 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                                 />
                             </View>}
                             {isRetainer && <View style={styles.formGroup}>
-                                {/* <AmountInput
+                                <AmountInput
                                     label="Number of Resources *"
                                     placeholder="Enter no of resource"
                                     claimAmount={formData.noOfResource}
                                     setClaimAmount={(value) => { setFormData(prev => ({ ...prev, noOfResource: value })); }}
                                 // setClaimAmount={handleResourceCountChange}
-                                /> */}
+                                />
 
                                 <TouchableOpacity
                                     style={[
                                         styles.button,
                                         styles.applyButton,
                                         { marginTop: 14 },
-                                        // (!formData.noOfResource || formData.noOfResource === "0") && styles.disabledButton
+                                        (!formData.noOfResource || formData.noOfResource === "0") && styles.disabledButton
                                     ]}
-                                    // disabled={!formData.noOfResource || formData.noOfResource === "0"}
+                                    disabled={!formData.noOfResource || formData.noOfResource === "0"}
                                     onPress={handleOpenResourceModal}
                                 >
                                     <Text style={[styles.applyButtonText, { textAlign: "center" }]}>
