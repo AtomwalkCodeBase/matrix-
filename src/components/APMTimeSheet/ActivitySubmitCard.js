@@ -91,15 +91,14 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             const parsed = resourceListParam.split("|").filter(Boolean).map(entry => {
                 const [name, items, resourceType, empId] = entry.split("^");
                 return { name, items, resourceType, empId };
-            });
+            })
+            // .filter(r => r.name.trim() && r.items.toString().trim());  // keep only complete entries
             setRetainerInputs(parsed);
             setFormData(prev => ({ ...prev, noOfResource: String(parsed.length) }));
         }
     }, [resourceListParam]);
 
     useEffect(() => {
-        // Skip resize while the field is empty (user mid-edit, e.g. cleared before typing a new digit) —
-        // avoids wiping already-filled rows just because the input passed through "" momentarily.
         if (formData.noOfResource === "" || formData.noOfResource === undefined || formData.noOfResource === null) {
             return;
         }
@@ -131,7 +130,6 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             // Check if resource_list exists and is an array
             const existingResourceList = isRetainer?.fullData?.original_A?.resource_list || [];
             //    const existingResourceList =['ram^20', 'hari^40'];
-            console.log("existingResourceList", existingResourceList)
             const formattedResources = existingResourceList.map(res => {
                 const [name, items, resourceType, empId] = res.split("^");
                 return {

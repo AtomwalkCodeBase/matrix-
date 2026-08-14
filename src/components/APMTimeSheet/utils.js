@@ -1372,20 +1372,31 @@ export const formatRetainerActivities = (apiData = []) => {
   });
 };
 
-export const buildEmployeePayload = (resource, today, mode) => ({
-  ...(mode === "UPDATE" && resource.id && {
-    id: resource.id,
-    is_update: true,
-  }),
+export const buildEmployeePayload = (resource, today, mode) => {
 
-  emp_id: resource.actual_emp_id,
-  emp_type: resource.emp_type === "TL" ? "T" : "E",
-  contract_rate: resource.contract_rate,
-  start_date: today,
-  end_date: today,
-  remarks: resource.remarks,
-  is_present: resource.is_present === true,
-});
+  if (mode === "UPDATE" && resource.id && resource.is_present === false) {
+    return {
+      id: resource.id,
+      is_deleted: true,
+      emp_type: resource.emp_type === "TL" ? "T" : "E",
+    };
+  }
+
+  return {
+    ...(mode === "UPDATE" && resource.id && {
+      id: resource.id,
+      is_update: true,
+    }),
+
+    emp_id: resource.actual_emp_id,
+    emp_type: resource.emp_type === "TL" ? "T" : "E",
+    contract_rate: resource.contract_rate,
+    start_date: today,
+    end_date: today,
+    remarks: resource.remarks,
+    is_present: resource.is_present === true,
+  };
+};
 
 const parseResourceListEntry = (entry) => {
   const [name = "", items = "", type = "", empId = ""] = String(entry || "").split("^");

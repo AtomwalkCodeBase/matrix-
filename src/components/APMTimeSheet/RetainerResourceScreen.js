@@ -196,7 +196,13 @@ const RetainerResourceScreen = ({ data }) => {
         formData.append("emp_id", editingTask.emp_id);
         formData.append("p_id", mode === "UPDATE" ? currentEntry.id : editingTask.a_id);
         formData.append("call_mode", mode);
-        formData.append("c_emp_list", JSON.stringify(resources.map(resource => buildEmployeePayload(resource, today, mode))));
+
+        const cEmpList = resources.filter(r => {
+            if (!r.id && r.is_present === false) return false;
+            return true;
+        }).map(resource => buildEmployeePayload(resource, today, mode));
+
+        formData.append("c_emp_list", JSON.stringify(cEmpList));
 
         return formData;
     };
