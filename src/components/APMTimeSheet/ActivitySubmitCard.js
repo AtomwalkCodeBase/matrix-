@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useContext } from 'react';
+import { useState, useEffect, useMemo, useContext } from 'react';
 import { View, Text, Modal, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import Ionicons from "react-native-vector-icons/Ionicons";
 
@@ -8,7 +8,7 @@ import TimePicker from '../TimePicker';
 import FilePicker from '../FilePicker';
 import RemarksInput from '../RemarkInput';
 import { colors } from '../../Styles/appStyle';
-import { DateForApiFormate, formatAMPMTime, formatAPITime, formatToApiDate, getCurrentDateTimeDefaults, normalizeToDDMMYYYY, parseApiDate } from './utils';
+import { DateForApiFormate, normalizeToDDMMYYYY, parseApiDate } from './utils';
 import { AppContext } from '../../../context/AppContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ErrorModal from '../ErrorModal';
@@ -89,8 +89,8 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     useEffect(() => {
         if (resourceListParam) {
             const parsed = resourceListParam.split("|").filter(Boolean).map(entry => {
-                const [name, items, resourceType, empId] = entry.split("^");
-                return { name, items, resourceType, empId };
+                const [name = "", items = "", resourceType = "", empId = ""] = entry.split("^");
+                return { name: name.trim(), items: items.trim(), resourceType: resourceType.trim(), empId: empId.trim(), };
             })
             // .filter(r => r.name.trim() && r.items.toString().trim());  // keep only complete entries
             setRetainerInputs(parsed);
@@ -109,7 +109,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             if (count === prev.length) return prev;
 
             if (count > prev.length) {
-                return [...prev, ...Array.from({ length: count - prev.length }, () => ({ name: "", items: "", resourceType: "" }))];
+                return [...prev, ...Array.from({ length: count - prev.length }, () => ({ name: "", items: "", resourceType: "", empId: "", }))];
             }
 
             return prev.slice(0, count);
@@ -578,6 +578,9 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
                             {hasExistingResources && (
                                 <View style={styles.resourceNamesDisplay}>
                                     <Text style={styles.resourceNamesLabel}>Entered Resource Names:</Text>
+                                    {formData.date && (
+                                        <Text style={styles.resourceDateText}>Date: {formatDateToDDMMYYYY(formData.date)}</Text>
+                                    )}
                                     {retainerInputs.map((item, index) => (
                                         item.name?.trim() && (
                                             <View key={index} style={styles.resourceNameRow}>
@@ -1082,6 +1085,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: "600",
         color: "#333",
+        marginBottom: 4,
+    },
+
+    resourceDateText: {
+        fontSize: 12,
+        color: "#666",
         marginBottom: 8,
     },
 

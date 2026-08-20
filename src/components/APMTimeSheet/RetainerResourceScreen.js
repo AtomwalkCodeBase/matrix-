@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
     View, Text, Modal, StyleSheet, ScrollView,
     TouchableOpacity, TextInput, FlatList, ActivityIndicator,
@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import AmountInput from '../AmountInput';
 import { colors } from '../../Styles/appStyle';
-import { buildEmployeePayload, DateForApiFormate, findCurrentDateEntry, formatToDDMMYYYY, getCurrentDateTimeDefaults, mergeResourceData } from './utils';
+import { buildEmployeePayload, DateForApiFormate, findCurrentDateEntry, getCurrentDateTimeDefaults, mergeResourceData } from './utils';
 import { getEmplyoeeList, getResourceAllocationList, processContractEmpAllocation } from '../../services/productServices';
 import HeaderComponent from '../HeaderComponent';
 import { useNavigation, useRouter } from 'expo-router';
@@ -29,11 +29,22 @@ const RetainerResourceScreen = ({ data }) => {
     const [isManualEntry, setIsManualEntry] = useState(false);
     const [manualResources, setManualResources] = useState([]);
 
-    const today = formatToDDMMYYYY(new Date());
     const todayApiDate = DateForApiFormate(new Date()); // "DD-MM-YYYY", matches allAEntries' raw format
 
-    const currentEntry = useMemo(() => findCurrentDateEntry(editingTask?.allAEntries, todayApiDate),
-        [editingTask?.allAEntries, todayApiDate]
+    const effectiveApiDate = useMemo(() => {
+        const plannedEnd = editingTask?.planned_end_date;
+        if (plannedEnd) {
+            const plannedEndComp = DateForApiFormate(plannedEnd, true);
+            const todayComp = DateForApiFormate(new Date(), true);
+            if (todayComp > plannedEndComp) {
+                return DateForApiFormate(plannedEnd, false);
+            }
+        }
+        return todayApiDate;
+    }, [editingTask?.planned_end_date, todayApiDate]);
+
+    const currentEntry = useMemo(() => findCurrentDateEntry(editingTask?.allAEntries, effectiveApiDate),
+        [editingTask?.allAEntries, effectiveApiDate]
     );
 
     const [mode, setMode] = useState(currentEntry ? "UPDATE" : "ADD"); // initial guess, corrected in loadData
@@ -58,22 +69,24 @@ const RetainerResourceScreen = ({ data }) => {
                 getResourceAllocationList({
                     emp_id: editingTask.emp_id,
                     allocation_id: editingTask.p_id,
-                    start_date: todayApiDate,
-                    end_date: todayApiDate,
+                    start_date: effectiveApiDate,
+                    end_date: effectiveApiDate,
                 }),
 
                 currentEntry
                     ? getResourceAllocationList({
                         emp_id: editingTask.emp_id,
                         allocation_id: currentEntry.id,
-                        start_date: todayApiDate,
-                        end_date: todayApiDate,
+                        start_date: effectiveApiDate,
+                        end_date: effectiveApiDate,
                     })
                     : Promise.resolve({ data: [] }),
 
                 getEmplyoeeList({ rm_emp_id: editingTask?.emp_id, emp_type: "C" }),
             ]);
-            const filteredAllocations = plannedRes?.data?.filter(item => isTodayWithinRange(item.s_date, item.e_date));
+            const filteredAllocations = effectiveApiDate === todayApiDate
+                ? plannedRes?.data?.filter(item => isTodayWithinRange(item.s_date, item.e_date))
+                : plannedRes?.data ?? [];
 
             const plannedResources = filteredAllocations?.filter(r => r.is_active) ?? [];
             const actualResources = actualRes.data?.filter(r => r.is_active && r.is_present) ?? [];
@@ -173,7 +186,7 @@ const RetainerResourceScreen = ({ data }) => {
         .map(([name, items, type, empId]) => `${name}^${items}^${type}^${empId ?? ""}`)
         .join("|");
 
-    const getJoinedManualResources = () => joinResourceList(manualResources, v => [v.name, v.items, v.resourceType]);
+    const getJoinedManualResources = () => joinResourceList(manualResources, v => [v.name, v.items, v.resourceType, v.empId]);
 
     const getJoinedAssignedResources = () => joinResourceList(resources.filter(r => r.is_present === true), r => [r.actual_name, r.items, r.emp_type, r.actual_emp_id]);
 
@@ -200,7 +213,7 @@ const RetainerResourceScreen = ({ data }) => {
         const cEmpList = resources.filter(r => {
             if (!r.id && r.is_present === false) return false;
             return true;
-        }).map(resource => buildEmployeePayload(resource, today, mode));
+        }).map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
 
         formData.append("c_emp_list", JSON.stringify(cEmpList));
 
@@ -491,7 +504,7 @@ const ResourceRow = ({ index, editState, updateResource, onPickerOpen, resource,
                 label="Items Audited *"
                 placeholder="Enter count"
                 claimAmount={resource.items}
-                setClaimAmount={(v) => updateResource(index, { items: v, })}
+                setClaimAmount={(v) => updateResource(index, { items: v, a_quantity: v, })}
             />
 
             <RemarksInput
