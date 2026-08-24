@@ -4,13 +4,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Alert,
+  ScrollView
 } from 'react-native';
 import { AntDesign, FontAwesome6, Ionicons } from '@expo/vector-icons';
 import { colors } from '../../Styles/appStyle';
 import RetainerCard from './RetainerCard';
-import { DateForApiFormate, formatAMPMTime, formatToDDMMYYYY, getTodayApiDateStr } from './utils';
+import { DateForApiFormate, formatAMPMTime, getTodayApiDateStr } from './utils';
 import ConfirmationModal from '../ConfirmationModal';
 
 const PRIMARY_COLOR = colors.primary;
@@ -94,9 +93,9 @@ const TimelineRow = ({ icon, label, value }) => (
 );
 
 // === Retainer Section Component ===
-const RetainerSection = ({ 
-  project, 
-  retainerData, 
+const RetainerSection = ({
+  project,
+  retainerData,
   onToggleRetainers,
   onRetainerAction,
   hasOpenSessionGlobally
@@ -122,7 +121,7 @@ const RetainerSection = ({
         disabled={isLoading}
       >
         <Text style={styles.viewRetainersText}>
-          View Retainers ({validRetainers.length})
+          View Retainers / Associates ({validRetainers.length})
         </Text>
         <Ionicons
           name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -174,11 +173,11 @@ const RetainerSection = ({
 };
 
 // === Main Component ===
-export const AuditCard = ({ 
-  project, 
-  onAction, 
-  allProjects, 
-  hasOpenSessionGlobally, 
+export const AuditCard = ({
+  project,
+  onAction,
+  allProjects,
+  hasOpenSessionGlobally,
   retainerData,
   onToggleRetainers,
   showPincodeModal,
@@ -186,11 +185,11 @@ export const AuditCard = ({
 }) => {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [confirmPopup, setConfirmPopup] = useState({
-       isOpen: false,
-       title: "",
-       message: "",
-       onConfirm: null,
-   });
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+  });
   const todayStr = getTodayApiDateStr();
 
   const checkInData = useMemo(() => {
@@ -272,8 +271,8 @@ export const AuditCard = ({
   }, [project?.original_A?.ts_data_list]);
 
   const auditEndDate = project?.original_P?.max_audit_end_date;
-    const isAuditEndDatePass = auditEndDate && DateForApiFormate(auditEndDate, true) < DateForApiFormate(todayStr, true);
-    const isPlannedEndExceed = DateForApiFormate(project?.planned_end_date, true) < DateForApiFormate(todayStr, true);
+  const isAuditEndDatePass = auditEndDate && DateForApiFormate(auditEndDate, true) < DateForApiFormate(todayStr, true);
+  const isPlannedEndExceed = DateForApiFormate(project?.planned_end_date, true) < DateForApiFormate(todayStr, true);
 
   const isNonNegotiable = project?.original_P?.is_non_negotiable_date;
   const isStrictDeadlinePassed = isNonNegotiable && isAuditEndDatePass;
@@ -281,173 +280,173 @@ export const AuditCard = ({
   const showAuditExceededMessage = isNonNegotiable && isAuditEndDatePass;
 
   const isApproved =
-  project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
-
-
-  
-  // 1. Add this useMemo inside the AuditCard component (before renderPrimaryButton)
-const isTodayWithinActualDates = useMemo(() => {
-  const actualStart = project?.original_A?.start_date;
-  const actualEnd = project?.original_A?.end_date;
-  if (!actualStart || !actualEnd) return false;
-
-  const startDate = parseAPIDate(actualStart);
-  const endDate = parseAPIDate(actualEnd);
-  if (!startDate || !endDate) return false;
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(endDate);
-  end.setHours(0, 0, 0, 0);
-
-  return today >= start && today <= end;
-}, [project]);
-
-// 2. Updated renderPrimaryButton
-const renderPrimaryButton = () => {
-  const isActivityCompleted = project?.original_A?.status === "S";
-  const thisProjectHasOpenSession = hasOpenSession;
-  const isApproved =
     project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
-  const isSubmitted = isActivityCompleted;
 
-  if (project?.original_P?.status !== "S") {
-    return null;
-  }
 
-  // If submitted (completed or approved) AND today is within actual dates → show "Completed for Today"
-  if (isSubmitted && isTodayWithinActualDates) {
-    return (
-      <View style={[styles.btn, styles.disabledBtn]}>
-        <Ionicons name="checkmark-circle" size={16} color="#fff" />
-        <Text style={styles.btnText}>Completed for Today</Text>
-      </View>
-    );
-  }
 
-  // 1. If activity is approved (but today NOT within actual dates)
-  if (isApproved) {
-    return (
-      <View style={[styles.btn, styles.disabledBtn]}>
-        <Ionicons name="bag-check-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Activity Approved</Text>
-      </View>
-    );
-  }
+  // 1. Add this useMemo inside the AuditCard component (before renderPrimaryButton)
+  const isTodayWithinActualDates = useMemo(() => {
+    const actualStart = project?.original_A?.start_date;
+    const actualEnd = project?.original_A?.end_date;
+    if (!actualStart || !actualEnd) return false;
 
-  // 2. If activity is completed (status "S") but today NOT within actual dates → allow "Start Again"
-  if (isActivityCompleted) {
+    const startDate = parseAPIDate(actualStart);
+    const endDate = parseAPIDate(actualEnd);
+    if (!startDate || !endDate) return false;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+
+    return today >= start && today <= end;
+  }, [project]);
+
+  // 2. Updated renderPrimaryButton
+  const renderPrimaryButton = () => {
+    const isActivityCompleted = project?.original_A?.status === "S";
+    const thisProjectHasOpenSession = hasOpenSession;
+    const isApproved =
+      project?.original_A?.activity_type === 'A' && project?.original_A?.status === 'A';
+    const isSubmitted = isActivityCompleted;
+
+    if (project?.original_P?.status !== "S") {
+      return null;
+    }
+
+    // If submitted (completed or approved) AND today is within actual dates → show "Completed for Today"
+    if (isSubmitted && isTodayWithinActualDates) {
+      return (
+        <View style={[styles.btn, styles.disabledBtn]}>
+          <Ionicons name="checkmark-circle" size={16} color="#fff" />
+          <Text style={styles.btnText}>Completed for Today</Text>
+        </View>
+      );
+    }
+
+    // 1. If activity is approved (but today NOT within actual dates)
+    if (isApproved) {
+      return (
+        <View style={[styles.btn, styles.disabledBtn]}>
+          <Ionicons name="bag-check-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Activity Approved</Text>
+        </View>
+      );
+    }
+
+    // 2. If activity is completed (status "S") but today NOT within actual dates → allow "Start Again"
+    if (isActivityCompleted) {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn, (isLoading || hasOpenSessionGlobally) && styles.disabledBtn]}
+          disabled={isLoading || hasOpenSessionGlobally}
+          onPress={() => onAction({ type: 'start_a', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+        >
+          <Ionicons name="log-in-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Start Again Activity</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    // 3. If activity has pending checkout from previous day
+    if (project?.hasPendingCheckout) {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
+          onPress={() => onAction({ type: 'checkout_yesterday', project })}
+          disabled={isLoading}
+        >
+          <Ionicons name="time-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Close Check-in</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    // 4. If this project has an open session
+    if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.checkOutBtn, isLoading && styles.disabledBtn]}
+          onPress={() => onAction({ type: 'continue', project })}
+          disabled={isLoading}
+        >
+          <Ionicons name="log-out-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Check Out</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    // If strict deadline has passed and no open session to close, hide all other buttons
+    if (isStrictDeadlinePassed) {
+      return null;
+    }
+
+    // 5. If there's any open session globally, disable other projects
+    if (hasOpenSessionGlobally && !thisProjectHasOpenSession) {
+      return (
+        <View style={[styles.btn, styles.disabledBtn]}>
+          <Ionicons name="lock-closed-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Finish Pending</Text>
+        </View>
+      );
+    }
+
+    // 6. If activity was checked out but not submitted
+    if (lastEntryStatus === 'checked_out') {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
+          disabled={isLoading}
+          onPress={() => onAction({ type: 'resume', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+        >
+          <Ionicons name="play-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Resume Activity</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    // 7. If activity hasn't started yet
+    if (!project?.original_A) {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
+          disabled={isLoading}
+          onPress={() => onAction({ type: 'start', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+        >
+          <Ionicons name="log-in-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Start Activity</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    // 8. Fallback for Resume button
+    if (project?.original_A) {
+      return (
+        <TouchableOpacity
+          style={[styles.btn, styles.primaryBtn]}
+          disabled={isLoading}
+          onPress={() => onAction({ type: 'resume', project })}
+        >
+          <Ionicons name="play-outline" size={16} color="#fff" />
+          <Text style={styles.btnText}>Resume Activity</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    // Default fallback
     return (
       <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn, (isLoading || hasOpenSessionGlobally) && styles.disabledBtn]}
-        disabled={isLoading || hasOpenSessionGlobally}
-        onPress={() => onAction({ type: 'start_a', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
-      >
-        <Ionicons name="log-in-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Start Again Activity</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  // 3. If activity has pending checkout from previous day
-  if (project?.hasPendingCheckout) {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
-        onPress={() => onAction({ type: 'checkout_yesterday', project })}
+        style={[styles.btn, styles.primaryBtn]}
         disabled={isLoading}
-      >
-        <Ionicons name="time-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Close Check-in</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  // 4. If this project has an open session
-  if (thisProjectHasOpenSession || lastEntryStatus === 'open_session') {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.checkOutBtn, isLoading && styles.disabledBtn]}
-        onPress={() => onAction({ type: 'continue', project })}
-        disabled={isLoading}
-      >
-        <Ionicons name="log-out-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Check Out</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  // If strict deadline has passed and no open session to close, hide all other buttons
-  if (isStrictDeadlinePassed) {
-    return null;
-  }
-
-  // 5. If there's any open session globally, disable other projects
-  if (hasOpenSessionGlobally && !thisProjectHasOpenSession) {
-    return (
-      <View style={[styles.btn, styles.disabledBtn]}>
-        <Ionicons name="lock-closed-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Finish Pending</Text>
-      </View>
-    );
-  }
-
-  // 6. If activity was checked out but not submitted
-  if (lastEntryStatus === 'checked_out') {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
-        disabled={isLoading}
-        onPress={() => onAction({ type: 'resume', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
-      >
-        <Ionicons name="play-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Resume Activity</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  // 7. If activity hasn't started yet
-  if (!project?.original_A) {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn, isLoading && styles.disabledBtn]}
-        disabled={isLoading}
-        onPress={() => onAction({ type: 'start', project, isMaxAuditEndDatePass: showAuditExceededMessage })}
+        onPress={() => onAction({ type: 'start', project })}
       >
         <Ionicons name="log-in-outline" size={16} color="#fff" />
         <Text style={styles.btnText}>Start Activity</Text>
       </TouchableOpacity>
     );
-  }
-
-  // 8. Fallback for Resume button
-  if (project?.original_A) {
-    return (
-      <TouchableOpacity
-        style={[styles.btn, styles.primaryBtn]}
-        disabled={isLoading}
-        onPress={() => onAction({ type: 'resume', project })}
-      >
-        <Ionicons name="play-outline" size={16} color="#fff" />
-        <Text style={styles.btnText}>Resume Activity</Text>
-      </TouchableOpacity>
-    );
-  }
-
-  // Default fallback
-  return (
-    <TouchableOpacity
-      style={[styles.btn, styles.primaryBtn]}
-      disabled={isLoading}
-      onPress={() => onAction({ type: 'start', project })}
-    >
-      <Ionicons name="log-in-outline" size={16} color="#fff" />
-      <Text style={styles.btnText}>Start Activity</Text>
-    </TouchableOpacity>
-  );
-};
+  };
 
   const customerName = project?.customer_name || 'Unknown Customer';
   const auditType = project?.original_P?.product_name || project?.audit_type || 'N/A';
@@ -460,213 +459,213 @@ const renderPrimaryButton = () => {
 
   return (
     <>
-    <View style={[ styles.card, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed"  ? `${colors.red}40` : '#fff' }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <Text style={styles.customerName} numberOfLines={1}>{customerName}</Text>
-          <Text style={styles.orderKey}>{project?.order_item_key}</Text>
+      <View style={[styles.card, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed" ? `${colors.red}40` : '#fff' }]}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <Text style={styles.customerName} numberOfLines={1}>{customerName}</Text>
+            <Text style={styles.orderKey}>{project?.order_item_key}</Text>
+          </View>
+          <StatusBadge status={isApproved ? 'Approved' : periodStatus} />
         </View>
-        <StatusBadge status={isApproved ? 'Approved' : periodStatus} />
-      </View>
 
-      {/* Branch Added Note */}
-{project?.original_A?.ref_p_id === "" && (
-  <View style={styles.branchNoteContainer}>
-    <Ionicons name="information-circle-outline" size={14} color="#3b82f6" />
-    <Text style={styles.branchNote}>Actual is added by the Branch</Text>
-  </View>
-)}
-
-      {/* Info Grid */}
-      <View style={[styles.infoGrid, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed" ? `${colors.red}20` : '#f8fafc' }]}>
-        <InfoItem icon="briefcase-outline" label="Audit Type" value={auditType} />
-        <InfoItem icon="cube-outline" label="Items" value={noOfItems} />
-        {document_required && <InfoItem icon="document-attach-outline" label="Document Upload" value={document_uploaded ?
-          <Ionicons name="checkmark" size={24} color={colors.success} /> : <Ionicons name="close" size={24} color={colors.red} />} />
-        }
-      </View>
-
-      <View style={[styles.cardContainer, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed" ? `${colors.red}20` : '#f8fafc' }]}>
-        {/* LEFT SIDE */}
-        <View style={styles.leftSection}>
-          <View style={styles.headerRow}>
-             <Ionicons name="home" size={12} color="#64748b" />
-            <Text style={styles.label}>Store Location</Text>
+        {/* Branch Added Note */}
+        {project?.original_A?.ref_p_id === "" && (
+          <View style={styles.branchNoteContainer}>
+            <Ionicons name="information-circle-outline" size={14} color="#3b82f6" />
+            <Text style={styles.branchNote}>Actual is added by the Branch</Text>
           </View>
-          <Text style={styles.value}>{store_location || "--"}</Text>
+        )}
 
-          {project?.original_P?.store_code &&
-          <> 
-          <View style={styles.headerRow}>
-             <Ionicons name="home" size={12} color="#64748b" />
-            <Text style={styles.label}>Store code</Text>
-          </View>
-          <Text style={styles.value}>{project?.original_P?.store_code}</Text>
-          </>
+        {/* Info Grid */}
+        <View style={[styles.infoGrid, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed" ? `${colors.red}20` : '#f8fafc' }]}>
+          <InfoItem icon="briefcase-outline" label="Audit Type" value={auditType} />
+          <InfoItem icon="cube-outline" label="Items" value={noOfItems} />
+          {document_required && <InfoItem icon="document-attach-outline" label="Document Upload" value={document_uploaded ?
+            <Ionicons name="checkmark" size={24} color={colors.success} /> : <Ionicons name="close" size={24} color={colors.red} />} />
           }
         </View>
 
-        {/* DIVIDER */}
-        <View style={styles.divider} />
+        <View style={[styles.cardContainer, { backgroundColor: isStrictDeadlinePassed && periodStatus !== "Completed" ? `${colors.red}20` : '#f8fafc' }]}>
+          {/* LEFT SIDE */}
+          <View style={styles.leftSection}>
+            <View style={styles.headerRow}>
+              <Ionicons name="home" size={12} color="#64748b" />
+              <Text style={styles.label}>Store Location</Text>
+            </View>
+            <Text style={styles.value}>{store_location || "--"}</Text>
 
-        {/* RIGHT SIDE */}
-        <View style={styles.rightSection}>
-          <View style={styles.headerRow}>
-            <Ionicons name="pin" size={12} color="#64748b" />
-            <Text style={styles.label}>PinCode</Text>
+            {project?.original_P?.store_code &&
+              <>
+                <View style={styles.headerRow}>
+                  <Ionicons name="home" size={12} color="#64748b" />
+                  <Text style={styles.label}>Store code</Text>
+                </View>
+                <Text style={styles.value}>{project?.original_P?.store_code}</Text>
+              </>
+            }
           </View>
+
+          {/* DIVIDER */}
+          <View style={styles.divider} />
+
+          {/* RIGHT SIDE */}
+          <View style={styles.rightSection}>
+            <View style={styles.headerRow}>
+              <Ionicons name="pin" size={12} color="#64748b" />
+              <Text style={styles.label}>PinCode</Text>
+            </View>
             {!project?.original_P?.pin_code ? (
               <TouchableOpacity
-                style={[styles.btn, styles.primaryBtn, {maxHeight: 50}]}
+                style={[styles.btn, styles.primaryBtn, { maxHeight: 50 }]}
                 onPress={() => showPincodeModal(project)}
               >
                 <AntDesign name="plus" size={14} color="#fff" />
                 <Text style={styles.btnText}>Add</Text>
               </TouchableOpacity>
-            ): <Text style={styles.value}>
+            ) : <Text style={styles.value}>
               {project.original_P.pin_code}
             </Text>}
           </View>
-      </View>
-      
-      {project?.original_P?.is_non_negotiable_date && project?.original_P?.max_audit_end_date && 
-      //  <View style={[styles.timeline,{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginTop: 10 }]}>
-        <View style={[styles.cardContainer2]}>
-          <Text style={{ color: colors.white, textAlign: "center", fontWeight: "600"}}>Non negotiable Date: {`${formatDate(project?.original_P?.audit_date)} to ${formatDate(project?.original_P?.max_audit_end_date)}`}</Text>
         </View>
 
-      // </View>
-      
-      }
+        {project?.original_P?.is_non_negotiable_date && project?.original_P?.max_audit_end_date &&
+          //  <View style={[styles.timeline,{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 10, marginTop: 10 }]}>
+          <View style={[styles.cardContainer2]}>
+            <Text style={{ color: colors.white, textAlign: "center", fontWeight: "600" }}>Non negotiable Date: {`${formatDate(project?.original_P?.audit_date)} to ${formatDate(project?.original_P?.max_audit_end_date)}`}</Text>
+          </View>
 
-      {/* Timeline */}
-      <View style={styles.timeline}>
-        <Text style={styles.sectionTitle}>Project Timeline</Text>
-        <TimelineRow
-          icon="calendar-outline"
-          label="Planned Date"
-          value={`${formatDate(project?.original_P?.start_date)} to ${formatDate(project?.original_P?.end_date)}`}
-        />
-        <TimelineRow
-          icon="calendar-outline"
-          label="Planned Time"
-          value={`${formatAMPMTime(project?.original_P?.start_time)} to ${formatAMPMTime(project?.original_P?.end_time)}`}
-        />
-        {/* {project.actual_start_date && <TimelineRow
+          // </View>
+
+        }
+
+        {/* Timeline */}
+        <View style={styles.timeline}>
+          <Text style={styles.sectionTitle}>Project Timeline</Text>
+          <TimelineRow
+            icon="calendar-outline"
+            label="Planned Date"
+            value={`${formatDate(project?.original_P?.start_date)} to ${formatDate(project?.original_P?.end_date)}`}
+          />
+          <TimelineRow
+            icon="calendar-outline"
+            label="Planned Time"
+            value={`${formatAMPMTime(project?.original_P?.start_time)} to ${formatAMPMTime(project?.original_P?.end_time)}`}
+          />
+          {/* {project.actual_start_date && <TimelineRow
           icon="calendar-outline"
           label="Actual Date"
           value={`${formatDate(project?.original_A?.start_date)} to ${formatDate(project?.original_A?.end_date)}`}
         />} */}
-      </View>
+        </View>
 
-      {showAuditExceededMessage && project?.project_period_status !== "Completed" &&
-        <View>
-          <Text style={{ color: colors.red, marginBottom: "15" }}>{
-            isStrictDeadlinePassed ? "Audit max end date has been exceeded. You can't start the activity" :
-              "Audit max end date has been exceeded"}
-          </Text>
-        </View>}
+        {showAuditExceededMessage && project?.project_period_status !== "Completed" &&
+          <View>
+            <Text style={{ color: colors.red, marginBottom: "15" }}>{
+              isStrictDeadlinePassed ? "Audit max end date has been exceeded. You can't start the activity" :
+                "Audit max end date has been exceeded"}
+            </Text>
+          </View>}
 
-      {/* Retainer Section - Always visible if there are retainers */}
-      <RetainerSection
-        project={project}
-        retainerData={retainerData}
-        onToggleRetainers={onToggleRetainers}
-        // onRetainerAction={handleRetainerActionWrapper}
-        onRetainerAction={onAction}
-        hasOpenSessionGlobally={hasOpenSessionGlobally}
-      />
+        {/* Retainer Section - Always visible if there are retainers */}
+        <RetainerSection
+          project={project}
+          retainerData={retainerData}
+          onToggleRetainers={onToggleRetainers}
+          // onRetainerAction={handleRetainerActionWrapper}
+          onRetainerAction={onAction}
+          hasOpenSessionGlobally={hasOpenSessionGlobally}
+        />
 
-      {/* Action Buttons */}
-      <View style={styles.actions}>
-        {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending' || periodStatus === 'Completed') && renderPrimaryButton()}
-        <TouchableOpacity
-          style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
-          onPress={handleToggleDetails}
-        >
-          <Ionicons
-            name={isDetailsOpen ? 'close-circle-outline' : 'document-text-outline'}
-            size={16}
-            color={isDetailsOpen ? '#fff' : PRIMARY_COLOR}
-          />
-          <Text style={[styles.btnText, !isDetailsOpen && styles.secondaryBtnText]}>
-            {isDetailsOpen ? 'Minimize Details' : 'Details'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+        {/* Action Buttons */}
+        <View style={styles.actions}>
+          {(periodStatus === 'In Progress' || periodStatus === 'Planned' || periodStatus === 'Pending' || periodStatus === 'Completed') && renderPrimaryButton()}
+          <TouchableOpacity
+            style={[styles.btn, isDetailsOpen ? styles.closeBtn : styles.secondaryBtn]}
+            onPress={handleToggleDetails}
+          >
+            <Ionicons
+              name={isDetailsOpen ? 'close-circle-outline' : 'document-text-outline'}
+              size={16}
+              color={isDetailsOpen ? '#fff' : PRIMARY_COLOR}
+            />
+            <Text style={[styles.btnText, !isDetailsOpen && styles.secondaryBtnText]}>
+              {isDetailsOpen ? 'Minimize Details' : 'Details'}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Expanded Details */}
-      {isDetailsOpen && (
-  <View style={styles.detailsSection}>
-    {store_remark && (
-      <View style={styles.timeline}>
-        <Text style={styles.sectionTitle}>Account Manager Remark</Text>
-        <TimelineRow value={store_remark} />
-      </View>
-    )}
+        {/* Expanded Details */}
+        {isDetailsOpen && (
+          <View style={styles.detailsSection}>
+            {store_remark && (
+              <View style={styles.timeline}>
+                <Text style={styles.sectionTitle}>Account Manager Remark</Text>
+                <TimelineRow value={store_remark} />
+              </View>
+            )}
 
-    <View style={styles.progressHeader}>
-      <Text style={styles.sectionTitle}>Daily Progress</Text>
-      {/* <Text style={styles.calendarProgress}>
+            <View style={styles.progressHeader}>
+              <Text style={styles.sectionTitle}>Daily Progress</Text>
+              {/* <Text style={styles.calendarProgress}>
         {loggedDates.length}/{plannedDays.length} days completed
       </Text> */}
-    </View>
+            </View>
 
-    {/* Daily Logs */}
-    {checkInData?.length > 0 ? (
-      <>
-        <ScrollView style={styles.dailyLogScroll} nestedScrollEnabled>
-          <View style={styles.dailyLog}>
-            {checkInData?.map((entry, idx) => (
-              <DailyLogEntry key={idx} entry={entry} />
-            ))}
+            {/* Daily Logs */}
+            {checkInData?.length > 0 ? (
+              <>
+                <ScrollView style={styles.dailyLogScroll} nestedScrollEnabled>
+                  <View style={styles.dailyLog}>
+                    {checkInData?.map((entry, idx) => (
+                      <DailyLogEntry key={idx} entry={entry} />
+                    ))}
+                  </View>
+                </ScrollView>
+
+                {/* Reverse Audit Status – only visible if not approved */}
+                {project.project_period_status === "Completed" && !isApproved && (
+                  <TouchableOpacity
+                    style={[styles.btn, styles.primaryBtn, { marginTop: 10 }]}
+                    onPress={() => onAction({ type: 'reverse', project })}
+                  >
+                    <FontAwesome6 name="check-circle" size={16} color={colors.white} />
+                    <Text style={styles.btnText}>Reverse Audit Status</Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Mark as Complete – only visible if not approved */}
+                {(project.project_period_status !== "Completed" &&
+                  !project?.hasPendingCheckout &&
+                  !hasOpenSession &&
+                  !isApproved) && (
+                    <TouchableOpacity
+                      style={[styles.btn, styles.successBtn, { marginTop: 10 }]}
+                      onPress={() => onAction({ type: 'force_complete', project })}
+                    >
+                      <FontAwesome6 name="check-circle" size={16} color={colors.white} />
+                      <Text style={styles.btnText}>Mark as Complete</Text>
+                    </TouchableOpacity>
+                  )}
+              </>
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="calendar-outline" size={24} color="#cbd5e1" />
+                <Text style={styles.emptyText}>No activity logged yet</Text>
+              </View>
+            )}
           </View>
-        </ScrollView>
-
-        {/* Reverse Audit Status – only visible if not approved */}
-        {project.project_period_status === "Completed" && !isApproved && (
-          <TouchableOpacity
-            style={[styles.btn, styles.primaryBtn, { marginTop: 10 }]}
-            onPress={() => onAction({ type: 'reverse', project })}
-          >
-            <FontAwesome6 name="check-circle" size={16} color={colors.white} />
-            <Text style={styles.btnText}>Reverse Audit Status</Text>
-          </TouchableOpacity>
         )}
-
-        {/* Mark as Complete – only visible if not approved */}
-        {(project.project_period_status !== "Completed" &&
-          !project?.hasPendingCheckout &&
-          !hasOpenSession &&
-          !isApproved) && (
-          <TouchableOpacity
-            style={[styles.btn, styles.successBtn, { marginTop: 10 }]}
-            onPress={() => onAction({ type: 'force_complete', project })}
-          >
-            <FontAwesome6 name="check-circle" size={16} color={colors.white} />
-            <Text style={styles.btnText}>Mark as Complete</Text>
-          </TouchableOpacity>
-        )}
-      </>
-    ) : (
-      <View style={styles.emptyState}>
-        <Ionicons name="calendar-outline" size={24} color="#cbd5e1" />
-        <Text style={styles.emptyText}>No activity logged yet</Text>
       </View>
-    )}
-  </View>
-)}
-    </View>
 
- <ConfirmationModal
-            visible={confirmPopup.isOpen}
-            title={confirmPopup.title}
-            message={confirmPopup.message}
-            onConfirm={confirmPopup.onConfirm}
-            onCancel={() => setConfirmPopup((p) => ({ ...p, isOpen: false }))}
-            messageColor={!isPlannedEndExceed ? "red" : ""}
-        />
+      <ConfirmationModal
+        visible={confirmPopup.isOpen}
+        title={confirmPopup.title}
+        message={confirmPopup.message}
+        onConfirm={confirmPopup.onConfirm}
+        onCancel={() => setConfirmPopup((p) => ({ ...p, isOpen: false }))}
+        messageColor={!isPlannedEndExceed ? "red" : ""}
+      />
     </>
   );
 };
@@ -792,21 +791,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   branchNoteContainer: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  backgroundColor: '#EFF6FF',      // light blue background
-  paddingVertical: 6,
-  paddingHorizontal: 10,
-  borderRadius: 6,
-  marginBottom: 10,
-  gap: 6,
-},
-branchNote: {
-  fontSize: 12,
-  color: '#1D4ED8',               // blue text
-  fontWeight: '500',
-  flex: 1,
-},
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',      // light blue background
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    marginBottom: 10,
+    gap: 6,
+  },
+  branchNote: {
+    fontSize: 12,
+    color: '#1D4ED8',               // blue text
+    fontWeight: '500',
+    flex: 1,
+  },
   infoGrid: {
     flexDirection: 'row',
     backgroundColor: '#f8fafc',
@@ -1103,17 +1102,17 @@ branchNote: {
     color: '#64748b',
     fontWeight: '600',
   },
-    cardContainer: {
+  cardContainer: {
     flexDirection: "row",
     backgroundColor: '#f8fafc',
     borderRadius: 10,
     padding: 16,
     alignItems: "center",
   },
-    cardContainer2: {
+  cardContainer2: {
     flexDirection: "row",
     // backgroundColor: '#f8fafc',
-     backgroundColor: colors.red,
+    backgroundColor: colors.red,
     borderRadius: 10,
     padding: 6,
     marginVertical: 5,
@@ -1141,7 +1140,7 @@ branchNote: {
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap:5
+    gap: 5
   },
 
   label: {

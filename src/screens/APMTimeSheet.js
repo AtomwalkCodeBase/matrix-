@@ -1,14 +1,5 @@
 import React, { useEffect, useState, useMemo, useCallback } from "react";
-import {
-  View,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
-  Animated,
-  Alert,
-  TouchableOpacity,
-  Text,
-} from "react-native";
+import { StyleSheet, ScrollView, RefreshControl, Animated, Alert, Text, } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as Location from "expo-location";
@@ -24,11 +15,8 @@ import ErrorModal from "../components/ErrorModal";
 import ActivitySubmitCard from "../components/APMTimeSheet/ActivitySubmitCard";
 
 import {
-  formatAPITime,
-  getCurrentDateRangeFromPeriod,
   getCurrentDateTimeDefaults,
   normalizeProjects,
-  formatToDDMMYYYY,
   formatAMPMTime,
   formatDate,
   parseDateString,
@@ -43,9 +31,7 @@ import {
 import { getAllocationList, postAllocationData } from "../services/productServices";
 import { useLocalSearchParams, useNavigation } from "expo-router";
 import { AuditCard } from "../components/APMTimeSheet/AcivityCard";
-import RetainerCard from "../components/APMTimeSheet/RetainerCard";
 import { colors } from "../Styles/appStyle";
-import Icon from "react-native-vector-icons/MaterialIcons";
 import RemarkModals from "../components/RemarkModals";
 
 const PROJECTS_PER_PAGE = 10;
@@ -79,6 +65,7 @@ const APMTimeSheet = () => {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [isWarning, setIsWaring] = useState(false);
 
   const [selectedProject, setSelectedProject] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -1122,6 +1109,7 @@ const APMTimeSheet = () => {
 
       if (!aId) {
         setErrorMessage("Pincode entry is not allowed until the activity has started.");
+        setIsWaring(true)
         setShowErrorModal(true);
         setIsLoading(false);
         return;
@@ -1343,6 +1331,8 @@ const APMTimeSheet = () => {
       <ErrorModal
         visible={showErrorModal}
         message={errorMessage}
+        label={isWarning ? "Waring" : ""}
+        isWarning={isWarning}
         onClose={() => {
           setShowErrorModal(false);
           setErrorMessage("");

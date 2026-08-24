@@ -1382,6 +1382,14 @@ export const buildEmployeePayload = (resource, today, mode) => {
     };
   }
 
+  const raw =
+    resource.items !== undefined && resource.items !== null && resource.items !== ""
+      ? resource.items
+      : resource.a_quantity;
+
+  const enteredQty = Number(raw);
+  const a_quantity = isNaN(enteredQty) ? 0 : enteredQty;
+
   return {
     ...(mode === "UPDATE" && resource.id && {
       id: resource.id,
@@ -1391,7 +1399,7 @@ export const buildEmployeePayload = (resource, today, mode) => {
     emp_id: resource.actual_emp_id,
     emp_type: resource.emp_type === "TL" ? "T" : "E",
     contract_rate: resource.contract_rate,
-    a_quantity: resource.items ?? resource.a_quantity ?? "",
+    a_quantity: a_quantity,
     start_date: today,
     end_date: today,
     remarks: resource.remarks,
@@ -1419,10 +1427,17 @@ const findResourceListEntry = (empIdMap, fallbackMap, empId, name, type) => {
   return fallbackMap.get(`${name.trim().toLowerCase()}|${type.trim().toUpperCase()}`) || null;
 };
 
-const mapAllocationToResource = (item, empIdMap, fallbackMap) => {
+const mapAllocationToResource = (item, empIdMap, fallbackMap, hasIncomingList) => {
   const itemType = EMP_TYPE_LABEL[item.emp_type] ?? item.emp_type;
   const rlEntry = findResourceListEntry(empIdMap, fallbackMap, item.emp_id, item.employee_name, itemType);
-  const isPresentVal = item.is_present !== undefined && item.is_present !== null ? (item.is_present === true || item.is_present === 1 || item.is_present === "1" || item.is_present === "Y" || item.is_present === "true") : true;
+
+  let isPresentVal;
+  if (hasIncomingList) {
+    isPresentVal = !!rlEntry;
+  } else {
+    isPresentVal = item.is_present !== undefined && item.is_present !== null ? (item.is_present === true || item.is_present === 1 || item.is_present === "1" || item.is_present === "Y" || item.is_present === "true") : true;
+  }
+
   return {
     id: item.id ?? null,
     allocation_id: item.allocation_id,
@@ -1441,7 +1456,7 @@ const mapAllocationToResource = (item, empIdMap, fallbackMap) => {
   };
 };
 
-export const mergeResourceData = (plannedResources = [], actualResources = [], resourceList = []) => {
+export const mergeResourceData = (plannedResources = [], actualResources = [], resourceList = [], hasIncomingList = false) => {
   const actualMap = new Map(actualResources.map(item => [item.emp_id, item]));
   const parsedResourceList = Array.isArray(resourceList)
     ? resourceList.map(parseResourceListEntry)
@@ -1462,12 +1477,18 @@ export const mergeResourceData = (plannedResources = [], actualResources = [], r
     const actual = actualMap.get(planned.emp_id);
 
     if (!actual) {
-      return mapAllocationToResource(planned, empIdMap, fallbackMap);
+      return mapAllocationToResource(planned, empIdMap, fallbackMap, hasIncomingList);
     }
 
     const actualType = EMP_TYPE_LABEL[actual.emp_type] ?? actual.emp_type;
     const rlEntry = findResourceListEntry(empIdMap, fallbackMap, actual.emp_id, actual.employee_name, actualType);
-    const isPresentVal = actual.is_present !== undefined && actual.is_present !== null ? (actual.is_present === true || actual.is_present === 1 || actual.is_present === "1" || actual.is_present === "Y" || actual.is_present === "true") : true;
+
+    let isPresentVal;
+    if (hasIncomingList) {
+      isPresentVal = !!rlEntry;
+    } else {
+      isPresentVal = actual.is_present !== undefined && actual.is_present !== null ? (actual.is_present === true || actual.is_present === 1 || actual.is_present === "1" || actual.is_present === "Y" || actual.is_present === "true") : true;
+    }
 
 
     return {

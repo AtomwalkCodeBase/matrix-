@@ -88,7 +88,8 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
     useEffect(() => {
         if (resourceListParam) {
-            const parsed = resourceListParam.split("|").filter(Boolean).map(entry => {
+            const resourceList = Array.isArray(resourceListParam) ? resourceListParam[0] : resourceListParam;
+            const parsed = resourceList.split("|").filter(Boolean).map(entry => {
                 const [name = "", items = "", resourceType = "", empId = ""] = entry.split("^");
                 return { name: name.trim(), items: items.trim(), resourceType: resourceType.trim(), empId: empId.trim(), };
             })
@@ -129,7 +130,6 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
 
             // Check if resource_list exists and is an array
             const existingResourceList = isRetainer?.fullData?.original_A?.resource_list || [];
-            //    const existingResourceList =['ram^20', 'hari^40'];
             const formattedResources = existingResourceList.map(res => {
                 const [name, items, resourceType, empId] = res.split("^");
                 return {
@@ -314,7 +314,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
             const item = retainerInputs[i];
 
             if (!item.name?.trim()) {
-                return { isValid: false, message: `Please enter name for Resource ${i + 1}` };
+                return { isValid: false, message: `Please enter name for Resources` };
             }
 
             if (!item.items?.toString().trim()) {

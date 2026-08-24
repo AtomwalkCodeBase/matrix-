@@ -28,6 +28,8 @@ const RetainerResourceScreen = ({ data }) => {
     const [resources, setResources] = useState([]);
     const [isManualEntry, setIsManualEntry] = useState(false);
     const [manualResources, setManualResources] = useState([]);
+    const [pendingResourceList, setPendingResourceList] = useState(null);
+    const [isWarning, setIsWaring] = useState(false)
 
     const todayApiDate = DateForApiFormate(new Date()); // "DD-MM-YYYY", matches allAEntries' raw format
 
@@ -56,7 +58,6 @@ const RetainerResourceScreen = ({ data }) => {
     const [allResources, setAllResources] = useState([]);
     const [pickerIndex, setPickerIndex] = useState(null); // which row is picking
     const [loading, setLoading] = useState(true);
-    const { apiDate } = getCurrentDateTimeDefaults();
 
     useEffect(() => {
         loadData();
@@ -89,13 +90,15 @@ const RetainerResourceScreen = ({ data }) => {
                 : plannedRes?.data ?? [];
 
             const plannedResources = filteredAllocations?.filter(r => r.is_active) ?? [];
-            const actualResources = actualRes.data?.filter(r => r.is_active && r.is_present) ?? [];
+            // const actualResources = actualRes.data?.filter(r => r.is_active && r.is_present) ?? [];
+            const actualResources = actualRes.data?.filter(r => r.is_active) ?? [];
 
             if (plannedResources.length === 0) {
                 setIsManualEntry(true);
 
-                const rawList = incomingResourceList
-                    ? incomingResourceList.split("|").filter(Boolean)
+                const resourceList = Array.isArray(incomingResourceList) ? incomingResourceList[0] : incomingResourceList;
+                const rawList = resourceList
+                    ? resourceList.split("|").filter(Boolean)
                     : (editingTask?.original_A?.resource_list || editingTask?.original_P?.resource_list || []);
 
                 const count = Number(resourceCount) || 0;
@@ -120,9 +123,16 @@ const RetainerResourceScreen = ({ data }) => {
                 const resolvedMode = actualResources.length > 0 ? "UPDATE" : "ADD";
                 setMode(resolvedMode);
 
-                const rawResourceList = editingTask?.original_A?.resource_list || editingTask?.original_P?.resource_list || [];
-                const resourceListArray = Array.isArray(rawResourceList) ? rawResourceList : [];
-                const mergedResources = mergeResourceData(plannedResources, actualResources, resourceListArray);
+                let resourceListArray;
+                let hasIncomingList = false;
+                if (incomingResourceList) {
+                    resourceListArray = Array.isArray(incomingResourceList) ? incomingResourceList : [incomingResourceList];
+                    hasIncomingList = true;
+                } else {
+                    const rawResourceList = editingTask?.original_A?.resource_list || editingTask?.original_P?.resource_list || [];
+                    resourceListArray = Array.isArray(rawResourceList) ? rawResourceList : [];
+                }
+                const mergedResources = mergeResourceData(plannedResources, actualResources, resourceListArray, hasIncomingList);
 
                 setResources(mergedResources);
 
@@ -210,8 +220,10 @@ const RetainerResourceScreen = ({ data }) => {
         formData.append("p_id", mode === "UPDATE" ? currentEntry.id : editingTask.a_id);
         formData.append("call_mode", mode);
 
+        const isPresent = (r) => r.is_present === true || r.is_present === 1 || r.is_present === "1" || r.is_present === "Y" || r.is_present === "true";
+
         const cEmpList = resources.filter(r => {
-            if (!r.id && r.is_present === false) return false;
+            if (!r.id && !isPresent(r)) return false;
             return true;
         }).map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
 
@@ -224,6 +236,19 @@ const RetainerResourceScreen = ({ data }) => {
         setConfirmVisible(false);
 
         if (isManualEntry) {
+            const hasIncompleteResource = manualResources.some(resource => (
+                !resource.name?.trim() ||
+                !resource.items?.toString().trim() ||
+                !resource.resourceType
+            ));
+
+            if (hasIncompleteResource) {
+                setErrorMessage("Please fill in the resource name, number of items, and resource type for each resource.");
+                setIsWaring(true);
+                setErrorVisible(true);
+                return;
+            }
+
             const resourceList = getJoinedManualResources();
             router.dismissTo({
                 pathname: returnTo,
@@ -238,6 +263,23 @@ const RetainerResourceScreen = ({ data }) => {
 
         if (missingSelection) {
             setErrorMessage("Please select an employee for every resource before saving.");
+            setIsWaring(true)
+            setErrorVisible(true);
+            return;
+        }
+
+        const missingItems = resources.some(r => {
+            if (!r.is_present) return false;
+
+            const items = Number(r.items);
+            const quantity = Number(r.a_quantity);
+
+            return !items || items <= 0 || !quantity || quantity <= 0;
+        });
+
+        if (missingItems) {
+            setErrorMessage("Please enter the number of items audited for every present resource before saving.");
+            setIsWaring(true);
             setErrorVisible(true);
             return;
         }
@@ -247,8 +289,9 @@ const RetainerResourceScreen = ({ data }) => {
 
         if (expectedCount > 0 && presentCount !== expectedCount) {
             setErrorMessage(
-                `Number of present resources (${presentCount}) does not match Number of Resources (${expectedCount}).\nPlease mark the correct resources as present or update the resource count.`
+                `Resource count mismatch: You entered ${expectedCount} resources, but only ${presentCount} are marked as present.\n\n Please mark the correct resources as present or update the resource count.`
             );
+            setIsWaring(true)
             setErrorVisible(true);
             return;
         }
@@ -262,7 +305,9 @@ const RetainerResourceScreen = ({ data }) => {
             const res = await processContractEmpAllocation(payload);
             // const res = { status: 200 }
             if (res?.status === 200) {
+                const resourceList = getJoinedAssignedResources();
                 setSuccessVisible(true);
+                setPendingResourceList(resourceList);
                 await loadData();
                 return;
             }
@@ -311,12 +356,12 @@ const RetainerResourceScreen = ({ data }) => {
                                 />
                                 <AmountInput
                                     label={editingTask?.original_P?.product_unit ? `${editingTask.original_P.product_unit} Audited *` : "Number of Items Audited *"}
-                                    placeholder="Enter item number"
+                                    placeholder="Enter item number*"
                                     claimAmount={item.items}
                                     setClaimAmount={(value) => updateManualResource(index, "items", value)}
                                 />
                                 <CompanyDropdown
-                                    label="Resource Type"
+                                    label="Resource Type*"
                                     data={[{ label: "Team Lead", value: "TL" }, { label: "Executive", value: "EX" }]}
                                     value={item.resourceType}
                                     setValue={(value) => updateManualResource(index, "resourceType", value?.value)}
@@ -422,7 +467,7 @@ const RetainerResourceScreen = ({ data }) => {
                 message="Resources saved successfully."
                 onClose={() => {
                     setSuccessVisible(false);
-                    const resourceList = getJoinedAssignedResources();
+                    const resourceList = pendingResourceList || getJoinedAssignedResources();
                     router.dismissTo({
                         pathname: returnTo,
                         params: resourceList ? { resource_list: resourceList } : {},
@@ -432,7 +477,8 @@ const RetainerResourceScreen = ({ data }) => {
 
             <ErrorModal
                 visible={errorVisible}
-                label="Error"
+                label={isWarning ? "Waring" : "Error"}
+                isWarning={isWarning}
                 message={errorMessage}
                 onClose={() => setErrorVisible(false)}
             />
@@ -601,7 +647,7 @@ const ResourcePicker = ({ visible, onClose, onSelect, allResources, plannedIds }
 // Resource Type(TL/EX) Toggle  
 const EmpTypeToggle = ({ value, onChange }) => (
     <View style={toggleStyles.wrap}>
-        <Text style={toggleStyles.label}>Resource Type</Text>
+        <Text style={toggleStyles.label}>Resource Type *</Text>
         <View style={toggleStyles.row}>
             {EMP_TYPE_OPTIONS.map(opt => (
                 <TouchableOpacity

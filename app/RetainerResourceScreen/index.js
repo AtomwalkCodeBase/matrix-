@@ -1,7 +1,4 @@
 import { View } from 'react-native'
-import React from 'react'
-import { useRoute } from '@react-navigation/native'
-import ProcessTravel from '../../src/screens/ProcessTravel'
 import RetainerResourceScreen from '../../src/components/APMTimeSheet/RetainerResourceScreen'
 import { useLocalSearchParams } from 'expo-router'
 const index = () => {

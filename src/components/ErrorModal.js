@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, Platform, Animated, Easing } from 'react-native';
 import styled from 'styled-components/native';
+import { colors } from '../Styles/appStyle';
 
 const ModalContainer = styled.View`
   flex: 1;
@@ -25,7 +26,7 @@ const ModalContent = styled(Animated.View)`
 const HeaderBar = styled.View`
   height: 8px;
   width: 100%;
-  background-color: #d32f2f;
+  background-color: ${({ modalColor }) => modalColor};;
 `;
 
 const ContentContainer = styled.View`
@@ -37,19 +38,19 @@ const IconContainer = styled(Animated.View)`
   width: 88px;
   height: 88px;
   border-radius: 44px;
-  background-color: #ffebee;
+  background-color: ${({ modalLightColor }) => modalLightColor};
   justify-content: center;
   align-items: center;
   margin-bottom: 20px;
   border-width: 2px;
-  border-color: #d32f2f;
+  border-color: ${({ modalColor }) => modalColor};
   border-style: dashed;
 `;
 
 const IconText = styled(Animated.Text)`
   font-size: 44px;
   font-weight: 300;
-  color: #d32f2f;
+  color: ${({ modalColor }) => modalColor};
   line-height: 48px;
   text-align: center;
 `;
@@ -84,13 +85,13 @@ const ModalButton = styled.TouchableOpacity`
   flex: 1;
   height: 48px;
   border-radius: 12px;
-  background-color: ${({ secondary }) => secondary ? '#f8f9fa' : '#d32f2f'};
+  background-color: ${({ secondary, modalColor }) => secondary ? '#f8f9fa' : modalColor};
   justify-content: center;
   align-items: center;
   border-width: ${({ secondary }) => secondary ? '1px' : '0px'};
   border-color: ${({ secondary }) => secondary ? '#e0e0e0' : 'transparent'};
   elevation: ${({ secondary }) => secondary ? 0 : 2};
-  shadow-color: ${({ secondary }) => secondary ? 'transparent' : '#d32f2f'};
+  shadow-color: ${({ secondary, modalColor }) => secondary ? 'transparent' : modalColor};
   shadow-offset: 0px 4px;
   shadow-opacity: 0.2;
   shadow-radius: 6px;
@@ -104,13 +105,16 @@ const ButtonText = styled.Text`
   font-family: ${Platform.OS === 'ios' ? 'SF Pro Text' : 'sans-serif-medium'};
 `;
 
-const ErrorModal = ({ visible, label = "Error", message, onClose, onRetry }) => {
+const ErrorModal = ({ visible, label = "Error", message, onClose, onRetry, isWarning = false }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const shakeAnim = useRef(new Animated.Value(0)).current;
+
+  const modalColor = isWarning ? colors.warning : colors.danger;
+  const modalLightColor = isWarning ? '#FFF3E0' : '#FFEBEE';
 
   useEffect(() => {
     if (visible) {
@@ -249,10 +253,12 @@ const ErrorModal = ({ visible, label = "Error", message, onClose, onRetry }) => 
             ],
           }}
         >
-          <HeaderBar />
-          
+          <HeaderBar modalColor={modalColor} />
+
           <ContentContainer>
             <IconContainer
+              modalColor={modalColor}
+              modalLightColor={modalLightColor}
               style={{
                 transform: [
                   { rotate: rotateInterpolate },
@@ -261,7 +267,7 @@ const ErrorModal = ({ visible, label = "Error", message, onClose, onRetry }) => 
                 ],
               }}
             >
-              <IconText>!</IconText>
+              <IconText modalColor={modalColor}>!</IconText>
             </IconContainer>
 
             <TitleText
@@ -284,12 +290,13 @@ const ErrorModal = ({ visible, label = "Error", message, onClose, onRetry }) => 
 
             <ButtonContainer>
               {onRetry && (
-                <ModalButton onPress={onRetry} activeOpacity={0.8}>
+                <ModalButton modalColor={modalColor} onPress={onRetry} activeOpacity={0.8}>
                   <ButtonText>Retry</ButtonText>
                 </ModalButton>
               )}
-              <ModalButton 
-                secondary={onRetry ? true : false} 
+              <ModalButton
+                modalColor={modalColor}
+                secondary={onRetry ? true : false}
                 onPress={handleClose}
                 activeOpacity={0.8}
               >
@@ -299,7 +306,7 @@ const ErrorModal = ({ visible, label = "Error", message, onClose, onRetry }) => 
               </ModalButton>
             </ButtonContainer>
 
-            
+
           </ContentContainer>
         </ModalContent>
       </ModalContainer>
