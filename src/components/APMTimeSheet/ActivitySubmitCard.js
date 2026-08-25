@@ -118,7 +118,7 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     }, [formData.noOfResource]);
 
     useEffect(() => {
-        if (visible && !resourceListParam) {
+        if (visible) {
             let dateToUse;
 
             if (isPendingCheckout && editingTask?.pendingCheckoutDate) {

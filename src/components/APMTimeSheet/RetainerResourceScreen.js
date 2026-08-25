@@ -34,16 +34,9 @@ const RetainerResourceScreen = ({ data }) => {
     const todayApiDate = DateForApiFormate(new Date()); // "DD-MM-YYYY", matches allAEntries' raw format
 
     const effectiveApiDate = useMemo(() => {
-        const plannedEnd = editingTask?.planned_end_date;
-        if (plannedEnd) {
-            const plannedEndComp = DateForApiFormate(plannedEnd, true);
-            const todayComp = DateForApiFormate(new Date(), true);
-            if (todayComp > plannedEndComp) {
-                return DateForApiFormate(plannedEnd, false);
-            }
-        }
+        // Always use real today. Never fall back to planned_end_date.
         return todayApiDate;
-    }, [editingTask?.planned_end_date, todayApiDate]);
+    }, [todayApiDate]);
 
     const currentEntry = useMemo(() => findCurrentDateEntry(editingTask?.allAEntries, effectiveApiDate),
         [editingTask?.allAEntries, effectiveApiDate]
@@ -85,13 +78,16 @@ const RetainerResourceScreen = ({ data }) => {
 
                 getEmplyoeeList({ rm_emp_id: editingTask?.emp_id, emp_type: "C" }),
             ]);
-            const filteredAllocations = effectiveApiDate === todayApiDate
-                ? plannedRes?.data?.filter(item => isTodayWithinRange(item.s_date, item.e_date))
-                : plannedRes?.data ?? [];
+            // const filteredAllocations = effectiveApiDate === todayApiDate
+            //     ? plannedRes?.data?.filter(item => isTodayWithinRange(item.s_date, item.e_date))
+            //     : plannedRes?.data ?? [];
+            const filteredAllocations = plannedRes?.data?.filter(item => isTodayWithinRange(item.s_date, item.e_date))
+
 
             const plannedResources = filteredAllocations?.filter(r => r.is_active) ?? [];
             // const actualResources = actualRes.data?.filter(r => r.is_active && r.is_present) ?? [];
-            const actualResources = actualRes.data?.filter(r => r.is_active) ?? [];
+            // const actualResources = actualRes.data?.filter(r => r.is_active) ?? [];
+            const actualResources = actualRes.data;
 
             if (plannedResources.length === 0) {
                 setIsManualEntry(true);
@@ -212,6 +208,53 @@ const RetainerResourceScreen = ({ data }) => {
     }, [resources]);
 
     const selectedEmpIds = new Set(resources.map(r => r.actual_emp_id));
+
+    const presentResourceCount = resources.filter(resource => (
+        resource.is_present === true ||
+        resource.is_present === 1 ||
+        resource.is_present === "1" ||
+        resource.is_present === "Y" ||
+        resource.is_present === "true" ||
+        resource.is_present === undefined ||
+        resource.is_present === null
+    )).length;
+
+    const isSaveDisabled = useMemo(() => {
+        if (loading) return true;
+
+        if (isManualEntry) {
+            return manualResources.length === 0 || manualResources.some(resource => (
+                !resource.name?.trim() ||
+                !resource.items?.toString().trim() ||
+                !resource.resourceType
+            ));
+        }
+
+        const isPresent = (resource) => (
+            resource.is_present === true ||
+            resource.is_present === 1 ||
+            resource.is_present === "1" ||
+            resource.is_present === "Y" ||
+            resource.is_present === "true" ||
+            resource.is_present === undefined ||
+            resource.is_present === null
+        );
+
+        const presentResources = resources.filter(isPresent);
+        const expectedCount = Number(resourceCount) || 0;
+
+        return resources.length === 0 ||
+            presentResources.some(resource => (
+                !resource.actual_emp_id?.toString().trim() ||
+                !Number(resource.items) ||
+                Number(resource.items) <= 0 ||
+                !Number(resource.a_quantity) ||
+                Number(resource.a_quantity) <= 0
+            )) ||
+            (expectedCount > 0 && presentResources.length !== expectedCount);
+    }, [loading, isManualEntry, manualResources, resources, resourceCount]);
+
+    console.log("isSaveDisabled", isSaveDisabled)
 
     const buildPayload = () => {
         const formData = new FormData();
@@ -342,6 +385,11 @@ const RetainerResourceScreen = ({ data }) => {
                 <Text style={styles.subtitle}>Daily Audit Entry</Text>
 
                 <View style={styles.divider} />
+                <View style={{ marginLeft: 10 }}>
+                    <Text style={styles.resourceInputLabel}>
+                        Resources: {resourceCount || 0} | Marked Present: {presentResourceCount}
+                    </Text>
+                </View>
 
                 {isManualEntry ? (
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -424,7 +472,7 @@ const RetainerResourceScreen = ({ data }) => {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={[styles.saveBtn, loading && styles.saveBtnDisabled]}
+                        style={[styles.saveBtn, (isSaveDisabled || loading) && styles.saveBtnDisabled]}
                         onPress={() => {
                             if (isManualEntry) {
                                 handleSave(); // goes straight to navigate.navigate(...) branch, no confirm modal needed for manual entry
@@ -432,7 +480,7 @@ const RetainerResourceScreen = ({ data }) => {
                                 setConfirmVisible(true);
                             }
                         }}
-                        disabled={loading}
+                        disabled={isSaveDisabled || loading}
                     >
                         <Text style={styles.saveText}>Save</Text>
                     </TouchableOpacity>

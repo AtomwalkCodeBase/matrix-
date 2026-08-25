@@ -1427,6 +1427,16 @@ const findResourceListEntry = (empIdMap, fallbackMap, empId, name, type) => {
   return fallbackMap.get(`${name.trim().toLowerCase()}|${type.trim().toUpperCase()}`) || null;
 };
 
+const getResourceQuantity = (actualQuantity, resourceListQuantity, fallbackQuantity = "") => {
+  const actual = Number(actualQuantity);
+  if (Number.isFinite(actual) && actual > 0) return actualQuantity;
+
+  const entered = Number(resourceListQuantity);
+  if (Number.isFinite(entered) && entered > 0) return resourceListQuantity;
+
+  return fallbackQuantity;
+};
+
 const mapAllocationToResource = (item, empIdMap, fallbackMap, hasIncomingList) => {
   const itemType = EMP_TYPE_LABEL[item.emp_type] ?? item.emp_type;
   const rlEntry = findResourceListEntry(empIdMap, fallbackMap, item.emp_id, item.employee_name, itemType);
@@ -1447,8 +1457,8 @@ const mapAllocationToResource = (item, empIdMap, fallbackMap, hasIncomingList) =
     actual_name: item.employee_name,
     emp_type: itemType,
     contract_rate: item.contract_rate ?? "",
-    items: item.a_quantity ?? rlEntry?.items ?? "",
-    a_quantity: item.a_quantity ?? "",
+    items: getResourceQuantity(item.a_quantity, rlEntry?.items),
+    a_quantity: getResourceQuantity(item.a_quantity, rlEntry?.items),
     remarks: item.remarks ?? "",
     isReplacement: false,
     isUpdate: false,
@@ -1492,15 +1502,15 @@ export const mergeResourceData = (plannedResources = [], actualResources = [], r
 
 
     return {
-      id: actual.id,
+      id: actual.is_active ? actual.id : null,
       allocation_id: planned.allocation_id,
       planned_emp_id: planned.emp_id,
       employee_name: planned.employee_name,
       actual_emp_id: actual.emp_id,
       actual_name: actual.employee_name,
       emp_type: actualType,
-      items: actual.a_quantity ?? rlEntry?.items ?? "",
-      a_quantity: actual.a_quantity ?? "",
+      items: getResourceQuantity(actual.a_quantity, rlEntry?.items, planned.a_quantity),
+      a_quantity: getResourceQuantity(actual.a_quantity, rlEntry?.items, planned.a_quantity),
       remarks: actual.remarks ?? "",
       isReplacement: planned.emp_id !== actual.emp_id,
       isUpdate: false,
