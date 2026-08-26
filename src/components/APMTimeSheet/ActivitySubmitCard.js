@@ -87,28 +87,28 @@ const ActivitySubmitCard = ({ visible, onClose, editingTask, isPendingCheckout =
     const [remarkError, setRemarkError] = useState("");
 
     useEffect(() => {
-        if (resourceListParam) {
-            const resourceList = Array.isArray(resourceListParam) ? resourceListParam[0] : resourceListParam;
-            const parsed = resourceList.split("|").filter(Boolean).map(entry => {
+        if (!resourceListParam) return;
+        const resourceList = Array.isArray(resourceListParam) ? resourceListParam[0] : resourceListParam;
+        const parsed = (resourceList || "")
+            .split("|")
+            .filter(Boolean)
+            .map(entry => {
                 const [name = "", items = "", resourceType = "", empId = ""] = entry.split("^");
-                return { name: name.trim(), items: items.trim(), resourceType: resourceType.trim(), empId: empId.trim(), };
-            })
-            // .filter(r => r.name.trim() && r.items.toString().trim());  // keep only complete entries
-            setRetainerInputs(parsed);
-            setFormData(prev => ({ ...prev, noOfResource: String(parsed.length) }));
-        }
+                return { name: name.trim(), items: items.trim(), resourceType: resourceType.trim(), empId: empId.trim() };
+            });
+        setRetainerInputs(parsed);
+        setFormData(prev => ({ ...prev, noOfResource: String(parsed.length) }));
     }, [resourceListParam]);
 
     useEffect(() => {
+        if (resourceListParam) return;
         if (formData.noOfResource === "" || formData.noOfResource === undefined || formData.noOfResource === null) {
             return;
         }
 
         const count = Number(formData.noOfResource) || 0;
-
         setRetainerInputs(prev => {
             if (count === prev.length) return prev;
-
             if (count > prev.length) {
                 return [...prev, ...Array.from({ length: count - prev.length }, () => ({ name: "", items: "", resourceType: "", empId: "", }))];
             }

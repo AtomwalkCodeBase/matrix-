@@ -86,29 +86,27 @@ const RetainerResourceScreen = ({ data }) => {
 
             const plannedResources = filteredAllocations?.filter(r => r.is_active) ?? [];
             // const actualResources = actualRes.data?.filter(r => r.is_active && r.is_present) ?? [];
-            // const actualResources = actualRes.data?.filter(r => r.is_active) ?? [];
-            const actualResources = actualRes.data;
+            const actualResources = actualRes.data?.filter(r => r.is_active) ?? [];
+            // const actualResources = actualRes.data;
 
             if (plannedResources.length === 0) {
                 setIsManualEntry(true);
 
                 const resourceList = Array.isArray(incomingResourceList) ? incomingResourceList[0] : incomingResourceList;
-                const rawList = resourceList
-                    ? resourceList.split("|").filter(Boolean)
-                    : (editingTask?.original_A?.resource_list || editingTask?.original_P?.resource_list || []);
+                let parsed = [];
+                if (resourceList) {
+                    const rawList = resourceList.split("|").filter(Boolean);
+                    parsed = rawList.map(entry => {
+                    const [name = "", items = "", resourceType = "", empId = ""] = entry.split("^");
 
+                    return { name: name || "", items: items || "", resourceType: resourceType || "", empId: empId || "",};
+                    });
+                }
+                1
                 const count = Number(resourceCount) || 0;
 
-                let parsed = Array.isArray(rawList)
-                    ? rawList.map(entry => {
-                        const [name, items, resourceType, empId] = entry.split("^");
-                        return { name: name || "", items: items || "", resourceType: resourceType || "", empId: empId || "" };
-                    })
-                    : [];
-
-                // Resize to match the current resourceCount, preserving already-filled entries
                 if (count > parsed.length) {
-                    parsed = [...parsed, ...Array.from({ length: count - parsed.length }, () => ({ name: "", items: "", resourceType: "", empId: "" }))];
+                    parsed = [ ...parsed,  ...Array.from({ length: count - parsed.length }, () => ({ name: "", items: "", resourceType: "", empId: "",})),];
                 } else if (count > 0 && count < parsed.length) {
                     parsed = parsed.slice(0, count);
                 }
@@ -254,8 +252,6 @@ const RetainerResourceScreen = ({ data }) => {
             (expectedCount > 0 && presentResources.length !== expectedCount);
     }, [loading, isManualEntry, manualResources, resources, resourceCount]);
 
-    console.log("isSaveDisabled", isSaveDisabled)
-
     const buildPayload = () => {
         const formData = new FormData();
 
@@ -263,12 +259,13 @@ const RetainerResourceScreen = ({ data }) => {
         formData.append("p_id", mode === "UPDATE" ? currentEntry.id : editingTask.a_id);
         formData.append("call_mode", mode);
 
-        const isPresent = (r) => r.is_present === true || r.is_present === 1 || r.is_present === "1" || r.is_present === "Y" || r.is_present === "true";
+        // const isPresent = (r) => r.is_present === true || r.is_present === 1 || r.is_present === "1" || r.is_present === "Y" || r.is_present === "true";
 
-        const cEmpList = resources.filter(r => {
-            if (!r.id && !isPresent(r)) return false;
-            return true;
-        }).map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
+        // const cEmpList = resources.filter(r => {
+        //     if (!r.id && !isPresent(r)) return false;
+        //     return true;
+        // }).map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
+        const cEmpList = resources.filter(r => r.is_present).map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
 
         formData.append("c_emp_list", JSON.stringify(cEmpList));
 
@@ -385,11 +382,11 @@ const RetainerResourceScreen = ({ data }) => {
                 <Text style={styles.subtitle}>Daily Audit Entry</Text>
 
                 <View style={styles.divider} />
-                <View style={{ marginLeft: 10 }}>
+               {!isManualEntry && <View style={{ marginLeft: 10 }}>
                     <Text style={styles.resourceInputLabel}>
                         Resources: {resourceCount || 0} | Marked Present: {presentResourceCount}
                     </Text>
-                </View>
+                </View>}
 
                 {isManualEntry ? (
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>

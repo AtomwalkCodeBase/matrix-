@@ -1391,9 +1391,15 @@ export const buildEmployeePayload = (resource, today, mode) => {
   const a_quantity = isNaN(enteredQty) ? 0 : enteredQty;
 
   return {
-    ...(mode === "UPDATE" && resource.id && {
+    // Only send is_update when the row was actually edited
+    ...(mode === "UPDATE" && resource.id && resource.isUpdate && {
       id: resource.id,
       is_update: true,
+    }),
+
+    // Always send id on UPDATE so backend knows which record (even if not dirty)
+    ...(mode === "UPDATE" && resource.id && !resource.isUpdate && {
+      id: resource.id,
     }),
 
     emp_id: resource.actual_emp_id,
@@ -1402,8 +1408,8 @@ export const buildEmployeePayload = (resource, today, mode) => {
     a_quantity: a_quantity,
     start_date: today,
     end_date: today,
-    remarks: resource.remarks,
-    is_present: resource.is_present === true,
+    remarks: resource.remarks ?? "",
+    is_present: !!resource.is_present,
   };
 };
 
@@ -1466,6 +1472,7 @@ const mapAllocationToResource = (item, empIdMap, fallbackMap, hasIncomingList) =
   };
 };
 
+// ========== 1. mergeResourceData (replace the whole function) ==========
 export const mergeResourceData = (plannedResources = [], actualResources = [], resourceList = [], hasIncomingList = false) => {
   const actualMap = new Map(actualResources.map(item => [item.emp_id, item]));
   const parsedResourceList = Array.isArray(resourceList)
@@ -1483,11 +1490,20 @@ export const mergeResourceData = (plannedResources = [], actualResources = [], r
       .filter(item => !item.empId && item.name && item.type)
       .map(item => [`${item.name.toLowerCase()}|${item.type.toUpperCase()}`, item])
   );
-  return plannedResources.map(planned => {
+
+  const matchedEmpIds = new Set();
+  const matchedKeys = new Set();
+
+  const merged = plannedResources.map(planned => {
     const actual = actualMap.get(planned.emp_id);
 
     if (!actual) {
-      return mapAllocationToResource(planned, empIdMap, fallbackMap, hasIncomingList);
+      const row = mapAllocationToResource(planned, empIdMap, fallbackMap, hasIncomingList);
+      if (row.actual_emp_id) matchedEmpIds.add(row.actual_emp_id);
+      if (row.actual_name && row.emp_type) {
+        matchedKeys.add(`${row.actual_name.toLowerCase()}|${row.emp_type.toUpperCase()}`);
+      }
+      return row;
     }
 
     const actualType = EMP_TYPE_LABEL[actual.emp_type] ?? actual.emp_type;
@@ -1497,9 +1513,15 @@ export const mergeResourceData = (plannedResources = [], actualResources = [], r
     if (hasIncomingList) {
       isPresentVal = !!rlEntry;
     } else {
-      isPresentVal = actual.is_present !== undefined && actual.is_present !== null ? (actual.is_present === true || actual.is_present === 1 || actual.is_present === "1" || actual.is_present === "Y" || actual.is_present === "true") : true;
+      isPresentVal = actual.is_present !== undefined && actual.is_present !== null
+        ? (actual.is_present === true || actual.is_present === 1 || actual.is_present === "1" || actual.is_present === "Y" || actual.is_present === "true")
+        : true;
     }
 
+    if (actual.emp_id) matchedEmpIds.add(actual.emp_id);
+    if (actual.employee_name && actualType) {
+      matchedKeys.add(`${actual.employee_name.toLowerCase()}|${actualType.toUpperCase()}`);
+    }
 
     return {
       id: actual.is_active ? actual.id : null,
@@ -1523,6 +1545,36 @@ export const mergeResourceData = (plannedResources = [], actualResources = [], r
     };
   });
 
+  // Append extras from incoming resource_list that did not match any planned row
+  if (hasIncomingList && parsedResourceList.length > 0) {
+    parsedResourceList.forEach(entry => {
+      const alreadyMatched =
+        (entry.empId && matchedEmpIds.has(entry.empId)) ||
+        (entry.name && entry.type && matchedKeys.has(`${entry.name.toLowerCase()}|${entry.type.toUpperCase()}`));
+
+      if (alreadyMatched) return;
+
+      merged.push({
+        id: null,
+        allocation_id: null,
+        planned_emp_id: "",
+        actual_emp_id: entry.empId || "",
+        employee_name: entry.name || "",
+        actual_name: entry.name || "",
+        emp_type: entry.type || "",
+        contract_rate: "",
+        items: entry.items || "",
+        a_quantity: entry.items || "",
+        remarks: "",
+        isReplacement: false,
+        isUpdate: false,
+        is_present: true,
+        isManuallyAdded: true,
+      });
+    });
+  }
+
+  return merged;
 };
 
 export const findCurrentDateEntry = (allAEntries = [], targetDateStr) => {
