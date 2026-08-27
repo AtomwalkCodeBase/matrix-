@@ -97,16 +97,16 @@ const RetainerResourceScreen = ({ data }) => {
                 if (resourceList) {
                     const rawList = resourceList.split("|").filter(Boolean);
                     parsed = rawList.map(entry => {
-                    const [name = "", items = "", resourceType = "", empId = ""] = entry.split("^");
+                        const [name = "", items = "", resourceType = "", empId = ""] = entry.split("^");
 
-                    return { name: name || "", items: items || "", resourceType: resourceType || "", empId: empId || "",};
+                        return { name: name || "", items: items || "", resourceType: resourceType || "", empId: empId || "", };
                     });
                 }
                 1
                 const count = Number(resourceCount) || 0;
 
                 if (count > parsed.length) {
-                    parsed = [ ...parsed,  ...Array.from({ length: count - parsed.length }, () => ({ name: "", items: "", resourceType: "", empId: "",})),];
+                    parsed = [...parsed, ...Array.from({ length: count - parsed.length }, () => ({ name: "", items: "", resourceType: "", empId: "", })),];
                 } else if (count > 0 && count < parsed.length) {
                     parsed = parsed.slice(0, count);
                 }
@@ -207,15 +207,7 @@ const RetainerResourceScreen = ({ data }) => {
 
     const selectedEmpIds = new Set(resources.map(r => r.actual_emp_id));
 
-    const presentResourceCount = resources.filter(resource => (
-        resource.is_present === true ||
-        resource.is_present === 1 ||
-        resource.is_present === "1" ||
-        resource.is_present === "Y" ||
-        resource.is_present === "true" ||
-        resource.is_present === undefined ||
-        resource.is_present === null
-    )).length;
+    const presentResourceCount = resources.filter(resource => !!resource.is_present).length;
 
     const isSaveDisabled = useMemo(() => {
         if (loading) return true;
@@ -228,20 +220,16 @@ const RetainerResourceScreen = ({ data }) => {
             ));
         }
 
-        const isPresent = (resource) => (
-            resource.is_present === true ||
-            resource.is_present === 1 ||
-            resource.is_present === "1" ||
-            resource.is_present === "Y" ||
-            resource.is_present === "true" ||
-            resource.is_present === undefined ||
-            resource.is_present === null
-        );
+        const isPresent = (resource) => !!resource.is_present;
 
         const presentResources = resources.filter(isPresent);
         const expectedCount = Number(resourceCount) || 0;
 
-        return resources.length === 0 ||
+        const hasChanges = resources.some(
+            r => r.isUpdate || r.isManuallyAdded || r.isReplacement
+        );
+
+        return resources.length === 0 || !hasChanges ||
             presentResources.some(resource => (
                 !resource.actual_emp_id?.toString().trim() ||
                 !Number(resource.items) ||
@@ -265,7 +253,18 @@ const RetainerResourceScreen = ({ data }) => {
         //     if (!r.id && !isPresent(r)) return false;
         //     return true;
         // }).map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
-        const cEmpList = resources.filter(r => r.is_present).map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
+        // const cEmpList = resources.filter(r => r.is_present).map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
+        const cEmpList = resources
+            .filter(r => {
+                if (mode === "ADD") {
+                    // Planned mode → only checked
+                    return !!r.is_present;
+                }
+                // UPDATE mode
+                if (r.id && !r.is_present) return true; // send for delete
+                return !!r.is_present;                 // present (new or existing)
+            })
+            .map(resource => buildEmployeePayload(resource, effectiveApiDate, mode));
 
         formData.append("c_emp_list", JSON.stringify(cEmpList));
 
@@ -382,7 +381,7 @@ const RetainerResourceScreen = ({ data }) => {
                 <Text style={styles.subtitle}>Daily Audit Entry</Text>
 
                 <View style={styles.divider} />
-               {!isManualEntry && <View style={{ marginLeft: 10 }}>
+                {!isManualEntry && <View style={{ marginLeft: 10 }}>
                     <Text style={styles.resourceInputLabel}>
                         Resources: {resourceCount || 0} | Marked Present: {presentResourceCount}
                     </Text>
@@ -537,7 +536,7 @@ export default RetainerResourceScreen;
 const ResourceRow = ({ index, editState, updateResource, onPickerOpen, resource, handleRevert, onRemove }) => {
     const { actual_name, actual_emp_id, employee_name, planned_emp_id, emp_type, items, isReplacement, isManuallyAdded, remarks } = resource;
 
-    const isPresent = resource.is_present === true || resource.is_present === 1 || resource.is_present === "1" || resource.is_present === "Y" || resource.is_present === "true" || resource.is_present === undefined || resource.is_present === null;
+    const isPresent = !!resource.is_present; // strict
     const isAbsent = !isPresent;
 
     return (
