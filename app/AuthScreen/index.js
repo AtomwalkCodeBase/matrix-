@@ -164,7 +164,7 @@ const LoginScreen = () => {
       // }
 
       // const dbName = selected.name.replace(/^SD_/, '');
-      const dbName = "APM_002";
+      const dbName = "APM_001";
 
       // Call the login function with just the dbName
       await login(mobileNumberOrEmpId, pin, dbName);
