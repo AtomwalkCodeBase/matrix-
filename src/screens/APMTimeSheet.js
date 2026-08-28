@@ -1035,52 +1035,48 @@ const APMTimeSheet = () => {
     }
   };
 
-  const handleSubmitFromModal = (formData) => {
+  const handleSubmitFromModal = async (formData) => {
     const { extraFields = {}, ...dataWithoutExtraFields } = formData;
-    return handleActivitySubmit({
+    const success = await handleActivitySubmit({
       project: selectedProject,
       mode: formData.mode === "FORCE_COMPLETE" ? "FORCE_COMPLETE" : "UPDATE",
       data: dataWithoutExtraFields,
       extraFields,
-    }).then(async (success) => {
-      if (success) {
-        await onRefresh();
-        // Refresh retainer data if it was a retainer action
-        if (selectedProject?.retainer) {
-          const parentProject = projects.find(p =>
-            p.original_P?.retainer_list?.some(r => r.emp_id === selectedProject.retainerData?.emp_id)
-          );
-          if (parentProject) {
-            fetchRetainersForProject(parentProject.id, parentProject.original_P?.retainer_list || []);
-          }
+    });
+    if (success) {
+      await onRefresh();
+      // Refresh retainer data if it was a retainer action
+      if (selectedProject?.retainer) {
+        const parentProject = projects.find(p => p.original_P?.retainer_list?.some(r => r.emp_id === selectedProject.retainerData?.emp_id)
+        );
+        if (parentProject) {
+          fetchRetainersForProject(parentProject.id, parentProject.original_P?.retainer_list || []);
         }
       }
-      setIsFormModalOpen(false);
-    });
+    }
+    setIsFormModalOpen(false);
   };
 
   // Update handleMarkCompleteFromModal for retainers
-  const handleMarkCompleteFromModal = (formData) => {
+  const handleMarkCompleteFromModal = async (formData) => {
     const { extraFields = {}, ...dataWithoutExtraFields } = formData;
-    return handleActivitySubmit({
+    const success = await handleActivitySubmit({
       project: selectedProject,
       mode: "UPDATE",
       data: dataWithoutExtraFields,
       extraFields: { ...extraFields, is_completed: 1 },
-    }).then(async (success) => {
-      if (success) {
-        await onRefresh();
-        if (selectedProject?.isRetainer) {
-          const parentProject = projects.find(p =>
-            p.original_P?.retainer_list?.some(r => r.emp_id === selectedProject.retainerData?.emp_id)
-          );
-          if (parentProject) {
-            fetchRetainersForProject(parentProject.id, parentProject.original_P?.retainer_list || []);
-          }
+    });
+    if (success) {
+      await onRefresh();
+      if (selectedProject?.isRetainer) {
+        const parentProject = projects.find(p => p.original_P?.retainer_list?.some(r => r.emp_id === selectedProject.retainerData?.emp_id)
+        );
+        if (parentProject) {
+          fetchRetainersForProject(parentProject.id, parentProject.original_P?.retainer_list || []);
         }
       }
-      setIsFormModalOpen(false);
-    });
+    }
+    setIsFormModalOpen(false);
   };
 
   const handlePincodeSubmit = async () => {
