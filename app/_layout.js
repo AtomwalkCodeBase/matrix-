@@ -9,9 +9,21 @@ import {
   Platform,
 } from "react-native";
 import { useEffect } from "react";
+import * as SplashScreen from "expo-splash-screen";
 import { colors } from "../src/Styles/appStyle";
 
-if (BackHandler && typeof BackHandler.removeEventListener !== "function") {
+// Keep the native splash screen visible while the app initializes
+SplashScreen.preventAutoHideAsync();
+
+SplashScreen.setOptions({
+  duration: 600,
+  fade: true,
+});
+
+if (
+  BackHandler &&
+  typeof BackHandler.removeEventListener !== "function"
+) {
   BackHandler.removeEventListener = () => {};
 }
 
@@ -21,8 +33,20 @@ const StatusBarBackground = () => (
 
 export default function RootLayout() {
   useEffect(() => {
+    // Hide native splash after the root layout is mounted
+    hideSplashScreen();
+
+    // Check Play Store update separately
     checkForPlayStoreUpdate();
   }, []);
+
+  const hideSplashScreen = async () => {
+    try {
+      await SplashScreen.hideAsync();
+    } catch (error) {
+      console.log("Splash screen hide failed:", error);
+    }
+  };
 
   const checkForPlayStoreUpdate = async () => {
     // Do not run this in Expo Go / development
@@ -63,7 +87,7 @@ export default function RootLayout() {
       {/* Background behind status bar */}
       <StatusBarBackground />
 
-      {/* Status bar itself */}
+      {/* Status bar */}
       <StatusBar
         barStyle="light-content"
         translucent

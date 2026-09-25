@@ -1,38 +1,41 @@
-import React, { useEffect, useState } from 'react';
-import { Text, View, ActivityIndicator, Image } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Redirect, useRouter } from 'expo-router';
-import Logo from '../assets/images/Atom_walk_logo.jpg'
+import React, { useEffect, useState } from "react";
+import {
+  Text,
+  View,
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useRouter } from "expo-router";
+import Logo from "../assets/images/Atomwalk_logo_loader.png";
 
 export default function Index() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const userToken = AsyncStorage.getItem('userToken');
-// if(userToken){
-//   return(
-//     <Redirect href={"/home"}></Redirect>
-//   )
-// }
+
   useEffect(() => {
     const checkUserToken = async () => {
       try {
-        // Check for token in AsyncStorage
-        const userToken = await AsyncStorage.getItem('userToken');
-        const storedMPIN = await AsyncStorage.getItem('userPin');
-        if(storedMPIN){
-          router.replace('/PinScreen');
-        } 
-        else if (userToken) {
-          // If token exists, navigate to HomeScreen
-          router.replace('/home');
+        const userToken = await AsyncStorage.getItem("userToken");
+        const storedMPIN = await AsyncStorage.getItem("userPin");
+
+        if (storedMPIN) {
+          router.replace("/PinScreen");
+        } else if (userToken) {
+          router.replace("/home");
         } else {
-          // Else, navigate to AuthScreen
-          router.replace('/AuthScreen');
+          router.replace("/AuthScreen");
         }
       } catch (error) {
-        console.error('Error fetching userToken from AsyncStorage', error);
+        console.error(
+          "Error fetching userToken from AsyncStorage",
+          error
+        );
+
+        router.replace("/AuthScreen");
       } finally {
-        setLoading(false); // Stop loading after check
+        setLoading(false);
       }
     };
 
@@ -40,33 +43,40 @@ export default function Index() {
   }, []);
 
   if (loading) {
-    // Show loader with an image while loading
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
+      <View style={styles.container}>
         <Image
-          source={Logo} // Replace with actual loader image path
-          style={{ width: 100, height: 100 }}
+          source={Logo}
+          style={styles.logo}
+          resizeMode="contain"
         />
-        <ActivityIndicator size="large" color="#0000ff" />
+
+        <ActivityIndicator
+          size="large"
+          color="#61C3C5"
+          style={styles.loader}
+        />
       </View>
     );
   }
 
-  return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}
-    >
-      <Text>Redirecting...</Text>
-    </View>
-  );
+  return null;
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+  },
+
+  logo: {
+    width: 280,
+    height: 130,
+  },
+
+  loader: {
+    marginTop: 20,
+  },
+});
