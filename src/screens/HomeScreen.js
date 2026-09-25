@@ -7,7 +7,7 @@ import Loader from '../components/old_components/Loader';
 import NetInfo from '@react-native-community/netinfo';
 import moment from 'moment';
 import { useLayoutEffect } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import { MaterialIcons, FontAwesome5, Feather, MaterialCommunityIcons, AntDesign, } from '@expo/vector-icons';
 import ConfirmationModal from '../components/ConfirmationModal';
 import { SafeAreaView } from 'react-native-safe-area-context';

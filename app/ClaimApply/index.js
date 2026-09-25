@@ -1,6 +1,6 @@
 import {View } from 'react-native'
 import React from 'react'
-import { useRoute } from '@react-navigation/native'
+import { useRoute } from 'expo-router';
 import AddClaim from '../../src/screens/AddClaim'
 const index = () => {
   const route = useRoute();
