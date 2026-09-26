@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import AmountInput from '../AmountInput';
 import { colors } from '../../Styles/appStyle';
-import { buildEmployeePayload, DateForApiFormate, findCurrentDateEntry, getCurrentDateTimeDefaults, mergeResourceData } from './utils';
+import { buildEmployeePayload, DateForApiFormate, EMP_TYPE_LABEL, findCurrentDateEntry, mergeResourceData } from './utils';
 import { getEmplyoeeList, getResourceAllocationList, processContractEmpAllocation } from '../../services/productServices';
 import HeaderComponent from '../HeaderComponent';
 import { useNavigation, useRouter } from 'expo-router';
@@ -18,7 +18,6 @@ import ConfirmationModal from '../ConfirmationModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import CompanyDropdown from '../ComanyDropDown';
 
-export const EMP_TYPE_LABEL = { T: 'TL', E: 'EX', 2: 'TL', 1: 'EX' }; // handle both shapes
 const EMP_TYPE_OPTIONS = ['TL', 'EX'];
 
 const RetainerResourceScreen = ({ data }) => {

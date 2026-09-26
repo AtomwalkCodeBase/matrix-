@@ -1,6 +1,5 @@
 import moment from "moment";
 import { colors } from "../../Styles/appStyle";
-import { EMP_TYPE_LABEL } from "./RetainerResourceScreen";
 
 const MONTH_SHORT_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -1588,3 +1587,5 @@ export const findCurrentDateEntry = (allAEntries = [], targetDateStr) => {
     return target >= start && target <= end;
   }) ?? null;
 };
+
+export const EMP_TYPE_LABEL = { T: 'TL', E: 'EX', 2: 'TL', 1: 'EX' };
