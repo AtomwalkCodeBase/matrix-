@@ -513,9 +513,9 @@ export const AuditCard = ({
           <View style={styles.rightSection}>
             <View style={styles.headerRow}>
               <Ionicons name="pin" size={12} color="#64748b" />
-              <Text style={styles.label}>PinCode</Text>
+              <Text style={styles.label}>City Code</Text>
             </View>
-            {!project?.original_P?.pin_code ? (
+            {/* {!project?.original_P?.pin_code ? (
               <TouchableOpacity
                 style={[styles.btn, styles.primaryBtn, { maxHeight: 50 }]}
                 onPress={() => showPincodeModal(project)}
@@ -525,6 +525,13 @@ export const AuditCard = ({
               </TouchableOpacity>
             ) : <Text style={styles.value}>
               {project.original_P.pin_code}
+            </Text>} */}
+            {project?.original_P?.pin_code ? (
+              <Text style={styles.value}>
+              {project.original_P.pin_code}
+            </Text>
+            ) : <Text style={styles.value}>
+              NA
             </Text>}
           </View>
         </View>
