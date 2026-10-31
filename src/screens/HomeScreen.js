@@ -174,9 +174,9 @@ const HomePage = ({ navigation }) => {
           <View style={styles.headerTop}>
             <View style={styles.headerTopContent}>
               <View style={styles.companySection}>
-                {company.image ? (
+                {company?.image ? (
                   <Image
-                    source={{ uri: company.image }}
+                    source={{ uri: company?.image }}
                     style={styles.companyLogo}
                     resizeMode="contain"
                   />
@@ -186,7 +186,7 @@ const HomePage = ({ navigation }) => {
                   </View>
                 )}
                 <Text style={styles.companyName}>
-                  {company.name || 'ATOMWALK'}
+                  {company?.name || 'ATOMWALK'}
                 </Text>
               </View>
             </View>

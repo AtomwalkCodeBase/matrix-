@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, ScrollView, Switch } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions, ScrollView, Switch, Platform } from 'react-native';
 import { MaterialIcons, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppContext } from '../../context/AppContext';
 import { useNavigation, useRouter } from 'expo-router';
@@ -24,6 +24,8 @@ const ProfileScreen = () => {
   const [useFingerprint, setUseFingerprint] = useState(false);  // actual setting
   const [pendingValue, setPendingValue] = useState(null);        // for storing new value
   const [modalVisible, setModalVisible] = useState(false);       // controls confirmation modal
+  const [biometricType, setBiometricType] = useState('fingerprint');
+
 
   const appVersion = Constants.expoConfig?.version || '0.0.1';
 
@@ -49,6 +51,15 @@ const ProfileScreen = () => {
       }
     };
     fetchFingerprintPreference();
+  }, []);
+
+  useEffect(() => {
+    // iOS uses Face ID (or Touch ID on older devices); Android uses fingerprint
+    if (Platform.OS === 'ios') {
+      setBiometricType('face');
+    } else {
+      setBiometricType('fingerprint');
+    }
   }, []);
 
 
@@ -161,9 +172,10 @@ const ProfileScreen = () => {
             <View style={styles.section}>
               <Text style={styles.sectionHeader}>SECURITY SETTINGS</Text>
               <View style={styles.switchRow}>
-                <MaterialIcons name="fingerprint" size={20} color="#7f8c8d" style={styles.infoIcon} />
+                {biometricType === 'face' ? <MaterialCommunityIcons name="face-recognition" size={20} color="#7f8c8d" style={styles.infoIcon} /> :
+                  <MaterialIcons name='fingerprint' size={20} color="#7f8c8d" style={styles.infoIcon} />}
                 <View style={styles.switchLabelContainer}>
-                  <Text style={styles.bioLabel}>Use Fingerprint for Login</Text>
+                  <Text style={styles.bioLabel}>Use {biometricType === 'face' ? 'Face ID' : 'Biometric'} for Login</Text>
                 </View>
                 <Switch
                   value={useFingerprint}

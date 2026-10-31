@@ -2,16 +2,25 @@
   "expo": {
     "name": "Atomwalk Project Timesheet",
     "slug": "atomwalk-project-timesheet",
-    "version": "1.0.13",
+    "version": "1.0.14",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
-    "scheme": "myapp",
+    "scheme": "atomwalk-timesheet",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.atomwalk.atomwalkprojecttimesheet",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "$(PRODUCT_NAME) uses Face ID to securely authenticate you.",
+        "NSCameraUsageDescription": "$(PRODUCT_NAME) needs camera access to capture attendance photos and photos of bills and supporting documents for claim submissions.",
+        "NSPhotoLibraryUsageDescription": "$(PRODUCT_NAME) needs access to your photo library so you can attach bills, receipts, and supporting images to your claims.",
+        "NSLocationWhenInUseUsageDescription": "$(PRODUCT_NAME) uses your location to record attendance check-ins, check-outs, and activity start and completion locations.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "versionCode": 14,
+      "versionCode": 15,
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
@@ -41,6 +50,30 @@
           "resizeMode": "contain"
         }
       ],
+
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "$(PRODUCT_NAME) needs access to your photo library so you can attach bills and images to your claims.",
+          "cameraPermission": "$(PRODUCT_NAME) needs camera access to capture attendance photos and claim bills."
+        }
+      ],
+
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "$(PRODUCT_NAME) needs camera access to capture attendance photos and claim bills."
+        }
+      ],
+
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "$(PRODUCT_NAME) uses your location to record attendance check-ins, check-outs, and activity start and completion locations."
+        }
+      ],
+
+      "expo-document-picker",
       "expo-status-bar",
       "expo-web-browser"
     ],

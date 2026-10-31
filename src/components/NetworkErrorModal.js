@@ -1,26 +1,68 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Modal, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, Modal, ActivityIndicator, Image, TouchableOpacity, AppState } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const NetworkErrorModal = ({ visible, onNetworkRestore, onRetry }) => {
-    const [isVisible, setIsVisible] = useState(visible);
+    const [isVisible, setIsVisible] = useState(!!visible);
+
+    // Remember whether we were offline, so onNetworkRestore fires only on a real offline -> online change
+    const wasOffline = useRef(!!visible);
+
+    // Always call the latest callback without re-subscribing
+    const restoreRef = useRef(onNetworkRestore);
+    restoreRef.current = onNetworkRestore;
+
+    const handleState = (state) => {
+        if (state.isConnected === false) {
+            wasOffline.current = true;
+            setIsVisible(true);
+        } else if (state.isConnected === true) {
+            // isConnected can be null while the state is unknown (mostly at startup);
+            // that is ignored so the modal does not flash on launch.
+            setIsVisible(false);
+            if (wasOffline.current) {
+                wasOffline.current = false;
+                restoreRef.current?.(); // Notify parent that network is back
+            }
+        }
+    };
 
     useEffect(() => {
-        const unsubscribe = NetInfo.addEventListener(state => {
-            if (state.isConnected) {
-                setIsVisible(false);
-                onNetworkRestore(); // Notify parent that network is back
-            } else {
-                setIsVisible(true);
-            }
-        });
-
+        const unsubscribe = NetInfo.addEventListener(handleState);
         return () => unsubscribe();
     }, []);
 
+    // iOS can keep a stale network state after the app was in the background,
+    // so re-check whenever the app comes back to the foreground.
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'active') {
+                NetInfo.refresh().then(handleState).catch(() => {});
+            }
+        });
+        return () => sub.remove();
+    }, []);
+
+    const handleRetry = async () => {
+        try {
+            const state = await NetInfo.refresh(); // force a fresh check
+            handleState(state);
+        } catch (e) {
+            // ignore, the listener will update when the connection changes
+        }
+        onRetry?.();
+    };
+
     return (
-        <Modal visible={isVisible} transparent animationType="fade">
+        <Modal
+            visible={isVisible}
+            transparent
+            animationType="fade"
+            statusBarTranslucent
+            supportedOrientations={['portrait']} // iOS: your app is portrait-only
+            onRequestClose={() => {}} // Android back button: keep the modal until the network is back
+        >
             <View style={styles.modalOverlay}>
                 <LinearGradient colors={['#6a11cb', '#2575fc']} style={styles.modalContainer}>
                     {/* Ensure Image Path is Correct */}
@@ -35,7 +77,7 @@ const NetworkErrorModal = ({ visible, onNetworkRestore, onRetry }) => {
 
                     {/* Retry Button */}
                     {onRetry && (
-                        <TouchableOpacity style={styles.retryButton} onPress={onRetry}>
+                        <TouchableOpacity style={styles.retryButton} onPress={handleRetry}>
                             <Text style={styles.retryButtonText}>Retry</Text>
                         </TouchableOpacity>
                     )}

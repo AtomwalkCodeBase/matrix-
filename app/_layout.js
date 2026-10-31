@@ -106,7 +106,7 @@ export default function RootLayout() {
         />
         <Stack.Screen
           name="PinScreen/index"
-          options={{ headerShown: false }}
+          options={{ headerShown: false, gestureEnabled: false }}
         />
         <Stack.Screen
           name="ClaimApply/index"
@@ -174,7 +174,7 @@ const styles = StyleSheet.create({
     height:
       Platform.OS === "android"
         ? StatusBar.currentHeight
-        : 44,
+        : 60,
     backgroundColor: colors.primary,
   },
 });

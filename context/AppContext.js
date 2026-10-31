@@ -174,7 +174,6 @@ const AppProvider = ({ children }) => {
         setIsLoading(true);
 
         try {
-            router.replace('PinScreen');
             await AsyncStorage.multiRemove([
                 'userToken',
             ]);
@@ -182,6 +181,7 @@ const AppProvider = ({ children }) => {
             setUserToken(null);
             setProfile({});
             setReload(false);
+            router.replace('/PinScreen');
         } catch (err) {
             console.error("Logout error:", err);
         } finally {

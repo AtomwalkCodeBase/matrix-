@@ -88,7 +88,7 @@ const moduleData = sessionData.t_module_data;
                   onPress={() => navigation.goBack()}
                 >
                   {/* <Text style={styles.backButtonText}>←</Text> */}
-                  <AntDesign name="arrowleft" size={20} color={colors1.white} />
+                  <AntDesign name="arrow-left" size={20} color={colors1.white} />
                 </TouchableOpacity>
                 
                 <StatusBadge 
@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     position: 'absolute',
-    top: 30,
+    top: 10,
     left: 0,
     right: 0,
     bottom: 0,
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginTop: Platform.OS === 'ios' ? 20 : 0,
+    marginTop: Platform.OS === 'ios' ? 0 : 0,
   },
   backButton: {
     width: 40,

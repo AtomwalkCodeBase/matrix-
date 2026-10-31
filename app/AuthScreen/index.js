@@ -1,13 +1,27 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components/native';
 import {
-  View, TouchableOpacity, StyleSheet, Keyboard, StatusBar,
-  Platform, ScrollView, Dimensions, Image, Text
+  View,
+  TouchableOpacity,
+  StyleSheet,
+  Keyboard,
+  StatusBar,
+  Platform,
+  ScrollView,
+  Dimensions,
+  Image,
+  Text,
+  BackHandler
 } from 'react-native';
 import { MaterialIcons, Entypo } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Logos from '../../assets/images/Atom_walk_logo.jpg';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import ConfirmationModal from '../../src/components/ConfirmationModal';
+import {
+  useLocalSearchParams,
+  useRouter,
+  useFocusEffect
+} from 'expo-router';
 import { getDBListInfo } from '../../src/services/authServices';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import CompanyDropdown from '../../src/components/ComanyDropDown';
@@ -39,6 +53,7 @@ const LoginScreen = () => {
   const [keyboardStatus, setKeyboardStatus] = useState(false);
   const isLoginDisabled = !mobileNumberOrEmpId || !pin;
   const [bioStatus, setBioStatus] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
 
   const appVersion = Constants.expoConfig?.version || '0.0.1';
 
@@ -71,7 +86,7 @@ const LoginScreen = () => {
         const storedPin = await AsyncStorage.getItem('userPin');
         setUserPin(storedPin);
 
-    
+
       } catch (error) {
         console.error('Error initializing app:', error);
       }
@@ -97,6 +112,25 @@ const LoginScreen = () => {
     };
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      const onBackPress = () => {
+        setShowExitModal(prev => {
+          if (prev) return prev;
+          return true;
+        });
+
+        return true;
+      };
+
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        onBackPress
+      );
+
+      return () => subscription.remove();
+    }, [])
+  );
 
 
   const validateInput = () => {
@@ -164,7 +198,7 @@ const LoginScreen = () => {
       // }
 
       // const dbName = selected.name.replace(/^SD_/, '');
-      const dbName = "APM_001";
+      const dbName = "APM_002";
 
       // Call the login function with just the dbName
       await login(mobileNumberOrEmpId, pin, dbName);
@@ -223,7 +257,7 @@ const LoginScreen = () => {
               <Card>
                 <Title>Login</Title>
 
-                <InputContainer>               
+                <InputContainer>
 
 
                   <InputLabel>Enter your Mobile number or Emp ID</InputLabel>
@@ -299,7 +333,7 @@ const LoginScreen = () => {
                         />
                       </FingerprintIcon>
                       <AlternativeLoginText>
-                        Login with PIN/Fingerprint
+                        Login with PIN/Biometric
                       </AlternativeLoginText>
                     </AlternativeLogin>
                   )}
@@ -327,6 +361,20 @@ const LoginScreen = () => {
           setLoading(false); // Hide loader
           Alert.alert("Timeout", "Not able to Login.");
         }}
+      />
+      <ConfirmationModal
+        visible={showExitModal}
+        message="Are you sure you want to exit the app?"
+        onConfirm={() => {
+          setShowExitModal(false);
+
+          setTimeout(() => {
+            BackHandler.exitApp();
+          }, 250);
+        }}
+        onCancel={() => setShowExitModal(false)}
+        confirmText="Exit"
+        cancelText="Cancel"
       />
     </SafeAreaContainer>
   );

@@ -39,7 +39,7 @@ const AddClaim = (props) => {
   const navigation = useNavigation();
   const router = useRouter();
 
-  console.log("Exp Item Dt---",expenseItemsData)
+  // console.log("Exp Item Dt---",expenseItemsData)
 
   // Parse props data
   const { masterClaimId, mode, claimData, orderItemData } = props.data || {};

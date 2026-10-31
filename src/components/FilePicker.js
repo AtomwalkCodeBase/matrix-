@@ -1,14 +1,26 @@
-import React, { useState } from "react";
-import { TouchableOpacity, Text, Image, ActivityIndicator, Modal, View, StyleSheet, Animated, Alert } from "react-native";
+import React, { useRef, useState } from "react";
+import {
+  TouchableOpacity,
+  Text,
+  Image,
+  ActivityIndicator,
+  Modal,
+  View,
+  StyleSheet,
+  Animated,
+  Alert,
+  Platform,
+  Linking,
+} from "react-native";
 import styled from "styled-components/native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImageManipulator from "expo-image-manipulator";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { colors } from "../Styles/appStyle";
 import { MaterialIcons } from "@expo/vector-icons";
 
-
+/* ================= STYLES ================= */
 const FileButton = styled.TouchableOpacity`
   flex-direction: row;
   justify-content: space-between;
@@ -28,9 +40,7 @@ const Label = styled.Text`
 const InputText = styled.Text`
   color: black;
   font-size: 16px;
-  font-weight: normal;
   flex: 1;
-  flex-shrink: 1;
   margin-right: 10px;
   max-width: 80%;
 `;
@@ -38,121 +48,86 @@ const InputText = styled.Text`
 const Icon = styled.Image`
   width: 24px;
   height: 24px;
-  flex-shrink: 0;
 `;
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+/* ================= HELPERS ================= */
 
-const ALLOWED_MIME_TYPES = [
-  "image/*",
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/plain",
-  "text/csv",
-  "application/json",
-  "application/zip",
-  "*/*"
-];
-
-const filenameFromUri = (uri = "") =>
-  uri.split("/").pop()?.split("?")[0] || "file";
-
-const inferMime = (filename = "") => {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  const map = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    gif: "image/gif",
-    bmp: "image/bmp",
-    webp: "image/webp",
-    heic: "image/heic",
-
-    pdf: "application/pdf",
-    doc: "application/msword",
-    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    xls: "application/vnd.ms-excel",
-    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    csv: "text/csv",
-    txt: "text/plain",
-    zip: "application/zip",
-    json: "application/json"
-  };
-
-  return map[ext] || "application/octet-stream";
+// Images are always re-encoded as JPEG by compressImage, so the name must end in .jpg
+// (iOS photos can come back as .heic, which would not match the uploaded bytes).
+const toJpgName = (name) => {
+  const base = (name || `photo_${Date.now()}`).replace(/\.[^/.]+$/, "");
+  return `${base}.jpg`;
 };
 
-const getFileSize = async (uri) => {
-  try {
-    const info = await FileSystem.getInfoAsync(uri);
-    return info.size || 0;
-  } catch {
-    return 0;
-  }
-};
-
-const getMimeFromFilename = (filename = "") => {
-  const ext = filename.split(".").pop()?.toLowerCase() || "";
-  switch (ext) {
-    case "jpg":
-    case "jpeg":
-      return "image/jpeg";
-    case "png":
-      return "image/png";
-    case "gif":
-      return "image/gif";
-    case "pdf":
-      return "application/pdf";
-    case "heic":
-      return "image/heic";
-    default:
-      return "application/octet-stream";
-  }
-};
-
-
-const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFileMimeType, error, existingImgUri= null}) => {
+/* ================= COMPONENT ================= */
+const FilePicker = ({
+  label,
+  fileName,
+  fileUri,
+  setFileName,
+  setFileUri,
+  setFileMimeType,
+  error,
+  existingImgUri = null,
+}) => {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [scaleValue] = useState(new Animated.Value(0));
 
-    const openModal = () => {
+  // Action to run once the modal is completely gone.
+  // On iOS a camera / document picker cannot be presented while a Modal is still on screen.
+  const pendingAction = useRef(null);
+
+  const runPendingAction = () => {
+    const action = pendingAction.current;
+    pendingAction.current = null;
+    if (action) action();
+  };
+
+  const openModal = () => {
     setShowModal(true);
     Animated.spring(scaleValue, {
       toValue: 1,
       useNativeDriver: true,
-      tension: 100,
-      friction: 8,
     }).start();
   };
 
-  const closeModal = () => {
+  const closeModal = (afterClose) => {
+    pendingAction.current = typeof afterClose === "function" ? afterClose : null;
+
     Animated.spring(scaleValue, {
       toValue: 0,
       useNativeDriver: true,
-      tension: 100,
-      friction: 8,
     }).start(() => {
       setShowModal(false);
+      // iOS runs the action from Modal's onDismiss (after the native dismissal finishes).
+      // Android has no onDismiss, so run it right away.
+      if (Platform.OS !== "ios") runPendingAction();
     });
   };
 
-  const handleFilePick = async () => {
-    openModal();
+  const applyFile = (uri, name, mimeType) => {
+    setFileName(name);
+    setFileUri(uri);
+    setFileMimeType(mimeType);
   };
 
- const handleCameraCapture = async () => {
-    closeModal();
+  /* ================= CAMERA ================= */
+  const takePhoto = async () => {
     setLoading(true);
 
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (permission.status !== "granted") {
-        Alert.alert("Permission Required", "Camera permission is required to take photos.");
-        setLoading(false);
+
+      if (!permission.granted) {
+        Alert.alert(
+          "Permission Required",
+          "Camera permission is required. Please enable it in Settings.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ]
+        );
         return;
       }
 
@@ -161,113 +136,87 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
         quality: 1,
       });
 
-      const cancelled = result?.canceled ?? result?.cancelled ?? false;
-      if (cancelled) {
-        setLoading(false);
-        return;
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
+        const compressedImage = await compressImage(asset.uri);
+
+        applyFile(compressedImage.uri, toJpgName(asset.fileName), "image/jpeg");
       }
-
-      const uri = result.uri ?? result.assets?.[0]?.uri;
-      if (!uri) {
-        Alert.alert("Error", "Could not read captured image.");
-        setLoading(false);
-        return;
-      }
-
-      // size limit
-      const fileSize = await getFileSize(uri);
-      if (fileSize > MAX_FILE_SIZE) {
-        Alert.alert("File Too Large", "Maximum allowed size is 5 MB.");
-        setLoading(false);
-        return;
-      }
-
-      const compressed = await ImageManipulator.manipulateAsync(uri, [], {
-        compress: 0.9,
-        format: ImageManipulator.SaveFormat.JPEG
-      });
-
-      const filename = filenameFromUri(uri);
-      const mime = inferMime(filename);
-
-      setFileName(filename);
-      setFileUri(compressed.uri);
-      setFileMimeType(mime);
-    } catch (error) {
-      console.error("Camera error:", error);
-      Alert.alert("Error", "Unable to capture image.");
+    } catch (err) {
+      console.error("Camera error:", err);
+      Alert.alert(
+        "Error",
+        "Could not open the camera. Please try again (the camera is not available on the iOS simulator)."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
-
- const handleFileSelect = async () => {
-    closeModal();
+  /* ================= FILE PICK ================= */
+  const pickFile = async () => {
     setLoading(true);
 
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ALLOWED_MIME_TYPES,
-        copyToCacheDirectory: true
+        type: ["image/*", "application/pdf"],
+        copyToCacheDirectory: true,
       });
 
-      if (result.type === "cancel") {
-        setLoading(false);
-        return;
-      }
+      if (!result.canceled && result.assets?.length > 0) {
+        const asset = result.assets[0];
 
-      const uri = result.uri ?? result.assets?.[0]?.uri;
-      const filename = result.name ?? filenameFromUri(uri);
-      const mime = result.mimeType ?? inferMime(filename);
-
-      if (!uri) {
-        Alert.alert("Error", "Unable to read selected file.");
-        setLoading(false);
-        return;
-      }
-
-      // ❌ Reject videos
-      if (mime.startsWith("video/")) {
-        Alert.alert("Invalid File", "Videos are not allowed.");
-        setLoading(false);
-        return;
-      }
-
-      // size validation
-      const fileSize = await getFileSize(uri);
-      if (fileSize > MAX_FILE_SIZE) {
-        Alert.alert("File Too Large", "Maximum allowed size is 5 MB.");
-        setLoading(false);
-        return;
-      }
-
-      let finalUri = uri;
-
-      // compress images only
-      if (mime.startsWith("image/")) {
-        try {
-          const compressed = await ImageManipulator.manipulateAsync(uri, [], {
-            compress: 0.9,
-            format: ImageManipulator.SaveFormat.JPEG
-          });
-          finalUri = compressed.uri;
-        } catch {
-          console.warn("Compression failed.");
+        if (asset.mimeType?.startsWith("image/")) {
+          const compressed = await compressImage(asset.uri);
+          applyFile(compressed.uri, toJpgName(asset.name), "image/jpeg");
+        } else {
+          applyFile(
+            asset.uri,
+            asset.name,
+            asset.mimeType || "application/octet-stream"
+          );
         }
       }
-
-      setFileName(filename);
-      setFileUri(finalUri);
-      setFileMimeType(mime);
-    } catch (error) {
-      console.error("File Picker Error:", error);
-      Alert.alert("Error", "Unable to pick file.");
+    } catch (err) {
+      console.error("File pick error:", err);
+      Alert.alert("Error", "Could not select the file. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
+  const handleCameraCapture = () => closeModal(takePhoto);
+  const handleFileSelect = () => closeModal(pickFile);
+
+  /* ================= IMAGE COMPRESSION ================= */
+  const compressImage = async (uri) => {
+    let compressQuality = 1;
+    const targetSize = 200 * 1024;
+
+    let compressedImage = await ImageManipulator.manipulateAsync(uri, [], {
+      compress: compressQuality,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
+
+    let imageInfo = await FileSystem.getInfoAsync(compressedImage.uri);
+
+    while (imageInfo.size > targetSize && compressQuality > 0.1) {
+      compressQuality -= 0.1;
+
+      compressedImage = await ImageManipulator.manipulateAsync(
+        compressedImage.uri,
+        [],
+        {
+          compress: compressQuality,
+          format: ImageManipulator.SaveFormat.JPEG,
+        }
+      );
+
+      imageInfo = await FileSystem.getInfoAsync(compressedImage.uri);
+    }
+
+    return compressedImage;
+  };
 
   const clearData = () => {
     setFileName("");
@@ -275,87 +224,58 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
     setFileMimeType("");
   };
 
+  /* ================= UI ================= */
   return (
     <>
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
+      <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
         <Label>{label}</Label>
-       {fileName && <TouchableOpacity onPress={clearData}>
-          <Text
-            style={{
-              color: colors.primary,
-              fontSize: 16,
-              fontWeight: 600,
-              marginTop: 12,
-            }}
-          >
-            Clear
-          </Text>
-        </TouchableOpacity>}
+        {fileName && (
+          <TouchableOpacity onPress={clearData}>
+            <Text style={{ color: colors.primary }}>Clear</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <FileButton onPress={handleFilePick}>
-        <InputText numberOfLines={1} ellipsizeMode="middle">{fileName || "No file selected"}</InputText>
+      <FileButton onPress={openModal}>
+        <InputText numberOfLines={1}>
+          {fileName || "No file selected"}
+        </InputText>
         <Icon source={require("../../assets/images/Upload-Icon.png")} />
       </FileButton>
 
-      {loading && (
-        <View style={{ marginTop: 16, alignItems: "center" }}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      )}
+      {loading && <ActivityIndicator style={{ marginTop: 16 }} />}
 
-      {error && (
-        <Text style={{ marginTop: 7, color: colors.red, fontSize: 12 }}>
-          {error}
-        </Text>
-      )}
+      {error && <Text style={{ color: colors.red }}>{error}</Text>}
 
-     {fileUri && (
-        inferMime(fileName).startsWith("image/") ? (
+      {(fileUri || existingImgUri) &&
+        /\.(jpg|jpeg|png|webp)$/i.test(fileName) && (
           <Image
-            source={{ uri: fileUri }}
-            style={{
-              width: 250,
-              height: 140,
-              borderRadius: 12,
-              resizeMode: "contain",
-              marginTop: 10,
-              alignSelf: "center"
-            }}
+            source={{ uri: fileUri || existingImgUri }}
+            style={{ width: 250, height: 140, marginTop: 10 }}
           />
-        ) : (
-          <Text
-            style={{
-              textAlign: "center",
-              marginTop: 10,
-              fontSize: 15,
-              color: "#333"
-            }}
-          >
-            📄 {fileName}
-          </Text>
-        )
-      )}
-      
-      <Modal visible={showModal} transparent animationType="none">
+        )}
+
+      {/* ================= MODAL ================= */}
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => closeModal()}
+        onDismiss={() => setTimeout(runPendingAction, 100)} // iOS only
+      >
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackground} 
-            onPress={closeModal}
+          <TouchableOpacity
+            style={styles.modalBackground}
+            onPress={() => closeModal()}
             activeOpacity={1}
           />
-          <Animated.View 
+
+          <Animated.View
             style={[
               styles.modalContent,
               {
-                transform: [{ scale: scaleValue }]
-              }
+                transform: [{ scale: scaleValue }],
+              },
             ]}
           >
             <View style={styles.modalHeader}>
@@ -366,38 +286,44 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
             </View>
 
             <View style={styles.optionContainer}>
-              <TouchableOpacity 
+              {/* CAMERA OPTION */}
+              <TouchableOpacity
                 style={styles.optionButton}
                 onPress={handleCameraCapture}
               >
                 <View style={styles.optionIconContainer}>
-                  <MaterialIcons name="camera-alt" size={24} color={colors.primary} />
+                  <MaterialIcons name="camera-alt" size={24} color="#a970ff" />
                 </View>
+
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionTitle}>Capture Photo</Text>
                   <Text style={styles.optionSubtitle}>Take a new photo</Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={20} color={colors.black} />
+
+                <MaterialIcons name="chevron-right" size={20} color="#ccc" />
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              {/* FILE OPTION */}
+              <TouchableOpacity
                 style={styles.optionButton}
                 onPress={handleFileSelect}
               >
                 <View style={styles.optionIconContainer}>
-                  <MaterialIcons name="folder" size={24} color={colors.primary} />
+                  <MaterialIcons name="folder" size={24} color="#a970ff" />
                 </View>
+
                 <View style={styles.optionTextContainer}>
                   <Text style={styles.optionTitle}>Choose File</Text>
                   <Text style={styles.optionSubtitle}>Select from library</Text>
                 </View>
-                <MaterialIcons name="chevron-right" size={20} color={colors.black} />
+
+                <MaterialIcons name="chevron-right" size={20} color="#ccc" />
               </TouchableOpacity>
             </View>
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.cancelButton}
-              onPress={closeModal}
+              onPress={() => closeModal()}
             >
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -409,39 +335,6 @@ const FilePicker = ({ label, fileName, fileUri, setFileName, setFileUri, setFile
 };
 
 const styles = StyleSheet.create({
-  headerContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  clearButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: "#f0ebff",
-  },
-  clearText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  errorText: {
-    marginTop: 7,
-    color: "#f44336",
-    fontSize: 12,
-  },
-  imageContainer: {
-    alignItems: "center",
-    marginTop: 12,
-  },
-  previewImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 12,
-    resizeMode: "cover",
-    borderWidth: 2,
-    borderColor: colors.primary,
-  },
   modalOverlay: {
     flex: 1,
     justifyContent: "center",
@@ -496,7 +389,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: `${colors.primaryLight}AA`,
+    backgroundColor: "#f8f6ff",
     marginBottom: 12,
     borderWidth: 1,
     borderColor: "#e8e0ff",
@@ -505,7 +398,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: `${colors.primaryLight}EE`,
+    backgroundColor: "#f0ebff",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 12,

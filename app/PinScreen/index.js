@@ -1,6 +1,12 @@
-import React, { useContext, useRef, useState, useEffect } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, {
+    useContext,
+    useRef,
+    useState,
+    useEffect,
+    useCallback
+} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from "expo-router";
 import NetInfo from '@react-native-community/netinfo';
 import {
     View,
@@ -12,7 +18,9 @@ import {
     ImageBackground,
     Dimensions,
     Image,
-    ScrollView
+    ScrollView,
+    Platform,
+    BackHandler
 } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Logos from '../../assets/images/Atom_walk_logo.jpg'
@@ -22,7 +30,7 @@ import ErrorModal from '../../src/components/ErrorModal';
 import { LinearGradient } from 'expo-linear-gradient';
 import ConfirmationModal from '../../src/components/ConfirmationModal';
 import Constants from 'expo-constants';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../../src/Styles/appStyle';
 
@@ -52,8 +60,13 @@ const AuthScreen = () => {
     const [showFingerprint, setShowFingerprint] = useState(false);
     const [isLogoutModalVisible, setIsLogoutModalVisible] = useState(false);
     const [hasFailedAttempt, setHasFailedAttempt] = useState(false);
+    const [biometricType, setBiometricType] = useState(null);
+    const [showExitModal, setShowExitModal] = useState(false);
+
     const appVersion = Constants.expoConfig?.version || '1.0.0';
     const maxAttempts = 5;
+
+
 
     useEffect(() => {
         const loadName = async () => {
@@ -65,12 +78,67 @@ const AuthScreen = () => {
         loadName();
 
         const getBioMatricS = async () => {
-            const bioStatus = await AsyncStorage.getItem('useFingerprint');
-            setShowBiomatricOption(bioStatus === 'true');
-            setShowPinInput(bioStatus !== 'true');
+            try {
+                const bioStatus = await AsyncStorage.getItem('useFingerprint');
+                const hasHardware = await LocalAuthentication.hasHardwareAsync();
+                const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+                const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+
+                let detectedType = null;
+
+                if (hasHardware && isEnrolled) {
+                    if (Platform.OS === 'android') {
+                        // Prefer fingerprint on Android
+                        if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+                            detectedType = 'fingerprint';
+                        } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+                            detectedType = 'face';
+                        }
+                    } else if (Platform.OS === 'ios') {
+                        if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
+                            detectedType = 'face';
+                        } else if (supportedTypes.includes(LocalAuthentication.AuthenticationType.FINGERPRINT)) {
+                            detectedType = 'fingerprint';
+                        }
+                    }
+                }
+
+                setBiometricType(detectedType);
+
+                // Show biometric login only when enabled and available.
+                const enabled = bioStatus === 'true' && !!detectedType;
+
+                setShowBiomatricOption(enabled);
+                setShowPinInput(!enabled);
+            } catch (error) {
+                console.warn('Could not detect biometric authentication:', error);
+                setBiometricType(null);
+                setShowBiomatricOption(false);
+                setShowPinInput(true);
+            }
         };
         getBioMatricS();
     }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            const onBackPress = () => {
+                setShowExitModal(prev => {
+                    if (prev) return prev;
+                    return true;
+                });
+
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener(
+                'hardwareBackPress',
+                onBackPress
+            );
+
+            return () => subscription.remove();
+        }, [])
+    );
 
     const checkNetworkAndAuthenticate = async () => {
         const netInfo = await NetInfo.fetch();
@@ -144,8 +212,11 @@ const AuthScreen = () => {
 
         try {
             const biometricAuth = await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Authenticate to login',
-                fallbackLabel: 'Use PIN instead',
+                promptMessage: biometricType === 'face'
+                    ? 'Authenticate with Face ID'
+                    : 'Authenticate with fingerprint',
+                fallbackLabel: 'Use device passcode',
+                disableDeviceFallback: false,
             });
 
             if (biometricAuth.success) {
@@ -179,7 +250,6 @@ const AuthScreen = () => {
     return (
         <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
 
-            {/* Bank Logo Area */}
             <LinearGradient
                 colors={[`${colors.primary}`, '#8a5bda']}
                 style={styles.header}
@@ -228,9 +298,12 @@ const AuthScreen = () => {
                                 }}
                             >
                                 <View style={styles.authButtonIconContainer}>
-                                    <Ionicons name="finger-print-outline" size={22} color={colors.primary} />
+                                    {biometricType === 'face' ?
+                                        <MaterialCommunityIcons name="face-recognition" size={22} color={colors.primary} /> :
+                                        <Ionicons name='finger-print-outline' size={22} color={colors.primary} />
+                                    }
                                 </View>
-                                <Text style={styles.authButtonText}>Login with Fingerprint</Text>
+                                <Text style={styles.authButtonText}> {biometricType === 'face' ? 'Login with Face ID' : 'Login with Biometric'}</Text>
                                 <Ionicons name="chevron-forward-outline" size={20} color="#777" style={styles.authButtonArrow} />
                             </TouchableOpacity>
                         )}
@@ -346,11 +419,16 @@ const AuthScreen = () => {
                                 checkNetworkAndAuthenticate();
                             }}
                         >
-                            <Ionicons name="finger-print" size={80} color={colors.primary} />
+                            {biometricType === 'face' ?
+                                <MaterialCommunityIcons name="face-recognition" size={80} color={colors.primary} /> :
+                                <Ionicons name='finger-print' size={80} color={colors.primary} />}
+
                         </TouchableOpacity>
 
                         <Text style={styles.fingerprintHint}>
-                            Place your finger on the sensor to authenticate
+                            {biometricType === 'face'
+                                ? 'Authenticate using Face ID on your device'
+                                : 'Place your finger on the sensor to authenticate'}
                         </Text>
                         <TouchableOpacity
                             style={styles.backButton}
@@ -409,6 +487,22 @@ const AuthScreen = () => {
                 }}
                 onCancel={() => setIsLogoutModalVisible(false)}
                 confirmText="Confirm"
+                cancelText="Cancel"
+            />
+            <ConfirmationModal
+                visible={showExitModal}
+                message="Are you sure you want to exit the app?"
+                onConfirm={() => {
+                    setShowExitModal(false);
+
+                    setTimeout(() => {
+                        BackHandler.exitApp();
+                    }, 250);
+                }}
+                onCancel={() => {
+                    setShowExitModal(false);
+                }}
+                confirmText="Exit"
                 cancelText="Cancel"
             />
         </SafeAreaView>

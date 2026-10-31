@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Platform } from 'react-native';
 import Modal from 'react-native-modal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -7,7 +7,17 @@ import { useRouter } from 'expo-router';
 
 const FingerPopup = () => {
     const [isPopupVisible, setIsPopupVisible] = useState(false);
+    const [biometricType, setBiometricType] = useState('fingerprint');
     const router = useRouter();
+
+    useEffect(() => {
+        // iOS uses Face ID (or Touch ID on older devices); Android uses fingerprint
+        if (Platform.OS === 'ios') {
+            setBiometricType('face');
+        } else {
+            setBiometricType('fingerprint');
+        }
+    }, []);
 
     useEffect(() => {
         const checkFingerprintSupportAndPreference = async () => {
@@ -57,7 +67,7 @@ const FingerPopup = () => {
                 <Image source={require('../../assets/images/pin.png')} style={styles.icon} />
 
                 {/* Message */}
-                <Text style={styles.message}>Would you like to set your Fingerprint for Login?</Text>
+                <Text style={styles.message}>Would you like to set your {biometricType === 'face' ? 'Face ID' : 'Fingerprint'} for Login?</Text>
 
                 {/* Buttons */}
                 <View style={styles.buttonContainer}>
