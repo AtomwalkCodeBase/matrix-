@@ -10,17 +10,15 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.atomwalk.atomwalkprojecttimesheet",
-      "buildNumber": "1",
       "infoPlist": {
         "NSFaceIDUsageDescription": "$(PRODUCT_NAME) uses Face ID to securely authenticate you.",
-        "NSCameraUsageDescription": "$(PRODUCT_NAME) needs camera access to capture attendance photos and photos of bills and supporting documents for claim submissions.",
+        "NSCameraUsageDescription": "$(PRODUCT_NAME) uses the camera to capture attendance photos and photos of bills and supporting documents for claim submissions.",
         "NSPhotoLibraryUsageDescription": "$(PRODUCT_NAME) needs access to your photo library so you can attach bills, receipts, and supporting images to your claims.",
-        "NSLocationWhenInUseUsageDescription": "$(PRODUCT_NAME) uses your location to record attendance check-ins, check-outs, and activity start and completion locations.",
+        "NSLocationWhenInUseUsageDescription": "$(PRODUCT_NAME) uses your location while the app is open to record attendance check-ins, check-outs, and activity start and completion locations.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "versionCode": 15,
       "permissions": [
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE"
@@ -70,7 +68,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "$(PRODUCT_NAME) uses your location to record attendance check-ins, check-outs, and activity start and completion locations."
+          "locationWhenInUsePermission": "$(PRODUCT_NAME) uses your location while the app is open to record attendance check-ins, check-outs, and activity start and completion locations.",
+          "isIosBackgroundLocationEnabled": false
         }
       ],
 
