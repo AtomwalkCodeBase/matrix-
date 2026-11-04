@@ -64,7 +64,7 @@ const Loader = ({ visible = false, onTimeout }) => {
       const pulseAnimation = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, {
-            toValue: 1.4,
+            toValue: 1.12,
             duration: 800,
             useNativeDriver: true,
           }),
@@ -137,17 +137,30 @@ const Loader = ({ visible = false, onTimeout }) => {
         colors={['rgba(0,0,0,0.6)', 'rgba(0,0,0,0.3)']}
         style={styles.gradient}
       >
-        <Animated.View style={[styles.loaderCard, { transform: [{ scale: pulseAnim }] }]}>
-          <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
-            <FontAwesome5 name="atom" size={48} color={colors.primary} />
+        <Animated.View style={styles.loaderCard}>
+
+          <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+            <Animated.View style={{ transform: [{ rotate: rotateInterpolate }] }}>
+              <FontAwesome5
+                name="atom"
+                size={48}
+                color={colors.primary}
+              />
+            </Animated.View>
           </Animated.View>
 
           <Text style={styles.loadingText}>Loading...</Text>
 
           <Animated.View style={[styles.tipContainer, { opacity: fadeAnim }]}>
-            <FontAwesome5 name={currentTip.icon} size={20} color={colors.primary} style={styles.tipIcon} />
+            <FontAwesome5
+              name={currentTip.icon}
+              size={20}
+              color={colors.primary}
+              style={styles.tipIcon}
+            />
             <Text style={styles.tipText}>{currentTip.text}</Text>
           </Animated.View>
+
         </Animated.View>
       </LinearGradient>
     </View>

@@ -1,0 +1,199 @@
+diff --git a/node_modules/react-native-modal/dist/modal.js b/node_modules/react-native-modal/dist/modal.js
+index 80f4e75..0c34f4a 100644
+--- a/node_modules/react-native-modal/dist/modal.js
++++ b/node_modules/react-native-modal/dist/modal.js
+@@ -1,5 +1,5 @@
+ import * as React from 'react';
+-import { Animated, DeviceEventEmitter, Dimensions, InteractionManager, KeyboardAvoidingView, Modal, PanResponder, BackHandler, Platform, TouchableWithoutFeedback, View, } from 'react-native';
++import { Animated, DeviceEventEmitter, Dimensions, KeyboardAvoidingView, Modal, PanResponder, BackHandler, Platform, TouchableWithoutFeedback, View } from 'react-native';
+ import * as PropTypes from 'prop-types';
+ import * as animatable from 'react-native-animatable';
+ import { initializeAnimations, buildAnimations, reversePercentage, } from './utils';
+@@ -65,7 +65,6 @@ export class ReactNativeModal extends React.Component {
+         this.currentSwipingDirection = null;
+         this.panResponder = null;
+         this.didUpdateDimensionsEmitter = null;
+-        this.interactionHandle = null;
+         this.getDeviceHeight = () => this.props.deviceHeight || this.state.deviceHeight;
+         this.getDeviceWidth = () => this.props.deviceWidth || this.state.deviceWidth;
+         this.onBackButtonPress = () => {
+@@ -304,90 +303,96 @@ export class ReactNativeModal extends React.Component {
+             if (this.isTransitioning) {
+                 return;
+             }
++
+             this.isTransitioning = true;
++
+             if (this.backdropRef) {
+-                this.backdropRef.transitionTo({ opacity: this.props.backdropOpacity }, this.props.backdropTransitionInTiming);
++                this.backdropRef.transitionTo(
++                    { opacity: this.props.backdropOpacity },
++                    this.props.backdropTransitionInTiming
++                );
+             }
+-            // This is for resetting the pan position,otherwise the modal gets stuck
+-            // at the last released position when you try to open it.
+-            // TODO: Could certainly be improved - no idea for the moment.
++
++            // Reset the pan position when opening the modal.
+             if (this.state.isSwipeable) {
+                 this.state.pan.setValue({ x: 0, y: 0 });
+             }
++
+             if (this.contentRef) {
+                 this.props.onModalWillShow && this.props.onModalWillShow();
+-                if (this.interactionHandle == null) {
+-                    this.interactionHandle = InteractionManager.createInteractionHandle();
+-                }
++
+                 this.contentRef
+                     .animate(this.animationIn, this.props.animationInTiming)
+                     .then(() => {
+-                    this.isTransitioning = false;
+-                    if (this.interactionHandle) {
+-                        InteractionManager.clearInteractionHandle(this.interactionHandle);
+-                        this.interactionHandle = null;
+-                    }
+-                    if (!this.props.isVisible) {
+-                        this.close();
+-                    }
+-                    else {
+-                        this.props.onModalShow();
+-                    }
+-                });
++                        this.isTransitioning = false;
++
++                        if (!this.props.isVisible) {
++                            this.close();
++                        } else {
++                            this.props.onModalShow();
++                        }
++                    });
+             }
+         };
++
+         this.close = () => {
+             if (this.isTransitioning) {
+                 return;
+             }
++
+             this.isTransitioning = true;
++
+             if (this.backdropRef) {
+-                this.backdropRef.transitionTo({ opacity: 0 }, this.props.backdropTransitionOutTiming);
++                this.backdropRef.transitionTo(
++                    { opacity: 0 },
++                    this.props.backdropTransitionOutTiming
++                );
+             }
++
+             let animationOut = this.animationOut;
++
+             if (this.inSwipeClosingState) {
+                 this.inSwipeClosingState = false;
++
+                 if (this.currentSwipingDirection === 'up') {
+                     animationOut = 'slideOutUp';
+-                }
+-                else if (this.currentSwipingDirection === 'down') {
++                } else if (this.currentSwipingDirection === 'down') {
+                     animationOut = 'slideOutDown';
+-                }
+-                else if (this.currentSwipingDirection === 'right') {
++                } else if (this.currentSwipingDirection === 'right') {
+                     animationOut = 'slideOutRight';
+-                }
+-                else if (this.currentSwipingDirection === 'left') {
++                } else if (this.currentSwipingDirection === 'left') {
+                     animationOut = 'slideOutLeft';
+                 }
+             }
++
+             if (this.contentRef) {
+                 this.props.onModalWillHide && this.props.onModalWillHide();
+-                if (this.interactionHandle == null) {
+-                    this.interactionHandle = InteractionManager.createInteractionHandle();
+-                }
++
+                 this.contentRef
+                     .animate(animationOut, this.props.animationOutTiming)
+                     .then(() => {
+-                    this.isTransitioning = false;
+-                    if (this.interactionHandle) {
+-                        InteractionManager.clearInteractionHandle(this.interactionHandle);
+-                        this.interactionHandle = null;
+-                    }
+-                    if (this.props.isVisible) {
+-                        this.open();
+-                    }
+-                    else {
+-                        this.setState({
+-                            showContent: false,
+-                        }, () => {
+-                            this.setState({
+-                                isVisible: false,
+-                            }, () => {
+-                                this.props.onModalHide();
+-                            });
+-                        });
+-                    }
+-                });
++                        this.isTransitioning = false;
++
++                        if (this.props.isVisible) {
++                            this.open();
++                        } else {
++                            this.setState(
++                                {
++                                    showContent: false,
++                                },
++                                () => {
++                                    this.setState(
++                                        {
++                                            isVisible: false,
++                                        },
++                                        () => {
++                                            this.props.onModalHide();
++                                        }
++                                    );
++                                }
++                            );
++                        }
++                    });
+             }
+         };
+         this.makeBackdrop = () => {
+@@ -409,9 +414,11 @@ export class ReactNativeModal extends React.Component {
+                         : 'transparent',
+                 },
+             ];
+-            const backdropWrapper = (React.createElement(animatable.View, { ref: ref => (this.backdropRef = ref), useNativeDriver: useNativeDriverForBackdrop !== undefined
++            const backdropWrapper = (React.createElement(animatable.View, {
++                ref: ref => (this.backdropRef = ref), useNativeDriver: useNativeDriverForBackdrop !== undefined
+                     ? useNativeDriverForBackdrop
+-                    : useNativeDriver, style: [styles.backdrop, backdropComputedStyle] }, hasCustomBackdrop && customBackdrop));
++                    : useNativeDriver, style: [styles.backdrop, backdropComputedStyle]
++            }, hasCustomBackdrop && customBackdrop));
+             if (hasCustomBackdrop) {
+                 // The user will handle backdrop presses himself
+                 return backdropWrapper;
+@@ -456,14 +463,14 @@ export class ReactNativeModal extends React.Component {
+         BackHandler.addEventListener('hardwareBackPress', this.onBackButtonPress);
+     }
+     componentWillUnmount() {
+-        BackHandler.removeEventListener('hardwareBackPress', this.onBackButtonPress);
++        BackHandler.removeEventListener(
++            'hardwareBackPress',
++            this.onBackButtonPress
++        );
++
+         if (this.didUpdateDimensionsEmitter) {
+             this.didUpdateDimensionsEmitter.remove();
+         }
+-        if (this.interactionHandle) {
+-            InteractionManager.clearInteractionHandle(this.interactionHandle);
+-            this.interactionHandle = null;
+-        }
+     }
+     componentDidUpdate(prevProps) {
+         // If the animations have been changed then rebuild them to make sure we're

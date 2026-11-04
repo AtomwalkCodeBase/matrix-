@@ -2,7 +2,7 @@
   "expo": {
     "name": "Atomwalk Project Timesheet",
     "slug": "atomwalk-project-timesheet",
-    "version": "1.0.14",
+    "version": "1.0.15",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",
     "scheme": "atomwalk-timesheet",
@@ -62,7 +62,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "$(PRODUCT_NAME) needs camera access to capture attendance photos and claim bills."
+          "cameraPermission": "$(PRODUCT_NAME) needs camera access to capture attendance photos and claim bills.",
+          "microphonePermission": false
         }
       ],
 
